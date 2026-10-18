@@ -56,6 +56,12 @@ detailed feature information on demand**, for example:
 - You produce product artifacts (specs, requirements, user stories). You do not write
   production code.
 
+## Product Artifact Workspace
+
+Before creating or changing any product requirement artifact, always read and follow
+the repository skill at `.codex/skills/product-requirements-documentation/SKILL.md`.
+That skill is the source of truth for the `product/` workspace and its artifacts.
+
 ---
 
 # Knowledge Base: Andromeda Manufacturing (General Guide)

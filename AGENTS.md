@@ -35,6 +35,9 @@ This is a pnpm + Turborepo monorepo. The two applications live under `apps/`:
 - **`apps/andromeda-frontend`** — Web SPA. React 19, TypeScript, Vite, TanStack Router,
   TanStack Query, Zustand, React Hook Form + Zod, Keycloak on the client. Tests with
   Vitest + React Testing Library.
+- **`product/`** — Product Owner documentation. Each top-level requirement resides in
+  a sequential `NN-kebab-case-name/` directory; its Markdown artifacts use ordered
+  `NN-kebab-case-name.md` filenames and contain at most 100 lines.
 
 ## Which agent is safe to act, by context
 
@@ -53,7 +56,24 @@ Route work to the agent whose scope matches the target of the change. An agent i
   `frontend-web-design-guidelines` skills.
 - **Product Owner agent** — for product artifacts (feature briefs, user stories,
   requirements, acceptance criteria). It does **not** write production code; use it to
-  scope and clarify before backend/frontend implementation.
+  scope and clarify before backend/frontend implementation. It is guided by the
+  `product-requirements-documentation` skill for artifacts in `product/`.
+
+### Product requirements workspace
+
+Product and business artifacts created by the Product Owner belong under the root
+`product/` directory. Each top-level requirement uses the next available two-digit
+sequence and a descriptive kebab-case name: `00-requirement-name`,
+`01-another-requirement-name`, and so on. Do not renumber existing requirement
+directories.
+
+Within a requirement directory, Markdown files follow the same ordered kebab-case
+pattern, for example `00-overview.md`, `01-functional-requirements.md`, and
+`02-acceptance-criteria.md`. Keep files in chronological or hierarchical order. A
+Markdown file must not exceed 100 lines; split longer material into consecutively
+numbered files while preserving the narrative or dependency order. The Product Owner
+owns these artifacts and keeps them product- and business-focused rather than adding
+implementation code or architecture details.
 
 Routing guidance:
 
