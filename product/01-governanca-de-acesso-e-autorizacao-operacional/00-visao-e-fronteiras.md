@@ -48,6 +48,7 @@ Andromeda em controlador de segurança, PLC/DCS/SIS ou autoridade física de eme
 | 04–05 | operações, papéis, atribuições e ativos |
 | 06–07 | estado, segregação, identidades, delegação e auditoria |
 | 08 | cenários e critérios Given/When/Then |
+| 09–10 | ciclo diário de colaboradores, responsabilidades e critérios verificáveis |
 
 O recorte Fundação/MVP deve suportar, no mínimo, tenant, Owner, membro, papel, atribuição de
 escopo, ativo e trilha de auditoria. Papéis adicionais e políticas sofisticadas podem evoluir sem
