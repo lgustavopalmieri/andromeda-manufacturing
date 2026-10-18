@@ -1,9 +1,8 @@
-
-# Andromeda Platform — Project Context & Agent Routing
+# Andromeda Manufacturing — Project Context & Agent Routing
 
 ## What this project is
 
-Andromeda is a **multi-tenant, white-label SaaS platform for Industry 4.0**. It lets
+Andromeda Manufacturing is a **multi-tenant, white-label SaaS platform for Industry 4.0**. It lets
 companies register and configure industrial machines/devices, execute production orders,
 collect real-time telemetry (MQTT), and turn that data into actionable KPIs (OEE,
 Throughput, Uptime, Quality Rate, etc.).
@@ -31,7 +30,7 @@ Non-negotiable, platform-wide constraints in every layer:
 This is a pnpm + Turborepo monorepo. The two applications live under `apps/`:
 
 - **`apps/andromeda-backend`** — API. TypeScript (strict), Express 5, PostgreSQL + MongoDB
-  (TypeORM), Keycloak auth, MQTT ingestion, Rule Engine. Tests with Vitest + supertest,
+  (TypeORM), Keycloak auth, MQTT ingestion, Rule Engine. Tests wiAGENTS.mdth Vitest + supertest,
   build with tsup, dev with tsx.
 - **`apps/andromeda-frontend`** — Web SPA. React 19, TypeScript, Vite, TanStack Router,
   TanStack Query, Zustand, React Hook Form + Zod, Keycloak on the client. Tests with

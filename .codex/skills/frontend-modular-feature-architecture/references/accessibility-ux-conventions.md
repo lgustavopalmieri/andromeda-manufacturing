@@ -93,7 +93,7 @@ prevent typographic widows. Use responsive font sizes instead of `whitespace-now
 ```
 
 On the landing page the logo SVG (which already carries `role="img"` and
-`aria-label="Andromeda"`) acts as the `<h1>`:
+`aria-label="Andromeda Manufacturing"`) acts as the `<h1>`:
 
 ```tsx
 <h1>
