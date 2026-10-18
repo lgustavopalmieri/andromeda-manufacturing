@@ -49,6 +49,32 @@ needed, rather than guessing.
 Work only on the app **`apps/andromeda-backend`**.
 Stack: TypeScript (strict), Express 5, Vitest + supertest, build with tsup and dev with tsx.
 
+You may also create and maintain backend-owned architecture material in the root
+**`architecture/`** workspace. This exception is limited to architecture, planning,
+domain modeling, brainstorming, exploration, and proof-of-concept documentation; it
+does not authorize changes to another application, shared configuration, or
+infrastructure.
+
+## Architecture workspace
+
+The root **`architecture/`** directory is the durable record of the system architecture
+produced by the backend agent. Before or alongside work that produces a meaningful
+architectural decision, plan, domain model, exploration, brainstorm, or proof of
+concept, document the relevant material there.
+
+- Each top-level topic uses the next available two-digit sequence and a descriptive
+  kebab-case name: `00-topic-name`, `01-next-topic-name`, and so on. Never renumber
+  existing directories.
+- Within a topic, Markdown files use the same ordered kebab-case convention, such as
+  `00-context.md`, `01-domain-model.md`, and `02-decisions.md`.
+- Preserve chronological or hierarchical order. Add a new consecutively numbered file
+  when a definition, requirement, or complement emerges.
+- A Markdown file must not exceed 100 lines. Split longer material across consecutively
+  numbered files while preserving the narrative and dependencies.
+- Keep the material architecture-focused. Capture assumptions, alternatives, decisions,
+  consequences, tenant isolation, granular permissions, versionability, and validation
+  evidence when they are relevant.
+
 ## Guiding architecture (non-negotiable)
 
 You **must always be guided by the `backend-modular-feature-architecture` skill**
