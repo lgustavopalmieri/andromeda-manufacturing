@@ -1,37 +1,63 @@
-# Features necessárias e ordem de implementação
+# Índice de execução: features e ordem de implementação
 
-Cada item seguirá `entity → domain → application → outbound → inbound → wire`, conforme o padrão
-do backend. Os nomes abaixo são features semânticas, não controladores CRUD genéricos.
+> Este arquivo é o roteiro de execução da spec, não uma lista solta de nomes. Em cada fase, a
+> coluna **Especificação e fonte** leva ao módulo que define entidade, regra e feature, e ao requisito
+> que exige o comportamento. Cada feature deve seguir `entity → domain → application → outbound →
+> inbound → wire`, com testes no mesmo slice; não implementar controlador CRUD fora dessa estrutura.
 
-| Fase | Módulos / features | Resultado verificável |
-|---|---|---|
-| 0 | `@shared/access`, autenticação Keycloak, banco, migrações, correlação, outbox e `audit-trail/record-event` | Token é validado, identidade é propagada, auditoria e evento podem ser atômicos. |
-| 1 | `access-governance/bootstrap-catalog`; `tenant/request-onboarding`, `provision-owner-invitation`, `activate-tenant` | Solicitação idempotente cria tenant pendente, política/papéis neutros e Owner rastreável. |
-| 2 | `identity/resolve-identity`; `membership/register-member`, `invite-member`, `accept-invitation`, `suspend-member`, `revoke-member`; `tenant/appoint-owner`, `transfer-owner`, `suspend-tenant` | Só membro ativo atua; último Owner não pode sair; vínculo RH/contrato é rastreável. |
-| 3 | `access-governance/define-role`, `publish-role-revision`, `propose-access`, `decide-access-request`, `grant-access`, `suspend-grant`, `revoke-grant`, `evaluate-access` | Papéis e permissões exatas funcionam no escopo tenant, sem direito operacional implícito. |
-| 4 | `operational-topology/register-node`, `move-node`, `inactivate-node`; resolução de escopo descendente | Site, linha e ativo restringem listagem e ação; mudança de ativo preserva histórico. |
-| 5 | `competency/validate-evidence`; `work-schedule/define-shift`, `materialize-occurrence`; `asset-assignment/assign-asset`, `end-assignment` | Operação de ativo requer, quando configurado, turno, competência e designação válidos. |
-| 6 | `delegation/create`, `accept`, `revoke`; `emergency-access/authorize`, `revoke`, `review`; `access-governance/review-grants` | Cobertura temporária, agente e elevação emergencial expiram e deixam trilha. |
-| 7 | Adaptadores de contexto em HMI, ordem, qualidade, manutenção, material e integração | Todos os canais usam a mesma decisão antes de revelar ou mudar recurso. |
+## Ordem de entrega
 
-## Dependências de implementação importantes
+| Fase | Resultado e features em ordem | Especificação e fonte | Critério para avançar |
+|---:|---|---|---|
+| 0 | Fundação: `@shared/access`, autenticação Keycloak, contexto de tenant, `ContextualAuthorizedUsecase`, migrations, transaction manager, outbox e `audit-trail/record-event`. | [Contratos](02-contratos-compartilhados-de-autorizacao.md), [decisão](11-modelo-de-decisao-contextual.md), [auditoria](10-entidades-auditoria.md), [P00](../../product/01-governanca-de-acesso-e-autorizacao-operacional/00-visao-e-fronteiras.md), [P02](../../product/01-governanca-de-acesso-e-autorizacao-operacional/02-modelo-de-autorizacao-contextual.md) | Token só autentica; toda escrita tenant-scoped tem `tenantId`; onboarding público é allowlist pré-tenant auditada. |
+| 1 | Bootstrap de conta pendente: `bootstrap-catalog`, `publish-initial-policy`, `request-onboarding`, `provision-owner-invitation`. | [Catálogo/política](05-entidades-catalogo-papeis-e-politica.md), [tenant](03-entidades-tenant.md), [P03](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md), [P04](../../product/01-governanca-de-acesso-e-autorizacao-operacional/04-catalogo-de-permissoes-e-papeis.md) | Repetição correlacionada não duplica tenant/Owner; cria apenas tenant, membro e Owner pendentes. |
+| 2 | Ativação e ciclo de vínculo: `resolve/register-non-human-identity`, `issue/rotate/revoke/review-credential`, registrar/alterar/encerrar vínculo, `invite-member`, `accept-invitation`, `record-policy-acceptance`, `grant-access` de governança do Owner, `activate-tenant`; `suspend/revoke-member`, `appoint/transfer/recover-owner`. | [Identity/membership](04-entidades-identidade-e-vinculo.md), [tenant/Owner](03-entidades-tenant.md), [grants](06-entidades-pedidos-concessoes-e-escopos.md), [P03](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md), [P07](../../product/01-governanca-de-acesso-e-autorizacao-operacional/07-identidades-delegacao-excecao-e-auditoria.md), [P09](../../product/01-governanca-de-acesso-e-autorizacao-operacional/09-governanca-do-ciclo-de-vida-de-colaboradores.md), [P10](../../product/01-governanca-de-acesso-e-autorizacao-operacional/10-cenarios-do-ciclo-de-vida-e-criterios.md) | Ativa somente com Owner/membro/aceite/grant de governança; Owner não ganha grant operacional. |
+| 3 | Autoridade ordinária: `define-role`, `publish-role-revision`, `publish-access-policy`, `propose-access`, `decide-access-request`, `grant-access`, `suspend-grant`, `revoke-grant`, `review-grants`, `evaluate-access`. | [Papéis/política](05-entidades-catalogo-papeis-e-politica.md), [pedidos/grants](06-entidades-pedidos-concessoes-e-escopos.md), [P04](../../product/01-governanca-de-acesso-e-autorizacao-operacional/04-catalogo-de-permissoes-e-papeis.md), [P05](../../product/01-governanca-de-acesso-e-autorizacao-operacional/05-atribuicoes-escopos-e-ativos.md), [P06](../../product/01-governanca-de-acesso-e-autorizacao-operacional/06-regras-de-estado-e-segregacao.md) | Grant ativo tem operação, escopo, vigência, motivo e autoridade verificáveis; revogação bloqueia a próxima chamada. |
+| 4 | Escopo físico: `register-node`, `move-node`, `inactivate-node`, `resolve-descendant-scope`; revisar grants/designações afetados. | [Topologia](07-entidades-topologia.md), [grants/escopos](06-entidades-pedidos-concessoes-e-escopos.md), [P00](../../product/01-governanca-de-acesso-e-autorizacao-operacional/00-visao-e-fronteiras.md), [P05](../../product/01-governanca-de-acesso-e-autorizacao-operacional/05-atribuicoes-escopos-e-ativos.md) | Acesso à linha/ativo não revela irmãos; mover ativo não reescreve fatos históricos. |
+| 5 | Condições para atuar: `record/validate/revoke-competency`, `define-shift`, `materialize-occurrence`, `assign-asset`, `suspend/end-assignment`. | [Competência, turno e designação](08-entidades-condicoes-operacionais.md), [modelo contextual](11-modelo-de-decisao-contextual.md), [P05](../../product/01-governanca-de-acesso-e-autorizacao-operacional/05-atribuicoes-escopos-e-ativos.md), [P09](../../product/01-governanca-de-acesso-e-autorizacao-operacional/09-governanca-do-ciclo-de-vida-de-colaboradores.md) | Operar ativo exige, quando aplicável, permissão + escopo + competência + turno + designação. |
+| 6 | Autoridade extraordinária e evidência consultável: `create/accept/revoke-delegation`, `request/authorize/notify/revoke/review-emergency-access`, `list-events`, `export-events`. | [Delegação/exceção](09-entidades-delegacao-e-excecao.md), [auditoria](10-entidades-auditoria.md), [P06](../../product/01-governanca-de-acesso-e-autorizacao-operacional/06-regras-de-estado-e-segregacao.md), [P07](../../product/01-governanca-de-acesso-e-autorizacao-operacional/07-identidades-delegacao-excecao-e-auditoria.md), [P08](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md) | Delegação nunca amplia fonte; exceção expira e gera revisão; auditor só consulta seu escopo. |
+| 7 | Adaptadores de recurso: contexto/autorização em HMI, ordem, qualidade, manutenção, material, telemetria e integração; incluir agentes pelos mesmos contratos. | [Modelo de integração](11-modelo-de-decisao-contextual.md), [contratos](02-contratos-compartilhados-de-autorizacao.md), [auditoria](10-entidades-auditoria.md), [P00](../../product/01-governanca-de-acesso-e-autorizacao-operacional/00-visao-e-fronteiras.md), [P08](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md) | Nenhum canal revela ou altera recurso sem a mesma decisão contextual e evidência. |
 
-- A fase 0 é pré-requisito de toda escrita: não criar endpoints administrativos sem auditoria e tenant context.
-- A fase 1 pode expor somente onboarding público e ativação do Owner convidado; não expõe operação.
-- A fase 3 implementa inicialmente escopo de tenant. A fase 4 estende a mesma entidade de grant para árvore física.
-- A fase 5 vem antes de liberar HMI/manutenção reais; não simular competência por papel.
-- Fases 6 e 7 não substituem a reavaliação da fase 3; elas adicionam fontes de autoridade e contexto.
+## Dependências que não podem ser invertidas
 
-## Estrutura de feature esperada
+- A fase 0 é pré-requisito de toda escrita tenant-scoped. A outbox aqui é infraestrutura **a criar**,
+  não comportamento já fornecido; `request-onboarding` é a única escrita pública pré-tenant e usa correlação/ator de sistema.
+- A fase 1 expõe somente onboarding pendente. A fase 2 aceita vínculo/política, cria grant explícito
+  de governança e só então ativa o tenant; não liberar ativo ou operação antes de 3–5.
+- A fase 3 inicialmente suporta escopo de tenant; a fase 4 expande o mesmo `AccessGrant`, sem criar
+  outro mecanismo de acesso físico. A fase 5 vem antes de HMI/manutenção reais.
+- Fase 6 adiciona autoridade derivada e consulta, mas não substitui reavaliação de grant, estado ou SoD.
+- Fase 7 não modela profundamente os domínios futuros: cada um implementa porta de contexto e usa
+  o avaliador desta spec, preservando a versão/contexto do fato para auditoria histórica.
 
-```text
-modules/access-governance/
-  entity/{permission,role,policy,access-request,access-grant}.ts
-  features/grant-access/{domain,application,inbound/http,outbound/typeorm}/
-modules/tenant/features/request-onboarding/{domain,application,inbound/http,outbound/typeorm}/
-modules/@shared/access/{authorization.types,contextual-authorized-usecase}.ts
-```
+## Rastreabilidade feature → módulo → fonte → verificação
 
-Interfaces de repositório, Keycloak, clock, transação, outbox e contexto de recurso pertencem a
-`application/interfaces.ts`; implementações TypeORM/Keycloak pertencem a `outbound/` e são ligadas
-somente pelo `wire`. Isto preserva domínio puro e testes unitários sem banco ou IdP.
+Cada célula de feature aponta para a spec que contém entidades e invariantes; a última coluna é o
+teste mínimo que torna a regra verificável. Features separadas por `/` pertencem ao mesmo módulo e
+compartilham a fonte e a verificação indicadas.
+
+| Feature(s) | Módulo/spec | Fonte de produto | Verificação mínima |
+|---|---|---|---|
+| `contextual-authorize` / `ContextualAuthorizedUsecase` | [@shared/access](02-contratos-compartilhados-de-autorizacao.md), [decisão](11-modelo-de-decisao-contextual.md) | [P02](../../product/01-governanca-de-acesso-e-autorizacao-operacional/02-modelo-de-autorizacao-contextual.md) | Token não concede; tenant/escopo estrangeiro não é enumerado. |
+| `bootstrap-catalog` / `publish-initial-policy` | [05](05-entidades-catalogo-papeis-e-politica.md) | [P04](../../product/01-governanca-de-acesso-e-autorizacao-operacional/04-catalogo-de-permissoes-e-papeis.md), [P06](../../product/01-governanca-de-acesso-e-autorizacao-operacional/06-regras-de-estado-e-segregacao.md) | Revisão efetiva é publicada e imutável. |
+| `request-onboarding` / `provision-owner-invitation` | [03](03-entidades-tenant.md) | [P03](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md), [P08.1–2](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md) | Correlação não duplica; tenant pendente não opera. |
+| `accept-invitation` / `record-policy-acceptance` / `activate-tenant` | [03](03-entidades-tenant.md), [04](04-entidades-identidade-e-vinculo.md) | [P03](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md) | Aceite registra pessoa/versão/instante; ativo retém Owner. |
+| `resolve/register-non-human-identity` / credencial | [04](04-entidades-identidade-e-vinculo.md) | [P07](../../product/01-governanca-de-acesso-e-autorizacao-operacional/07-identidades-delegacao-excecao-e-auditoria.md) | Serviço/dispositivo/agente não herda pessoa nem segredo local. |
+| `record/change/end-affiliation` / membro | [04](04-entidades-identidade-e-vinculo.md) | [P09](../../product/01-governanca-de-acesso-e-autorizacao-operacional/09-governanca-do-ciclo-de-vida-de-colaboradores.md), [P10](../../product/01-governanca-de-acesso-e-autorizacao-operacional/10-cenarios-do-ciclo-de-vida-e-criterios.md) | Admissão, mudança e desligamento não concedem acesso implícito. |
+| `grant-access` de Owner / `appoint/transfer/recover-owner` | [03](03-entidades-tenant.md), [06](06-entidades-pedidos-concessoes-e-escopos.md) | [P03](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md), [P08.14](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md) | Último Owner não sai; grant é governança, não operação. |
+| `define/publish-role` / `publish-access-policy` | [05](05-entidades-catalogo-papeis-e-politica.md) | [P04](../../product/01-governanca-de-acesso-e-autorizacao-operacional/04-catalogo-de-permissoes-e-papeis.md), [P06](../../product/01-governanca-de-acesso-e-autorizacao-operacional/06-regras-de-estado-e-segregacao.md) | Papel novo não amplia grant existente silenciosamente. |
+| `propose/decide/grant/suspend/revoke/review-access` | [06](06-entidades-pedidos-concessoes-e-escopos.md) | [P05](../../product/01-governanca-de-acesso-e-autorizacao-operacional/05-atribuicoes-escopos-e-ativos.md), [P09](../../product/01-governanca-de-acesso-e-autorizacao-operacional/09-governanca-do-ciclo-de-vida-de-colaboradores.md) | Grant direto exige motivo/aprovação/fim; revogação é imediata. |
+| `register/move/inactivate-node` / escopo descendente | [07](07-entidades-topologia.md) | [P02](../../product/01-governanca-de-acesso-e-autorizacao-operacional/02-modelo-de-autorizacao-contextual.md), [P08.3–5](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md) | Linha/ativo não revela irmão; mudança preserva histórico. |
+| competência, turno e `assign/suspend/end-assignment` | [08](08-entidades-condicoes-operacionais.md) | [P05](../../product/01-governanca-de-acesso-e-autorizacao-operacional/05-atribuicoes-escopos-e-ativos.md), [P10.2,7](../../product/01-governanca-de-acesso-e-autorizacao-operacional/10-cenarios-do-ciclo-de-vida-e-criterios.md) | Ativo exige todas as condições configuradas. |
+| `create/accept/revoke-delegation` | [09](09-entidades-delegacao-e-excecao.md) | [P07](../../product/01-governanca-de-acesso-e-autorizacao-operacional/07-identidades-delegacao-excecao-e-auditoria.md), [P08.10–11](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md) | Destino nunca excede grant fonte; agente respeita modo. |
+| `request/authorize/notify/revoke/review-emergency-access` | [09](09-entidades-delegacao-e-excecao.md) | [P07](../../product/01-governanca-de-acesso-e-autorizacao-operacional/07-identidades-delegacao-excecao-e-auditoria.md), [P08.15](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md) | Exceção mínima expira e deixa revisão pendente. |
+| `record/list/export-events` | [10](10-entidades-auditoria.md) | [P07](../../product/01-governanca-de-acesso-e-autorizacao-operacional/07-identidades-delegacao-excecao-e-auditoria.md) | Trilha é append-only e consulta respeita escopo. |
+| adaptador de contexto de HMI/ordem/qualidade/etc. | [11](11-modelo-de-decisao-contextual.md) | [P00](../../product/01-governanca-de-acesso-e-autorizacao-operacional/00-visao-e-fronteiras.md), [P08](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md) | Mesmo pedido contextual antes de toda leitura/mutação. |
+
+## Definição de pronto por feature
+
+Cada feature ligada acima só está pronta quando: sua regra pura cobre invariantes; a application
+usa portas e a autorização correta; a persistência impõe isolamento/uniqueness; o inbound não aceita
+identidade, tenant ou contexto sensível do cliente; e há casos unitários, integração e E2E da fonte
+indicada. A matriz de transações, índices e testes obrigatórios fica em
+[13-consistencia-persistencia-e-validacao.md](13-consistencia-persistencia-e-validacao.md).
