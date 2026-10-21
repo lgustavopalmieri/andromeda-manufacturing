@@ -452,7 +452,7 @@ identity through (`allowedRoles.length === 0 → true`). There's **no** role-den
 `when fails` case — instead **lock the public contract** with a `when success` test:
 
 ```ts
-it("allows an identity without any roles (create-account is a public endpoint)", async () => {
+it("should allow an identity without any roles when create-account is a public endpoint", async () => {
   const { sut, identityProvider } = makeSut();
   await expect(
     sut.execute(makeCreateAccountInput(), makeIdentity({ roles: [] })),
@@ -484,7 +484,7 @@ const makeSut = (queryRunner = makeQueryRunner()) => {
   return { sut: new CreateAccountTransactionManager(dataSource), queryRunner };
 };
 
-it("rolls back and re-throws the original error when the work throws", async () => {
+it("should roll back and re-throw the original error when the work throws", async () => {
   const workError = new Error("work failed");
   const { sut, queryRunner } = makeSut();
   await expect(
@@ -496,7 +496,7 @@ it("rolls back and re-throws the original error when the work throws", async () 
   expect(queryRunner.commitTransaction).not.toHaveBeenCalled();
 });
 
-it("throws RepositoryError when releasing the query runner fails", async () => {
+it("should throw RepositoryError when releasing the query runner fails", async () => {
   const { sut } = makeSut(
     makeQueryRunner({
       release: vi.fn(async () => {
