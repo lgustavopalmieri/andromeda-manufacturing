@@ -18,6 +18,13 @@
 | 6 | Autoridade extraordinária e evidência consultável: `create/accept/revoke-delegation`, `request/authorize/notify/revoke/review-emergency-access`, `list-events`, `export-events`. | [Delegação/exceção](09-entidades-delegacao-e-excecao.md), [auditoria](10-entidades-auditoria.md), [P06](../../product/01-governanca-de-acesso-e-autorizacao-operacional/06-regras-de-estado-e-segregacao.md), [P07](../../product/01-governanca-de-acesso-e-autorizacao-operacional/07-identidades-delegacao-excecao-e-auditoria.md), [P08](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md) | Delegação nunca amplia fonte; exceção expira e gera revisão; auditor só consulta seu escopo. |
 | 7 | Adaptadores de recurso: contexto/autorização em HMI, ordem, qualidade, manutenção, material, telemetria e integração; incluir agentes pelos mesmos contratos. | [Modelo de integração](11-modelo-de-decisao-contextual.md), [contratos](02-contratos-compartilhados-de-autorizacao.md), [auditoria](10-entidades-auditoria.md), [P00](../../product/01-governanca-de-acesso-e-autorizacao-operacional/00-visao-e-fronteiras.md), [P08](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md) | Nenhum canal revela ou altera recurso sem a mesma decisão contextual e evidência. |
 
+## Status de implementação
+
+| Item | Status em 2026-10-22 | Evidência e limite atual |
+|---|---|---|
+| `contextual-authorize` / `ContextualAuthorizedUsecase` | `validated` | Implementado em `apps/andromeda-backend/src/modules/@shared/access/`: contratos, resolução de sujeito tenant-local, porta de avaliador, bloqueio antes do efeito e erros não enumeráveis. Teste unitário focado: 13/13; `typecheck`, `build` e `git diff --check` aprovados. Cobertos tenant/recurso estrangeiro, decisão desconhecida, obrigação, reavaliação e contexto confiável com cadeia site→área→linha→célula→ativo. |
+| Fase 0 | `in progress` | Permanecem autenticação Keycloak, seleção de tenant no edge, migrations, transaction manager, outbox e `audit-trail/record-event`. A avaliação de grants/descendência não pertence a este contrato: será entregue em `evaluate-access` (fase 3) e `operational-topology` (fase 4). |
+
 ## Dependências que não podem ser invertidas
 
 - A fase 0 é pré-requisito de toda escrita tenant-scoped. A outbox aqui é infraestrutura **a criar**,

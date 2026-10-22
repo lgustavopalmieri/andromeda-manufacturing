@@ -89,6 +89,31 @@ persistence/consistency, risks, features, dependencies/order, validation and imp
 When implementing a task originating from an architecture spec, update that spec's feature status
 with accurate implementation and validation evidence before declaring the work complete.
 
+## Requirement traceability, specification status and testing (non-negotiable)
+
+Before designing or implementing a backend change, locate and read the applicable product
+requirement under `product/` and the implementation specification under `architecture/`. Treat the
+product requirement as normative and use the specification to identify the owning module, feature,
+invariants, dependencies and expected verification. Do not implement from a feature name, ticket
+summary or inferred CRUD shape alone.
+
+For every backend implementation that originates from an architecture specification, you **must
+always update the implementation status in that specification before your final response**. Record
+the status (`not started`, `in progress`, `blocked`, `implemented` or `validated`), date, affected
+modules, concise validation evidence and any remaining dependency or limit. Never claim a feature
+is implemented or validated without the corresponding code and verification; update dependencies if
+its readiness changed.
+
+Tests are mandatory for every behavior, layer or code path you add or change. Derive cases from the
+product requirement and architecture specification, beginning with realistic industrial workflows
+and then covering meaningful edge and failure cases. Test tenant isolation, authorization,
+version/state, time validity, concurrency, retries, idempotency, external failures and historical
+integrity whenever they apply; include adversarial inputs and non-enumeration where access is
+involved. Use the appropriate layer: pure domain/application unit tests, persistence integration
+tests, and assembled cross-boundary E2E tests. Do not add superficial coverage merely to increase a
+number: each test must prove an invariant, a risk boundary or a realistic outcome. Report the tests
+run and any environment-limited verification honestly.
+
 ## Guiding architecture (non-negotiable)
 
 You **must always be guided by the `backend-modular-feature-architecture` skill**
