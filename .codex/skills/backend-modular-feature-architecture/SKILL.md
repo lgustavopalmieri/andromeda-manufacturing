@@ -133,7 +133,8 @@ src/
 ├── platform/                        # concrete infra, agnostic of business logic
 │   ├── database/<engine>/           # data-source, orm-entity, migrations, errors
 │   ├── http/                        # HttpServer + routes + middlewares/auth (authentication at the edge)
-│   ├── auth/                        # concrete token verifier (e.g., JWT) — implements the port
+│   ├── auth/                        # provider-neutral authentication ports and errors
+│   ├── <technology>/                # technology-specific adapters (e.g., keycloak/, redis/)
 │   ├── events/                      # concrete publisher/DLQ (today: a log placeholder)
 │   └── observability/               # concrete logger (implements the @shared interface)
 └── modules/
@@ -259,6 +260,25 @@ Follow the dependency rule. Each step has its own reference file.
 - **TypeScript strict** with `exactOptionalPropertyTypes` and
   `noUncheckedIndexedAccess`: optional fields are **omitted** (not set to
   `undefined`).
+- **Technology ownership:** a generic capability belongs under its capability folder
+  (for example, `platform/auth/` holds a provider-neutral `TokenVerifierInterface`
+  and authentication errors). An adapter explicitly tied to a named technology
+  belongs under `platform/<technology>/`, with its configuration in
+  `configs/<technology>.ts`. Therefore a Keycloak realm/JWKS-path/admin adapter is
+  in `platform/keycloak/` and `configs/keycloak.ts`, even when it uses a standards
+  library such as `jose` rather than the Keycloak SDK. Conversely, a verifier with
+  no Keycloak-specific endpoint, claim, configuration, or behavior must be named
+  generically (for example `OidcJwtTokenVerifier`) and remain in `platform/auth/`.
+- **Tests are structural, not stylistic:** every executable test suite — unit,
+  integration, e2e, platform, adapter, and shared code alike — declares the SUT in
+  an outer `describe("<SUT>")`, groups assertions in nested
+  `describe("when <condition>")`, and names every case
+  `it("should <observable behavior>")`. Every runtime suite has a typed
+  `makeSut()` that assembles the SUT and exposes its collaborators; use factories
+  for data, stubs for fixed interface behavior, mocks/spies for observed
+  interactions, and real testcontainers for database/external-integration behavior.
+  The only exception is an `entity/` type contract, whose test is the compiler.
+  Follow the complete, non-optional pattern in `references/testing.md`.
 
 ---
 

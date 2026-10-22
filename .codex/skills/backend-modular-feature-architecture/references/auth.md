@@ -210,17 +210,24 @@ export class RegisterDeviceUsecase extends AuthorizedUsecase<
   before `handle`, so the roles the feature requires are covered by the **feature's
   own unit test**, not only end-to-end.
 
-### `platform/auth/` — the concrete token verifier
+### `platform/auth/` — provider-neutral port and errors
+
+`platform/auth/` contains only the generic token-verification port and authentication
+errors. Its provider implementation is selected by its actual integration boundary:
+an OIDC/JWT verifier with no provider-specific assumptions may live here, but a
+Keycloak adapter must live in `platform/keycloak/` with `configs/keycloak.ts`.
+
+### `platform/keycloak/` — the Keycloak JWT verifier
 
 ```ts
-// jwt-token-verifier.ts  (implements TokenVerifierInterface with jose / RS256)
-export class JwtTokenVerifier implements TokenVerifierInterface {
+// keycloak/keycloak-jwt-token-verifier.ts
+export class KeycloakJwtTokenVerifier implements TokenVerifierInterface {
   public async verify(token: string): Promise<AuthenticatedIdentity> {
     try {
       const { payload } = await jwtVerify(token, await this.resolveKey(), {
         algorithms: this.options.algorithms,
       });
-      return this.toIdentity(payload); // sub → userId ; roles[] (strings only)
+      return this.toIdentity(payload); // sub/auth_time/amr only; never roles or scopes
     } catch (error) {
       if (error instanceof InvalidTokenError) throw error;
       throw new InvalidTokenError(); // any failure becomes an auth domain error
@@ -229,11 +236,14 @@ export class JwtTokenVerifier implements TokenVerifierInterface {
 }
 ```
 
-Translates the JWT world into the `AuthenticatedIdentity` contract: it requires the
-`sub` claim (otherwise `InvalidTokenError` with a specific message) and extracts
-`roles`, filtering out non-strings. Key/algorithms come from `configs/auth.ts`
-(`AUTH_JWT_PUBLIC_KEY`, `AUTH_JWT_ALGORITHMS`). Swapping JWT for another technology
-= a new implementation behind the same interface.
+Translates a Keycloak access token into the `AuthenticatedIdentity` contract: it
+requires the `sub` claim and must not derive authorization from roles or scopes. A
+Keycloak verifier can use `jose` — it validates standard JWT/JWKS cryptography, while
+the Keycloak ownership comes from the realm issuer, `KEYCLOAK_*` configuration, and
+the default `.../protocol/openid-connect/certs` endpoint. Those conventions require
+`platform/keycloak/` and `configs/keycloak.ts`; importing the Keycloak Admin SDK is
+not required for token verification. A provider-neutral verifier instead uses
+`platform/auth/` and `configs/auth.ts` and must not carry a `Keycloak` name.
 
 ### `platform/http/middlewares/auth/` — authentication at the edge
 
@@ -279,10 +289,7 @@ export class AuthHttpResponse extends HttpResponse {
 // build-auth-middlewares.ts  (the middleware's composition root — the edge's "wire")
 export const buildAuthMiddlewares = (): AuthMiddlewares => {
   const observability = new PinoObservability();
-  const tokenVerifier = new JwtTokenVerifier({
-    publicKey: AUTH_CONFIG.publicKey,
-    algorithms: [...AUTH_CONFIG.algorithms],
-  });
+  const tokenVerifier = new KeycloakJwtTokenVerifier(loadKeycloakJwtVerificationConfig());
   const authentication = new AuthenticationMiddleware(tokenVerifier, observability);
   return { authenticate: authentication.handle.bind(authentication) };
 };
@@ -431,9 +438,11 @@ General pattern detail in `references/testing.md`. Per auth piece:
   denies without the required role and asserts the repository/collaborators were
   **not** touched, which proves the gate runs before the business step. This is the
   per-feature role coverage that used to exist only in e2e.
-- **`JwtTokenVerifier`** (`platform`, unit with real crypto): generates a key pair
-  with `jose` in the test; a valid token → `{ userId, roles }`; no `roles` claim →
-  `[]`; filters out non-string roles; malformed / wrong signature / missing `sub` →
+- **`KeycloakJwtTokenVerifier`** (`platform/keycloak`, unit with real crypto): generates a key pair
+  with `jose` in the test; a valid token → `AuthenticatedIdentityInterface` with
+  `providerSubjectId`, authentication instant, and optional authentication method;
+  roles and scopes are deliberately absent even when the JWT has them. Malformed,
+  wrong-signature, wrong-audience, expired, or missing-`sub` tokens yield
   `InvalidTokenError`. It's a unit test (no external system), but uses real
   cryptography.
 - **`AuthenticationMiddleware`** (`platform`): `express` + `supertest`, with
@@ -452,7 +461,7 @@ AuthorizedRegisterDeviceUsecaseInterface` (`execute` receives input **and**
 ### Integration
 
 - There's no auth repository; auth's "integration" happens at the **e2e** level
-  (real app + real JWT). `JwtTokenVerifier` already exercises real cryptography in
+  (real app + real JWT). `KeycloakJwtTokenVerifier` already exercises real cryptography in
   its unit test.
 
 ### E2E — `test/e2e/device/register.e2e.test.ts`
@@ -552,8 +561,8 @@ fields.
   The gate is inherited from `AuthorizedUsecase.execute`; the feature only fills in
   `handle`, so it can't be skipped.
 - ❌ Calling the JWT SDK/lib directly from the middleware or the application. ✅
-  Behind `TokenVerifierInterface`; the concrete implementation (`JwtTokenVerifier`)
-  lives in `platform/`.
+  Behind `TokenVerifierInterface`; a Keycloak-bound implementation
+  (`KeycloakJwtTokenVerifier`) lives in `platform/keycloak/`.
 - ❌ Leaking token details to the client (the internal reason for the failure). ✅
   A generic auth `401`; `500` for the unexpected.
 - ❌ Confusing `401` (not authenticated) with `403` (authenticated, no permission).

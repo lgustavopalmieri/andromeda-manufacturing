@@ -29,9 +29,25 @@ platform/
 ├── http/
 │   ├── server.ts                      # HttpServer (Express)
 │   └── routes/                        # api-routes, device.routes, liveness.routes
+├── auth/                               # provider-neutral auth ports and errors
+├── keycloak/                           # Keycloak-specific token/admin adapters
 └── observability/
     └── pino-observability.ts          # implements @shared's ObservabilityInterface
 ```
+
+### Technology-specific adapters
+
+Keep capability contracts separate from provider implementations. For example,
+`platform/auth/` owns a provider-neutral `TokenVerifierInterface` and generic
+authentication errors, while a verifier that derives a Keycloak realm JWKS endpoint,
+uses `KEYCLOAK_*` configuration, or calls the Keycloak Admin API belongs in
+`platform/keycloak/`; its configuration belongs in `configs/keycloak.ts`.
+
+The package used does not decide this boundary: a `KeycloakJwtTokenVerifier` can use
+`jose` to verify the standard JWT/JWKS protocol without importing the Keycloak SDK.
+It is still a Keycloak adapter when its endpoint and configuration follow Keycloak
+conventions. If those conventions are removed, rename it as a generic OIDC/JWT
+verifier and place it in `platform/auth/` with `configs/auth.ts`.
 
 ## 3. Database
 
@@ -245,3 +261,6 @@ interface — you can swap Pino for another backend without touching the feature
 - ❌ Instantiating a handler/usecase in the routes. ✅ The route only calls
   `Wire.provideHandler()`.
 - ❌ Reading a raw `error.code` in the outbound layer. ✅ Use `PostgresError`.
+- ❌ Keeping `Keycloak...`, `Redis...`, or another named technology under a generic
+  capability folder. ✅ Keep the generic port in the capability folder and the
+  technology-bound adapter in `platform/<technology>/` with matching configuration.

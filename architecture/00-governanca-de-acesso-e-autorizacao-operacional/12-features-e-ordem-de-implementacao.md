@@ -23,7 +23,8 @@
 | Item | Status em 2026-10-22 | Evidência e limite atual |
 |---|---|---|
 | `contextual-authorize` / `ContextualAuthorizedUsecase` | `validated` | Implementado em `apps/andromeda-backend/src/modules/@shared/access/`: contratos, resolução de sujeito tenant-local, porta de avaliador, bloqueio antes do efeito e erros não enumeráveis. Teste unitário focado: 13/13; `typecheck`, `build` e `git diff --check` aprovados. Cobertos tenant/recurso estrangeiro, decisão desconhecida, obrigação, reavaliação e contexto confiável com cadeia site→área→linha→célula→ativo. |
-| Fase 0 | `in progress` | Permanecem autenticação Keycloak, seleção de tenant no edge, migrations, transaction manager, outbox e `audit-trail/record-event`. A avaliação de grants/descendência não pertence a este contrato: será entregue em `evaluate-access` (fase 3) e `operational-topology` (fase 4). |
+| autenticação JWT Keycloak no edge | `implemented` | `configs/auth`, `platform/auth` e middleware HTTP validam assinatura RS256, issuer e audience por JWKS; expõem somente `AuthenticatedIdentityInterface` e não leem roles/scopes. `/api/v1` autentica antes das rotas e `/health` continua público. Em 2026-10-22: `typecheck`, 32 testes unitários, `build` e `git diff --check` aprovados; a composição `buildAuthMiddlewares` → rotas e o `issuer` divergente são cobertos. Falta integração com realm/JWKS Keycloak provisionado. |
+| Fase 0 | `in progress` | Permanecem contexto de tenant no edge, migrations, transaction manager, outbox e `audit-trail/record-event`. A avaliação de grants/descendência não pertence a este contrato: será entregue em `evaluate-access` (fase 3) e `operational-topology` (fase 4). |
 
 ## Dependências que não podem ser invertidas
 

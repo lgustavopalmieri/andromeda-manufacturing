@@ -28,22 +28,30 @@ share the same **path aliases** (`modules`, `platform`, `configs`, `@shared`).
 
 - **Co-location**: the test sits **next to** the file it tests
   (`usecase.ts` ↔ `usecase.test.ts`).
-- **Nested `describe`/`it`** structure by method and by scenario: one `describe` for
-  the SUT, a `describe("when success")`, and a `describe("when fails")`.
-  **Authorization/role-denial is just another `when fails` case** — never a separate
-  `authorization` describe. List the role-denial cases **first** in `when fails`,
-  since the gate runs before the business step.
+- **Required suite shape — no exceptions for executable tests:** every runtime test
+  file declares an outer `describe("<SUT>")`, then one or more nested
+  `describe("when <condition>")` groups, with every test named
+  `it("should <observable behavior>")`. This applies to unit, integration, e2e,
+  platform, adapters, mappers, listeners, and testcontainer suites. Do not use a
+  bare `it`, a top-level scenario group with no SUT, `test(...)`, or vague names
+  such as `works`. An `entity/` interface is the sole exception because `tsc` is its
+  test. **Authorization/role-denial is just another `when authorization fails` case**
+  — never a separate `authorization` suite. List role-denial cases **first** in that
+  group because the gate runs before the business step.
 - **AAA**: every `it` follows **Arrange / Act / Assert**, one behavior per test.
   Mark the phases with `// Arrange`/`// Act`/`// Assert` comments when the setup is
   non-trivial (integration/e2e, or a unit test with several collaborators); in a
   short unit test the shape (`makeSut()` → call the SUT → `expect`) already reads as
   AAA and the comments are optional.
-- **`makeSut()`**: every suite has a factory that builds the _system under test_ and
-  returns `{ sut, ...collaborators }`, typed by a `MakeSutInterface`. Overrides come
-  in as a parameter.
-- **Stub vs. mock**: a collaborator with fixed behavior that implements an interface
+- **`makeSut()` is mandatory:** every runtime suite has a typed `makeSut()` that
+  builds the _system under test_ and returns `{ sut, ...collaborators }`. Overrides
+  come in as a parameter; integration/e2e versions can be async and return the
+  container/data source plus a `teardown`. Do not instantiate the SUT ad hoc inside
+  an `it` or rely on unstructured mutable globals.
+- **Stub vs. mock:** a collaborator with fixed behavior that implements an interface
   is a **stub** (a `...Stub implements ...Interface` class); a test double used to
-  **verify a call** uses `vi.fn()`/`vi.spyOn`.
+  **verify a call** uses `vi.fn()`/`vi.spyOn`. `makeSut()` composes the appropriate
+  doubles; it does not blur their roles.
 - **Data factories** live in `modules/@shared/tests/factories/<module>/` and are
   reused across every module, feature and test level. This includes the feature's
   **input** factory (`make<Feat>Input`) and any shared constant a scenario needs
@@ -54,7 +62,8 @@ share the same **path aliases** (`modules`, `platform`, `configs`, `@shared`).
   `machine`). Import them through the alias:
   `import { makeMachineEntity } from "@shared/tests/factories/machine/machine.factory"`.
   The shared testcontainer bootstrap (`@shared/tests/testcontainers/setup-postgres`)
-  lives in the same area.
+  lives in the same area. Database adapters, transaction managers, and assembled
+  database flows use that real disposable infrastructure — never a mocked database.
 - **Reuse the `@shared` test doubles.** Cross-cutting collaborators ship a mock next
   to their contract: `makeObservabilityMock` (`@shared/observability`),
   `makeEventPublisherMock` (`@shared/events`), `makeHttpResponseMock` (`@shared/http`),
@@ -129,26 +138,32 @@ path** and **every domain error** (class + message).
 ```ts
 const makeSut = (): MakeSutInterface => ({ sut: DeviceRegister });
 
-it('should register a device with only the required fields, defaulting status to "active"', () => {
-  const { sut } = makeSut();
-  const input = makeRegisterDeviceInput();
+describe("DeviceRegister", () => {
+  describe("when the input is valid", () => {
+    it('should register a device with only the required fields, defaulting status to "active"', () => {
+      const { sut } = makeSut();
+      const input = makeRegisterDeviceInput();
 
-  const result = sut.create(input);
+      const result = sut.create(input);
 
-  expect(result).toEqual({
-    name: "Gateway 01",
-    type: DEVICE_TYPE.GATEWAY,
-    telemetry: { protocol: INGEST_PROTOCOL.MQTT, address: "..." },
-    status: DEVICE_STATUS.ACTIVE,
+      expect(result).toEqual({
+        name: "Gateway 01",
+        type: DEVICE_TYPE.GATEWAY,
+        telemetry: { protocol: INGEST_PROTOCOL.MQTT, address: "..." },
+        status: DEVICE_STATUS.ACTIVE,
+      });
+    });
   });
-});
 
-it("should throw DeviceNameRequiredError when name is only whitespace", () => {
-  const { sut } = makeSut();
-  const input = makeRegisterDeviceInput({ name: "   " });
+  describe("when the input is invalid", () => {
+    it("should throw DeviceNameRequiredError when name is only whitespace", () => {
+      const { sut } = makeSut();
+      const input = makeRegisterDeviceInput({ name: "   " });
 
-  expect(() => sut.create(input)).toThrow(DeviceNameRequiredError);
-  expect(() => sut.create(input)).toThrow("Device name is required.");
+      expect(() => sut.create(input)).toThrow(DeviceNameRequiredError);
+      expect(() => sut.create(input)).toThrow("Device name is required.");
+    });
+  });
 });
 ```
 
@@ -178,56 +193,58 @@ const makeSut = (overrides: Partial<RegisterDeviceRepositoryStub> = {}): MakeSut
   return { sut: new RegisterDeviceUsecase(repository, eventPublisher), repository, eventPublisher };
 };
 
-describe("when success", () => {
-  it("should hand the repository the device normalized by the domain", async () => {
-    const { sut, repository } = makeSut();
-    const saveSpy = vi.spyOn(repository, "save");
-    await sut.execute(
-      makeRegisterDeviceInput({ name: "  Gateway 02  " }),
-      makeIdentity({ roles: [DEVICE_ROLES.WRITE] }),
-    );
-    expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ name: "Gateway 02" }));
-  });
-
-  it("should publish a DeviceRegisteredEvent with the persisted device as payload", async () => {
-    const persisted = makeDeviceEntity({ id: 3, name: "Gateway 03" });
-    const { sut, eventPublisher } = makeSut({ savedDevice: persisted });
-
-    await sut.execute(
-      makeRegisterDeviceInput({ name: "Gateway 03" }),
-      makeIdentity({ roles: [DEVICE_ROLES.WRITE] }),
-    );
-
-    expect(eventPublisher.publish).toHaveBeenCalledTimes(1);
-    expect(eventPublisher.publish).toHaveBeenCalledWith(expect.any(DeviceRegisteredEvent));
-    expect(eventPublisher.publish).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "device.registered", payload: persisted }),
-    );
-  });
-});
-
-describe("when fails", () => {
-  it("should throw InsufficientRolesError and not touch the repository without the role", async () => {
-    const { sut, repository, eventPublisher } = makeSut();
-    const saveSpy = vi.spyOn(repository, "save");
-    await expect(
-      sut.execute(makeRegisterDeviceInput(), makeIdentity({ roles: [DEVICE_ROLES.READ] })),
-    ).rejects.toBeInstanceOf(InsufficientRolesError);
-    expect(saveSpy).not.toHaveBeenCalled();
-    expect(eventPublisher.publish).not.toHaveBeenCalled();
-  });
-
-  it("should propagate the domain error and not call the repository when input is invalid", async () => {
-    const { sut, repository, eventPublisher } = makeSut();
-    const saveSpy = vi.spyOn(repository, "save");
-    await expect(
-      sut.execute(
-        makeRegisterDeviceInput({ name: "   " }),
+describe("RegisterDeviceUsecase", () => {
+  describe("when the request is authorized and valid", () => {
+    it("should hand the repository the device normalized by the domain", async () => {
+      const { sut, repository } = makeSut();
+      const saveSpy = vi.spyOn(repository, "save");
+      await sut.execute(
+        makeRegisterDeviceInput({ name: "  Gateway 02  " }),
         makeIdentity({ roles: [DEVICE_ROLES.WRITE] }),
-      ),
-    ).rejects.toThrow(DeviceNameRequiredError);
-    expect(saveSpy).not.toHaveBeenCalled();
-    expect(eventPublisher.publish).not.toHaveBeenCalled();
+      );
+      expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ name: "Gateway 02" }));
+    });
+
+    it("should publish a DeviceRegisteredEvent with the persisted device as payload", async () => {
+      const persisted = makeDeviceEntity({ id: 3, name: "Gateway 03" });
+      const { sut, eventPublisher } = makeSut({ savedDevice: persisted });
+
+      await sut.execute(
+        makeRegisterDeviceInput({ name: "Gateway 03" }),
+        makeIdentity({ roles: [DEVICE_ROLES.WRITE] }),
+      );
+
+      expect(eventPublisher.publish).toHaveBeenCalledTimes(1);
+      expect(eventPublisher.publish).toHaveBeenCalledWith(expect.any(DeviceRegisteredEvent));
+      expect(eventPublisher.publish).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "device.registered", payload: persisted }),
+      );
+    });
+  });
+
+  describe("when authorization or validation fails", () => {
+    it("should throw InsufficientRolesError and not touch the repository without the role", async () => {
+      const { sut, repository, eventPublisher } = makeSut();
+      const saveSpy = vi.spyOn(repository, "save");
+      await expect(
+        sut.execute(makeRegisterDeviceInput(), makeIdentity({ roles: [DEVICE_ROLES.READ] })),
+      ).rejects.toBeInstanceOf(InsufficientRolesError);
+      expect(saveSpy).not.toHaveBeenCalled();
+      expect(eventPublisher.publish).not.toHaveBeenCalled();
+    });
+
+    it("should propagate the domain error and not call the repository when input is invalid", async () => {
+      const { sut, repository, eventPublisher } = makeSut();
+      const saveSpy = vi.spyOn(repository, "save");
+      await expect(
+        sut.execute(
+          makeRegisterDeviceInput({ name: "   " }),
+          makeIdentity({ roles: [DEVICE_ROLES.WRITE] }),
+        ),
+      ).rejects.toThrow(DeviceNameRequiredError);
+      expect(saveSpy).not.toHaveBeenCalled();
+      expect(eventPublisher.publish).not.toHaveBeenCalled();
+    });
   });
 });
 ```
@@ -276,18 +293,24 @@ const makeSut = (
   return { app, usecase, observability };
 };
 
-it("should return 401 when the request has no authenticated identity", async () => {
-  const { app } = makeSut({}, null);
-  const res = await request(app).post("/devices").send(makeRegisterDeviceInput());
-  expect(res.status).toBe(401);
-});
+describe("RegisterDeviceHandler", () => {
+  describe("when the request has no authenticated identity", () => {
+    it("should return 401", async () => {
+      const { app } = makeSut({}, null);
+      const res = await request(app).post("/devices").send(makeRegisterDeviceInput());
+      expect(res.status).toBe(401);
+    });
+  });
 
-it("should return 422 with the domain error message", async () => {
-  const { app, usecase } = makeSut();
-  vi.spyOn(usecase, "execute").mockRejectedValue(new DeviceNameRequiredError());
-  const res = await request(app).post("/devices").send(makeRegisterDeviceInput());
-  expect(res.status).toBe(422);
-  expect(res.body).toEqual({ error: true, message: "Device name is required." });
+  describe("when the usecase rejects the input", () => {
+    it("should return 422 with the domain error message", async () => {
+      const { app, usecase } = makeSut();
+      vi.spyOn(usecase, "execute").mockRejectedValue(new DeviceNameRequiredError());
+      const res = await request(app).post("/devices").send(makeRegisterDeviceInput());
+      expect(res.status).toBe(422);
+      expect(res.body).toEqual({ error: true, message: "Device name is required." });
+    });
+  });
 });
 ```
 
@@ -305,11 +328,15 @@ const makeSut = (): MakeSutInterface => {
   return { sut: new RegisterDeviceHttpResponse(res), res };
 };
 
-it("should call res with status 409 and the domain error message", () => {
-  const { sut, res } = makeSut();
-  sut.mapError(new DeviceAlreadyExistsError("SN-123456"));
-  expect(res.status).toHaveBeenCalledWith(409);
-  expect(res.json).toHaveBeenCalledWith({ error: true, message: "...already registered." });
+describe("RegisterDeviceHttpResponse", () => {
+  describe("when mapping a duplicate-device error", () => {
+    it("should call res with status 409 and the domain error message", () => {
+      const { sut, res } = makeSut();
+      sut.mapError(new DeviceAlreadyExistsError("SN-123456"));
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json).toHaveBeenCalledWith({ error: true, message: "...already registered." });
+    });
+  });
 });
 ```
 
@@ -323,9 +350,16 @@ Spins up a real, disposable Postgres; runs the migrations; uses the real reposit
 and the real domain.
 
 ```ts
-beforeAll(async () => {
-  container = await new PostgreSqlContainer("postgres:16-alpine").start();
-  dataSource = await initializeDatabase(
+interface MakeSutInterface {
+  sut: RegisterDeviceTypeormRepository;
+  repository: Repository<DeviceEntityInterface>;
+  dataSource: DataSource;
+  container: StartedPostgreSqlContainer;
+}
+
+const makeSut = async (): Promise<MakeSutInterface> => {
+  const container = await new PostgreSqlContainer("postgres:16-alpine").start();
+  const dataSource = await initializeDatabase(
     createDataSource({
       host: container.getHost(),
       port: container.getPort(),
@@ -335,22 +369,32 @@ beforeAll(async () => {
     }),
     { runMigrations: true },
   );
-  repository = dataSource.getRepository(DeviceOrmEntity);
-  sut = new RegisterDeviceTypeormRepository(repository);
-}, 180_000);
+  const repository = dataSource.getRepository(DeviceOrmEntity);
+  return { sut: new RegisterDeviceTypeormRepository(repository), repository, dataSource, container };
+};
 
-afterAll(async () => {
-  if (dataSource?.isInitialized) await dataSource.destroy();
-  if (container) await container.stop();
-});
+describe("RegisterDeviceTypeormRepository", () => {
+  let context: MakeSutInterface;
 
-it("should store the row with the telemetry jsonb round-tripping", async () => {
-  const device = DeviceRegister.create(
-    makeRegisterDeviceInput({ telemetry: makeTelemetrySource({ address }) }),
-  );
-  const saved = await sut.save(device);
-  const found = await repository.findOneByOrFail({ id: saved.id });
-  expect(found.telemetry).toEqual({ protocol: INGEST_PROTOCOL.MQTT, address });
+  beforeAll(async () => {
+    context = await makeSut();
+  }, 180_000);
+
+  afterAll(async () => {
+    await context.dataSource.destroy();
+    await context.container.stop();
+  });
+
+  describe("when saving a valid device", () => {
+    it("should store the row with the telemetry jsonb round-tripping", async () => {
+      const device = DeviceRegister.create(
+        makeRegisterDeviceInput({ telemetry: makeTelemetrySource({ address }) }),
+      );
+      const saved = await context.sut.save(device);
+      const found = await context.repository.findOneByOrFail({ id: saved.id });
+      expect(found.telemetry).toEqual({ protocol: INGEST_PROTOCOL.MQTT, address });
+    });
+  });
 });
 ```
 
@@ -393,39 +437,43 @@ collaborator — including the repositories handed to the work callback _inside_
 transaction — so tests can assert what was persisted transactionally:
 
 ```ts
-const makeSut = (options: MakeSutOptions = {}): MakeSutInterface => {
-  const accountRepo = options.accountRepo ?? makeAccountRepo();
-  const userRepo = options.userRepo ?? makeUserRepo();
-  const identityProvider = options.identityProvider ?? makeIdentityProvider();
-  const eventPublisher = options.eventPublisher ?? makeEventPublisherMock(); // @shared mock
-  const ctxAccountManager = options.ctxAccountManager ?? makeAccountRepo();
-  const ctxUserManager = options.ctxUserManager ?? makeUserRepo();
+describe("CreateAccountUsecase", () => {
+  const makeSut = (options: MakeSutOptions = {}): MakeSutInterface => {
+    const accountRepo = options.accountRepo ?? makeAccountRepo();
+    const userRepo = options.userRepo ?? makeUserRepo();
+    const identityProvider = options.identityProvider ?? makeIdentityProvider();
+    const eventPublisher = options.eventPublisher ?? makeEventPublisherMock(); // @shared mock
+    const ctxAccountManager = options.ctxAccountManager ?? makeAccountRepo();
+    const ctxUserManager = options.ctxUserManager ?? makeUserRepo();
 
-  // the transaction mock runs the work with the ctx repos we can spy on
-  const transaction: CreateAccountTransactionInterface = options.transaction ?? {
-    run: vi.fn(async (work: (ctx: TransactionalContext) => Promise<unknown>) =>
-      work({ accountManager: ctxAccountManager, userManager: ctxUserManager }),
-    ) as CreateAccountTransactionInterface["run"],
+    // the transaction mock runs the work with the ctx repos we can spy on
+    const transaction: CreateAccountTransactionInterface = options.transaction ?? {
+      run: vi.fn(async (work: (ctx: TransactionalContext) => Promise<unknown>) =>
+        work({ accountManager: ctxAccountManager, userManager: ctxUserManager }),
+      ) as CreateAccountTransactionInterface["run"],
+    };
+
+    const sut = new CreateAccountUsecase(
+      accountRepo,
+      userRepo,
+      identityProvider,
+      eventPublisher,
+      transaction,
+    );
+    return {
+      sut,
+      accountRepo,
+      userRepo,
+      identityProvider,
+      eventPublisher,
+      transaction,
+      ctxAccountManager,
+      ctxUserManager,
+    };
   };
 
-  const sut = new CreateAccountUsecase(
-    accountRepo,
-    userRepo,
-    identityProvider,
-    eventPublisher,
-    transaction,
-  );
-  return {
-    sut,
-    accountRepo,
-    userRepo,
-    identityProvider,
-    eventPublisher,
-    transaction,
-    ctxAccountManager,
-    ctxUserManager,
-  };
-};
+  // Each nested `describe("when …")` uses this factory for its scenario.
+});
 ```
 
 What the suite covers **beyond** the single-repo case:
@@ -452,12 +500,16 @@ identity through (`allowedRoles.length === 0 → true`). There's **no** role-den
 `when fails` case — instead **lock the public contract** with a `when success` test:
 
 ```ts
-it("should allow an identity without any roles when create-account is a public endpoint", async () => {
-  const { sut, identityProvider } = makeSut();
-  await expect(
-    sut.execute(makeCreateAccountInput(), makeIdentity({ roles: [] })),
-  ).resolves.toBeDefined();
-  expect(identityProvider.createAccountWithOwner).toHaveBeenCalledTimes(1);
+describe("CreateAccountUsecase", () => {
+  describe("when the endpoint is public and the identity has no roles", () => {
+    it("should allow the account to be created", async () => {
+      const { sut, identityProvider } = makeSut();
+      await expect(
+        sut.execute(makeCreateAccountInput(), makeIdentity({ roles: [] })),
+      ).resolves.toBeDefined();
+      expect(identityProvider.createAccountWithOwner).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 ```
 
@@ -477,34 +529,45 @@ break public registration with nothing turning red.
   no Docker. **Drive the SUT** — never reconstruct the try/finally by hand:
 
 ```ts
-const makeSut = (queryRunner = makeQueryRunner()) => {
+interface MakeSutInterface {
+  sut: CreateAccountTransactionManager;
+  queryRunner: QueryRunner;
+}
+
+const makeSut = (queryRunner = makeQueryRunner()): MakeSutInterface => {
   const dataSource = {
     createQueryRunner: vi.fn(() => queryRunner as unknown as QueryRunner),
   } as unknown as DataSource;
   return { sut: new CreateAccountTransactionManager(dataSource), queryRunner };
 };
 
-it("should roll back and re-throw the original error when the work throws", async () => {
-  const workError = new Error("work failed");
-  const { sut, queryRunner } = makeSut();
-  await expect(
-    sut.run(async () => {
-      throw workError;
-    }),
-  ).rejects.toThrow(workError);
-  expect(queryRunner.rollbackTransaction).toHaveBeenCalledTimes(1);
-  expect(queryRunner.commitTransaction).not.toHaveBeenCalled();
-});
+describe("CreateAccountTransactionManager", () => {
+  describe("when the transactional work throws", () => {
+    it("should roll back and re-throw the original error", async () => {
+      const workError = new Error("work failed");
+      const { sut, queryRunner } = makeSut();
+      await expect(
+        sut.run(async () => {
+          throw workError;
+        }),
+      ).rejects.toThrow(workError);
+      expect(queryRunner.rollbackTransaction).toHaveBeenCalledTimes(1);
+      expect(queryRunner.commitTransaction).not.toHaveBeenCalled();
+    });
+  });
 
-it("should throw RepositoryError when releasing the query runner fails", async () => {
-  const { sut } = makeSut(
-    makeQueryRunner({
-      release: vi.fn(async () => {
-        throw new Error("pool exhausted");
-      }),
-    }),
-  );
-  await expect(sut.run(async () => "ok")).rejects.toThrow(RepositoryError);
+  describe("when releasing the query runner fails", () => {
+    it("should throw RepositoryError", async () => {
+      const { sut } = makeSut(
+        makeQueryRunner({
+          release: vi.fn(async () => {
+            throw new Error("pool exhausted");
+          }),
+        }),
+      );
+      await expect(sut.run(async () => "ok")).rejects.toThrow(RepositoryError);
+    });
+  });
 });
 ```
 
