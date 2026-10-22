@@ -7,4 +7,5 @@ export default defineConfig({
   outDir: "dist",
   sourcemap: true,
   target: "node22",
+  loader: { ".sql": "text" },
 });

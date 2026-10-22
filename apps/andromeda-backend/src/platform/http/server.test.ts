@@ -2,6 +2,7 @@ import request from "supertest";
 import type { RequestHandler } from "express";
 import { describe, expect, it, vi } from "vitest";
 import type { AuthMiddlewaresInterface } from "./middlewares/auth/build-auth-middlewares";
+import type { TenantContextMiddlewaresInterface } from "./middlewares/tenant-context/build-tenant-context-middleware";
 import { buildApiRoutes } from "./routes/api-routes";
 import { HttpServer } from "./server";
 
@@ -17,7 +18,13 @@ const makeSut = (
 ): MakeSutInterface => {
   const logger = { info: vi.fn() };
   return {
-    sut: new HttpServer({ logger, port: 3000, routes: buildApiRoutes(authentication) }),
+    sut: new HttpServer({
+      logger,
+      port: 3000,
+      routes: buildApiRoutes(authentication, {
+        selectTenant: ((_request, _response, next) => next()) satisfies RequestHandler,
+      } satisfies TenantContextMiddlewaresInterface),
+    }),
     logger,
   };
 };

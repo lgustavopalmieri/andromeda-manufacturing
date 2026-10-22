@@ -4,6 +4,7 @@ import type { TokenVerifierInterface } from "platform/auth/interfaces";
 import { makeAuthenticatedIdentity } from "../../../../modules/@shared/tests/factories/access/access.factory";
 import { HttpServer } from "../../server";
 import { buildApiRoutes } from "../../routes/api-routes";
+import { buildTenantContextMiddlewares } from "../tenant-context/build-tenant-context-middleware";
 import type { AuthenticationLoggerInterface } from "./authentication.middleware";
 import { buildAuthMiddlewares } from "./build-auth-middlewares";
 
@@ -24,7 +25,7 @@ const makeSut = (): MakeSutInterface => {
     sut: new HttpServer({
       logger: { info: vi.fn() },
       port: 3000,
-      routes: buildApiRoutes(authentication),
+      routes: buildApiRoutes(authentication, buildTenantContextMiddlewares()),
     }),
     tokenVerifier,
     authenticationLogger,
@@ -53,7 +54,8 @@ describe("buildAuthMiddlewares", () => {
 
       const response = await request(sut.createApp())
         .get("/api/v1/not-yet-implemented")
-        .set("Authorization", "Bearer valid-token");
+        .set("Authorization", "Bearer valid-token")
+        .set("X-Tenant-Id", "75c5630e-56bb-4e5d-b1f5-ded0c15b931d");
 
       expect(response.status).toBe(404);
       expect(tokenVerifier.verify).toHaveBeenCalledWith("valid-token");
