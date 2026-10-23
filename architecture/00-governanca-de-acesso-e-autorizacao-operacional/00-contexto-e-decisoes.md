@@ -1,69 +1,57 @@
-# Governança de acesso e autorização operacional — contexto e decisões
+# Access governance and operational authorization — context and decisions
 
-> Esta pasta é uma **spec de implementação backend** do requisito de produto. Ela transforma
-> regras de negócio em módulos, entidades TypeScript, invariantes, features e verificações; não
-> substitui a decisão de produto. Quando houver conflito, o produto prevalece e a spec deve mudar.
+> This folder is a **backend implementation spec** for the product requirement. It turns business rules into modules, TypeScript entities, invariants, features, and verifications; it does not replace the product decision. When there is a conflict, the product prevails and the spec must change.
 
-## Como ler esta spec
+## How to read this spec
 
-1. Este arquivo fixa fontes, escopo e decisões transversais.
-2. [01](01-contextos-delimitados-e-agregados.md) identifica o módulo responsável; [02](02-contratos-compartilhados-de-autorizacao.md) define a linguagem compartilhada.
-3. Os arquivos [03–10](03-entidades-tenant.md) detalham, por módulo, papel no requisito, rastreabilidade,
-   entidades, regras e features. [11](11-modelo-de-decisao-contextual.md) mostra como elas decidem juntas.
-4. [12](12-features-e-ordem-de-implementacao.md) é a ordem executável; [13](13-consistencia-persistencia-e-validacao.md) define persistência e testes.
+1. This file establishes sources, scope, and cross-cutting decisions.
+2. [01](01-contextos-delimitados-e-agregados.md) identifies the responsible module; [02](02-contratos-compartilhados-de-autorizacao.md) defines the shared language.
+3. Files [03–10](03-entidades-tenant.md) detail, per module, the role in the requirement, traceability, entities, rules, and features. [11](11-modelo-de-decisao-contextual.md) shows how they decide together.
+4. [12](12-features-e-ordem-de-implementacao.md) is the executable order; [13](13-consistencia-persistencia-e-validacao.md) defines persistence and tests.
 
-## Fontes normativas do requisito
+## Normative sources for the requirement
 
-| Fonte de produto | Obrigação técnica que deriva dela |
+| Product source | Technical obligation derived from it |
 |---|---|
-| [P00 — visão e fronteiras](../../product/01-governanca-de-acesso-e-autorizacao-operacional/00-visao-e-fronteiras.md) | Isolamento por tenant, hierarquia física, contratos HMI versionados e nenhum controle físico. |
-| [P01 — personas](../../product/01-governanca-de-acesso-e-autorizacao-operacional/01-personas-papeis-e-responsabilidades.md) | Persona não concede acesso; Owner não é operador implícito. |
-| [P02 — decisão contextual](../../product/01-governanca-de-acesso-e-autorizacao-operacional/02-modelo-de-autorizacao-contextual.md) | Permissão, escopo, estado e condições são cumulativos; ausência nega. |
-| [P03 — onboarding e Owner](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md) | Tenant isolado, convite rastreável, ativação controlada e continuidade de Owner. |
-| [P04 — catálogo](../../product/01-governanca-de-acesso-e-autorizacao-operacional/04-catalogo-de-permissoes-e-papeis.md) | Operações de negócio explícitas e papéis como presets revisáveis. |
-| [P05 — atribuições e ativos](../../product/01-governanca-de-acesso-e-autorizacao-operacional/05-atribuicoes-escopos-e-ativos.md) | Concessão declarativa, escopo mínimo, vigência e condições para atuar em ativo. |
-| [P06 — estado e segregação](../../product/01-governanca-de-acesso-e-autorizacao-operacional/06-regras-de-estado-e-segregacao.md) | Estado, SoD e pré-condições prevalecem sobre papel e produtividade. |
-| [P07 — identidade, exceção e auditoria](../../product/01-governanca-de-acesso-e-autorizacao-operacional/07-identidades-delegacao-excecao-e-auditoria.md) | Identidade própria, delegação finita, exceção curta e trilha imutável. |
-| [P08 — cenários de aceitação](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md) | Quinze fluxos mínimos que guiam testes E2E e de segurança. |
-| [P09 — ciclo de colaboradores](../../product/01-governanca-de-acesso-e-autorizacao-operacional/09-governanca-do-ciclo-de-vida-de-colaboradores.md) | Vínculo, patrocínio, aprovação, provisionamento e designação são atos separados. |
-| [P10 — critérios de ciclo de vida](../../product/01-governanca-de-acesso-e-autorizacao-operacional/10-cenarios-do-ciclo-de-vida-e-criterios.md) | Início, mudança, cobertura, desligamento e revisão devem ser verificáveis. |
+| [P00 — vision and boundaries](../../product/01-governanca-de-acesso-e-autorizacao-operacional/00-visao-e-fronteiras.md) | Tenant isolation, physical hierarchy, versioned HMI contracts, and no physical control. |
+| [P01 — personas](../../product/01-governanca-de-acesso-e-autorizacao-operacional/01-personas-papeis-e-responsabilidades.md) | A persona does not grant access; Owner is not an implicit operator. |
+| [P02 — contextual decision](../../product/01-governanca-de-acesso-e-autorizacao-operacional/02-modelo-de-autorizacao-contextual.md) | Permission, scope, state, and conditions are cumulative; absence denies. |
+| [P03 — onboarding and Owner](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md) | Isolated tenant, traceable invitation, controlled activation, and Owner continuity. |
+| [P04 — catalog](../../product/01-governanca-de-acesso-e-autorizacao-operacional/04-catalogo-de-permissoes-e-papeis.md) | Explicit business operations and roles as revisable presets. |
+| [P05 — assignments and assets](../../product/01-governanca-de-acesso-e-autorizacao-operacional/05-atribuicoes-escopos-e-ativos.md) | Declarative grant, least scope, validity, and conditions to act on an asset. |
+| [P06 — state and segregation](../../product/01-governanca-de-acesso-e-autorizacao-operacional/06-regras-de-estado-e-segregacao.md) | State, SoD, and preconditions prevail over role and productivity. |
+| [P07 — identity, exception, and audit](../../product/01-governanca-de-acesso-e-autorizacao-operacional/07-identidades-delegacao-excecao-e-auditoria.md) | Own identity, finite delegation, short exception, and immutable trail. |
+| [P08 — acceptance scenarios](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md) | Fifteen minimum flows that guide E2E and security tests. |
+| [P09 — employee lifecycle](../../product/01-governanca-de-acesso-e-autorizacao-operacional/09-governanca-do-ciclo-de-vida-de-colaboradores.md) | Affiliation, sponsorship, approval, provisioning, and assignment are separate acts. |
+| [P10 — lifecycle criteria](../../product/01-governanca-de-acesso-e-autorizacao-operacional/10-cenarios-do-ciclo-de-vida-e-criterios.md) | Start, change, coverage, termination, and review must be verifiable. |
 
-## Resultado que esta arquitetura deve produzir
+## Outcome this architecture must produce
 
-Uma identidade autenticada seleciona um tenant e só vê ou altera um recurso quando uma decisão
-atual comprova: vínculo ativo, operação exata, escopo aplicável, vigência, estado, condições
-operacionais e ausência de conflito. Isso permite a operadora de E-03/B sem conceder E-04, e
-permite ao Owner governar a conta sem abrir uma HMI — os exemplos centrais de [P00](../../product/01-governanca-de-acesso-e-autorizacao-operacional/00-visao-e-fronteiras.md) e [P08](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md).
+An authenticated identity selects a tenant and only sees or changes a resource when a current decision proves: active affiliation, exact operation, applicable scope, validity, state, operational conditions, and absence of conflict. This allows the E-03/B operator without granting E-04, and allows the Owner to govern the account without opening an HMI — the central examples of [P00](../../product/01-governanca-de-acesso-e-autorizacao-operacional/00-visao-e-fronteiras.md) and [P08](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md).
 
-## Decisões arquiteturais vinculantes
+## Binding architectural decisions
 
-| Decisão | Regra de implementação e consequência |
+| Decision | Implementation rule and consequence |
 |---|---|
-| `tenantId` é fronteira | Todo dado de negócio, leitura e mutação filtra `tenantId`; IDs estrangeiros não confirmam existência. |
-| Keycloak autentica | O edge valida o token e obtém o sujeito; o token não é fonte de papel, escopo ou concessão efetiva. |
-| Andromeda autoriza | A application reavalia autorização contextual antes do efeito, para HTTP, HMI, integração e agente. |
-| `TenantMember` é o sujeito local | A mesma `Identity` pode ter vínculos e poderes independentes em cada tenant. |
-| Papéis e políticas são versionados | Uma revisão publicada é imutável; migração de concessão é explícita e auditável. |
-| Owner é governança, não exceção | Ter nomeação de Owner não satisfaz condições de operação, qualidade, manutenção ou SoD. |
-| Auditoria é fato, não log mutável | Mudança, decisão relevante e ato sensível preservam autor efetivo, contexto e correlação. |
-| Fonte de verdade é PostgreSQL | No MVP não há cache permissivo; suspensão/revogação bloqueia a próxima ação mesmo com sessão aberta. |
-| Bootstrap pré-tenant é allowlist | Só onboarding público cria `TenantOnboardingRequest` sem `tenantId`, com correlação e ator de sistema; toda escrita tenant-scoped exige `tenantId`. |
+| `tenantId` is a boundary | Every business datum, read, and mutation filters by `tenantId`; foreign IDs do not confirm existence. |
+| Keycloak authenticates | The edge validates the token and obtains the subject; the token is not the source of role, scope, or effective grant. |
+| Andromeda authorizes | The application re-evaluates contextual authorization before the effect for HTTP, HMI, integration, and agent. |
+| `TenantMember` is the local subject | The same `Identity` can have independent affiliations and powers in each tenant. |
+| Roles and policies are versioned | A published revision is immutable; grant migration is explicit and auditable. |
+| Owner is governance, not an exception | Holding an Owner appointment does not satisfy operation, quality, maintenance, or SoD conditions. |
+| Audit is a fact, not a mutable log | A change, relevant decision, and sensitive act preserve effective actor, context, and correlation. |
+| PostgreSQL is the source of truth | In the MVP there is no permissive cache; suspension/revocation blocks the next action even with an open session. |
+| Pre-tenant bootstrap is an allowlist | Only public onboarding creates a `TenantOnboardingRequest` without `tenantId`, with correlation and a system actor; every tenant-scoped write requires `tenantId`. |
 
-## Limites deliberados desta primeira entrega
+## Deliberate boundaries of this first delivery
 
-Topologia, competência, turno e designação nascem simplificados: existem para provar ou negar
-condições de acesso, não para substituir MES, LMS, planejamento ou manutenção. Ordem, qualidade,
-material, HMI, telemetria e integrações futuros devem fornecer seu próprio `ResourceContext`, sem
-alterar uma concessão já emitida. PLC, DCS, SIS e procedimento físico de emergência permanecem
-fora do sistema, conforme [P00](../../product/01-governanca-de-acesso-e-autorizacao-operacional/00-visao-e-fronteiras.md) e [P07](../../product/01-governanca-de-acesso-e-autorizacao-operacional/07-identidades-delegacao-excecao-e-auditoria.md).
+Topology, competency, shift, and assignment begin simplified: they exist to prove or deny access conditions, not to replace MES, LMS, planning, or maintenance. Future order, quality, material, HMI, telemetry, and integration modules must provide their own `ResourceContext`, without changing an already-issued grant. PLC, DCS, SIS, and the physical emergency procedure remain outside the system, as specified by [P00](../../product/01-governanca-de-acesso-e-autorizacao-operacional/00-visao-e-fronteiras.md) and [P07](../../product/01-governanca-de-acesso-e-autorizacao-operacional/07-identidades-delegacao-excecao-e-auditoria.md).
 
-## Fluxo canônico de um ato protegido
+## Canonical flow of a protected act
 
 ```text
-token Keycloak → identidade autenticada → tenant/membro ativo → recurso filtrado por tenant
-→ decisão contextual (grant + escopo + condições + SoD) → efeito atômico + auditoria + outbox
+Keycloak token → authenticated identity → active tenant/member → tenant-filtered resource
+→ contextual decision (grant + scope + conditions + SoD) → atomic effect + audit + outbox
 ```
 
-Uma confirmação ou decisão permitida não é reutilizável: revogação, expiração, mudança de estado,
-competência, designação ou contexto exige nova avaliação. As regras e a sequência precisa estão em
-[11](11-modelo-de-decisao-contextual.md).
+A confirmation or permitted decision is not reusable: revocation, expiry, state change, competency, assignment, or context requires a new evaluation. The rules and exact sequence are in [11](11-modelo-de-decisao-contextual.md).

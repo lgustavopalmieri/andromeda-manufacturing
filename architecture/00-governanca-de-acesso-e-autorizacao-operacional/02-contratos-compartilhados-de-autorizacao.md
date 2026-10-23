@@ -1,20 +1,20 @@
-# Contratos compartilhados de autorização
+# Shared authorization contracts
 
-> Esta é a spec de `modules/@shared/access/`: linguagem que módulos precisam trocar, não regra de negócio. Papéis, escopos, SoD e condições pertencem a `access-governance` e às features proprietárias, conforme [P02](../../product/01-governanca-de-acesso-e-autorizacao-operacional/02-modelo-de-autorizacao-contextual.md) e [P06](../../product/01-governanca-de-acesso-e-autorizacao-operacional/06-regras-de-estado-e-segregacao.md).
+> This is the spec for `modules/@shared/access/`: language modules must exchange, not a business rule. Roles, scopes, SoD, and conditions belong to `access-governance` and owning features, according to [P02](../../product/01-governanca-de-acesso-e-autorizacao-operacional/02-modelo-de-autorizacao-contextual.md) and [P06](../../product/01-governanca-de-acesso-e-autorizacao-operacional/06-regras-de-estado-e-segregacao.md).
 
-## Por que este contrato existe
+## Why this contract exists
 
-HTTP, HMI, integração e agente precisam formular a mesma pergunta: “este membro pode fazer esta operação neste recurso, agora?”. `@shared/access` é compartilhado porque será usado por mais de dois módulos; não deve receber entidades ORM, regras de tenant ou um catálogo de permissões específico; entidades consumidoras estão em [03](03-entidades-tenant.md) a [10](10-entidades-auditoria.md).
+HTTP, HMI, integration, and agent must ask the same question: “can this member perform this operation on this resource now?”. `@shared/access` is shared because more than two modules will use it; it must not receive ORM entities, tenant rules, or a specific permission catalog; consuming entities are in [03](03-entidades-tenant.md) through [10](10-entidades-auditoria.md).
 
-| Contrato | Quem o produz | Quem o usa | Regra que preserva |
+| Contract | Producer | Consumer | Rule preserved |
 |---|---|---|---|
-| `AuthenticatedIdentityInterface` | adaptador Keycloak no edge | feature que resolve o membro | Token prova quem autenticou, não poder efetivo. |
-| `AuthorizationSubjectInterface` | `identity` + `membership` | avaliador e feature protegida | Sujeito é local ao tenant; não vem do corpo da requisição. |
-| `ResourceContextInterface` | módulo dono do recurso | avaliador contextual | Local/ativo/versão/estado são obtidos de dado confiável e tenant-filtrado. |
-| `AuthorizationRequestInterface` | application da feature | `ContextualAuthorizationService` | Operação é explícita e contexto temporal é correlacionável. |
-| `AuthorizationDecisionInterface` | `access-governance` | application + `audit-trail` | Permitir, negar ou exigir obrigação antes do efeito. |
+| `AuthenticatedIdentityInterface` | Keycloak adapter at the edge | feature resolving the member | The token proves who authenticated, not effective power. |
+| `AuthorizationSubjectInterface` | `identity` + `membership` | evaluator and protected feature | Subject is tenant-local; it does not come from the request body. |
+| `ResourceContextInterface` | resource-owning module | contextual evaluator | Location/asset/version/state come from trusted, tenant-filtered data. |
+| `AuthorizationRequestInterface` | feature application | `ContextualAuthorizationService` | Operation is explicit and temporal context is correlatable. |
+| `AuthorizationDecisionInterface` | `access-governance` | application + `audit-trail` | Permit, deny, or require an obligation before the effect. |
 
-## Contrato TypeScript proposto
+## Proposed TypeScript contract
 
 ```ts
 export type TenantId = string;
@@ -81,20 +81,20 @@ export interface ContextualAuthorizedUsecaseInterface<TInput, TOutput> {
 }
 ```
 
-## Semântica obrigatória dos campos
+## Required semantics of fields
 
-- `providerSubjectId` é resolvido pelo token; `identityId` e `tenantMemberId` são resolvidos no backend depois da seleção de tenant. Um chamador não pode escolher o membro de outra pessoa.
-- `operation` usa código de negócio do catálogo, nunca verbo HTTP; `consultar`, `exportar`, `aprovar` e `publicar` continuam distintos como exige [P04](../../product/01-governanca-de-acesso-e-autorizacao-operacional/04-catalogo-de-permissoes-e-papeis.md).
-- `topologyNodeIds` e `history` vêm do módulo proprietário: os fatos trazem operação, ator efetivo e versão para SoD; o cliente não informa escopo, estado ou autoria para conquistar acesso.
-- `grantIds` explica a decisão para auditoria; não é uma lista para o cliente reutilizar. Uma decisão `DENY` não revela qual recurso, concessão ou condição estrangeira causou a recusa.
-- `obligations` transforma permissão condicional em fluxo: até assinatura, confirmação humana ou segundo aprovador ser concluído, a feature não executa o efeito e reavalia na conclusão.
+- `providerSubjectId` is resolved from the token; `identityId` and `tenantMemberId` are resolved in the backend after tenant selection. A caller cannot choose another person’s member.
+- `operation` uses a business code from the catalog, never an HTTP verb; `view`, `export`, `approve`, and `publish` remain distinct as required by [P04](../../product/01-governanca-de-acesso-e-autorizacao-operacional/04-catalogo-de-permissoes-e-papeis.md).
+- `topologyNodeIds` and `history` come from the owning module: facts bring operation, effective actor, and version for SoD; the client does not supply scope, state, or authorship to gain access.
+- `grantIds` explains the decision for audit; it is not a list the client can reuse. A `DENY` decision does not reveal which foreign resource, grant, or condition caused the refusal.
+- `obligations` turns conditional permission into a flow: until signature, human confirmation, or a second approver is completed, the feature does not execute the effect and re-evaluates on completion.
 
-## Regra de uso por feature protegida
+## Usage rule for a protected feature
 
-1. O adaptador autentica e entrega `AuthenticatedIdentityInterface`; ele não autoriza por papel JWT.
-2. A application recebe tenant selecionado por rota/header, valida o vínculo e resolve `AuthorizationSubjectInterface`; `request-onboarding` é a única feature pública pré-tenant.
-3. O módulo do recurso monta `ResourceContextInterface` e `history`; a application chama `authorize` antes do efeito.
-4. Apenas `PERMIT` permite a transação. `CONFIRMATION_REQUIRED` inicia fluxo de obrigação; `DENY` não toca o efeito.
-5. A feature persiste efeito e `AuditEvent` na mesma transação, como detalhado em [11](11-modelo-de-decisao-contextual.md) e [13](13-consistencia-persistencia-e-validacao.md).
+1. The adapter authenticates and delivers `AuthenticatedIdentityInterface`; it does not authorize by JWT role.
+2. The application receives the route/header-selected tenant, validates affiliation, and resolves `AuthorizationSubjectInterface`; `request-onboarding` is the only public pre-tenant feature.
+3. The resource module builds `ResourceContextInterface` and `history`; the application calls `authorize` before the effect.
+4. Only `PERMIT` allows the transaction. `CONFIRMATION_REQUIRED` starts an obligation flow; `DENY` does not touch the effect.
+5. The feature persists the effect and `AuditEvent` in the same transaction, as detailed in [11](11-modelo-de-decisao-contextual.md) and [13](13-consistencia-persistencia-e-validacao.md).
 
-O `AuthorizedUsecase` baseado em roles estáticos pode proteger endpoints técnicos sem recurso, mas não é a decisão final de produto. Uma feature usa `ContextualAuthorizedUsecaseInterface.execute(input, identity, tenantId)` na application; o `tenantId` já foi validado no adaptador, pois [P02](../../product/01-governanca-de-acesso-e-autorizacao-operacional/02-modelo-de-autorizacao-contextual.md) exige escopo, estado e condições atuais.
+The static-role-based `AuthorizedUsecase` can protect technical endpoints without a resource, but it is not the final product decision. A feature uses `ContextualAuthorizedUsecaseInterface.execute(input, identity, tenantId)` in application; `tenantId` has already been validated by the adapter because [P02](../../product/01-governanca-de-acesso-e-autorizacao-operacional/02-modelo-de-autorizacao-contextual.md) requires current scope, state, and conditions.

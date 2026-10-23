@@ -1,53 +1,53 @@
-# Andromeda Manufacturing — plataforma unificada de MES + MOM + SCADA
+# Andromeda Manufacturing — unified MES + MOM + SCADA platform
 
-## Decisão que este requisito orienta
+## Decision guided by this requirement
 
-Andromeda Manufacturing **é o produto/plataforma unificada**. MES, MOM e SCADA/HMI não são três
-produtos separados nem um escopo acessório: são capacidades complementares e integradas que,
-unidas, compõem a plataforma. MES executa e registra a produção; MOM gerencia de forma mais
-ampla as operações de produção, qualidade, estoque e manutenção; SCADA/HMI supervisiona ativos
-e oferece contexto e interação operacional. Todas usam o mesmo modelo operacional, evidências e
-dados, permissões e governança.
+Andromeda Manufacturing **is the unified product/platform**. MES, MOM, and SCADA/HMI are not three
+separate products or an ancillary scope: they are complementary, integrated capabilities that,
+together, compose the platform. MES executes and records production; MOM manages production,
+quality, inventory, and maintenance operations more broadly; SCADA/HMI supervises assets and
+provides operational context and interaction. All use the same operational model, evidence and
+data, permissions, and governance.
 
-A plataforma multiempresa conecta planejamento empresarial, execução no chão de fábrica e
-supervisão de ativos. Ela não substitui de início o ERP nem o controle determinístico do PLC;
-torna confiável o fluxo entre ambos e as decisões das pessoas que trabalham nele. [S01] [S03]
+The multi-enterprise platform connects enterprise planning, shop-floor execution, and asset
+supervision. It does not initially replace the ERP or deterministic PLC control; it makes the
+flow between them and the decisions of the people working in it reliable. [S01] [S03]
 
-## Resultado de negócio esperado
+## Expected business outcome
 
-Uma organização deve conseguir saber, para cada unidade produzida ou lote: **o que** foi feito,
-**onde**, **por quem**, **em qual equipamento**, **com quais materiais e versões**, **sob quais
-condições**, **qual resultado de qualidade** e **quais exceções ocorreram**. A informação deve
-ser utilizável em tempo oportuno pelo operador e confiável para gestão, auditoria e integração.
+An organization must be able to know, for each produced unit or lot: **what** was done, **where**,
+**by whom**, **on which equipment**, **with which materials and versions**, **under which
+conditions**, **which quality result**, and **which exceptions occurred**. Information must be
+usable in a timely manner by the operator and reliable for management, auditing, and integration.
 
-## Como ler este conjunto
+## How to read this set
 
-| Artefatos | Respondem a |
+| Artifacts | Answer |
 |---|---|
-| 01–02 | princípios imutáveis, escopo, fronteiras e pessoas |
-| 03–04 | mapa de capacidades e linguagem/dados mestres comuns |
-| 05–06 | jornadas ponta a ponta e tratamento de exceções |
-| 07–12 | requisitos por domínio, prioridades e evolução |
-| 13–16 | prioridades, critérios verificáveis, fontes e vocabulário |
+| 01–02 | immutable principles, scope, boundaries, and people |
+| 03–04 | capability map and shared language/master data |
+| 05–06 | end-to-end journeys and exception handling |
+| 07–12 | requirements by domain, priorities, and evolution |
+| 13–16 | priorities, verifiable criteria, sources, and vocabulary |
 
-Este é o requisito-mãe. Domínios posteriores podem aprofundar regras locais, setores e
-regulação, desde que não enfraqueçam as decisões aqui registradas.
+This is the parent requirement. Subsequent domains may deepen local rules, sectors, and
+regulation, provided they do not weaken the decisions recorded here.
 
-## Problemas que a plataforma resolve
+## Problems the platform solves
 
-- Ordens chegam do ERP sem contexto executável, visibilidade de estado ou retorno confiável.
-- Dados de máquina, operador, qualidade, material e manutenção ficam desconectados.
-- A fábrica descobre perdas tarde, não consegue justificar paradas de forma padronizada ou
-  rastrear genealogia para investigação, recall e atendimento ao cliente.
-- Plantas e linhas semelhantes usam definições divergentes de produto, KPI e tela operacional.
-- Controle de acesso genérico permite que pessoas executem, alterem ou enxerguem o que não lhes
-  cabe; configurações críticas não têm histórico suficiente.
+- Orders arrive from the ERP without executable context, state visibility, or reliable feedback.
+- Machine, operator, quality, material, and maintenance data remain disconnected.
+- The factory discovers losses late, cannot justify downtime in a standardized way, or trace
+  genealogy for investigation, recall, and customer support.
+- Similar plants and lines use divergent definitions of product, KPI, and operational screen.
+- Generic access control allows people to execute, change, or view what is not their concern;
+  critical configurations lack sufficient history.
 
-## Norte de produto
+## Product direction
 
-Começar com um núcleo operacional configurável, auditável e adotável pelo chão de fábrica.
-Não prometer uma suíte corporativa inteira de uma vez. A profundidade deve vir por módulo,
-setor e risco, preservando o mesmo modelo operacional e as mesmas garantias de isolamento.
+Start with a configurable, auditable operational core that can be adopted by the shop floor.
+Do not promise an entire enterprise suite at once. Depth must come by module, sector, and risk,
+preserving the same operational model and the same isolation guarantees.
 
-**Fontes orientadoras:** [S01], [S03], [S04], [S05]. A catalogação e o método estão em
-[15-fontes-e-metodo.md](15-fontes-e-metodo.md).
+**Guiding sources:** [S01], [S03], [S04], [S05]. Cataloging and methodology are in
+[15-sources-and-method.md](15-sources-and-method.md).

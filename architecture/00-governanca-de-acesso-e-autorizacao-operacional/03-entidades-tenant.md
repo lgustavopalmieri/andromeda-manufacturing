@@ -1,23 +1,23 @@
-# Módulo `tenant` — entidades, regras e features
+# `tenant` module — entities, rules, and features
 
-## Papel no requisito
+## Role in the requirement
 
-`tenant` cria a fronteira lógica da conta, mantém seu ciclo de vida e prova que há um Owner responsável. Ele não concede acesso operacional: isso pertence a `access-governance`.
+`tenant` creates the logical account boundary, maintains its lifecycle, and proves that there is a responsible Owner. It does not grant operational access: that belongs to `access-governance`.
 
-**Fontes:** [produto 00, “Escopo” e “Premissas vinculantes”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/00-visao-e-fronteiras.md), [produto 03, “Onboarding do tenant e Owner”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md) e [produto 08, cenários 1, 2 e 14](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md).
+**Sources:** [product 00, “Scope” and “Binding assumptions”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/00-visao-e-fronteiras.md), [product 03, “Tenant and Owner onboarding”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md), and [product 08, scenarios 1, 2, and 14](../../product/01-governanca-de-acesso-e-autorizacao-operacional/08-cenarios-e-criterios-de-aceitacao.md).
 
-## Entidades e features
+## Entities and features
 
-| Entidade | Responsabilidade no requisito | Features que a criam ou mudam |
+| Entity | Responsibility in the requirement | Features that create or change it |
 |---|---|---|
-| `Tenant` | Conta isolada e estado que permite ou bloqueia sua utilização. | `request-onboarding`, `activate-tenant`, `suspend-tenant` |
-| `OwnerAppointment` | Nomeação rastreável de quem responde pela continuidade da conta. | `provision-owner-invitation`, `appoint-owner`, `transfer-owner` |
-| `PolicyAcceptance` | Evidência do aceite da política aplicável pelo Owner convidado. | `request-onboarding`, `activate-tenant` |
-| `TenantOnboardingRequest` | Pedido idempotente que une dados iniciais, Owner convidado e resultado. | `request-onboarding`, `activate-tenant` |
+| `Tenant` | Isolated account and state that permits or blocks its use. | `request-onboarding`, `activate-tenant`, `suspend-tenant` |
+| `OwnerAppointment` | Traceable appointment of who is responsible for account continuity. | `provision-owner-invitation`, `appoint-owner`, `transfer-owner` |
+| `PolicyAcceptance` | Evidence of acceptance of the applicable policy by the invited Owner. | `request-onboarding`, `activate-tenant` |
+| `TenantOnboardingRequest` | Idempotent request that joins initial data, invited Owner, and outcome. | `request-onboarding`, `activate-tenant` |
 
-## Contratos `entity/`
+## `entity/` contracts
 
-São contratos TypeScript puros: aliases ficam em arquivos irmãos de `entity/`; a `application` adapta contratos compartilhados para esses primitivos. Não há import externo, ORM, Keycloak ou HTTP aqui.
+They are pure TypeScript contracts: aliases are in sibling `entity/` files; `application` adapts shared contracts to these primitives. There is no external import, ORM, Keycloak, or HTTP here.
 
 ```ts
 export type TenantId = string;
@@ -68,10 +68,10 @@ export interface TenantOnboardingRequestEntityInterface {
 }
 ```
 
-## Regras implementáveis
+## Implementable rules
 
-- `request-onboarding` trata `correlationId` como único: repetição devolve o mesmo pedido, sem criar segundo tenant, Owner ou convite ([produto 03, “Dados mínimos”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md)).
-- A transação inicial cria somente tenant pendente, membro/Owner convidado, política neutra e outbox; recursos, membros adicionais e integrações são negados até `activate-tenant` ([produto 03, “Ciclo de vida”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md)).
-- Ativação exige convite aceito, identidade verificada, `PolicyAcceptance` com identidade, versão e instante, e `OwnerAppointment` ativo; `active` nunca existe sem Owner ativo ([produto 03, “Resultado obrigatório”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md)).
-- `appoint-owner`, `transfer-owner`, suspensão ou revogação bloqueiam o tenant e recusam remover o último Owner ativo; transferência registra antecessor, sucessor, motivo e instante ([produto 03, “Continuidade de propriedade”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md)).
-- Configurações iniciais são neutras e locais ao novo `tenantId`; nenhum branding, política ou dado de outro tenant pode ser copiado ([produto 03, “Resultado obrigatório”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md)).
+- `request-onboarding` treats `correlationId` as unique: repetition returns the same request without creating a second tenant, Owner, or invitation ([product 03, “Minimum data”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md)).
+- The initial transaction creates only a pending tenant, invited member/Owner, neutral policy, and outbox; resources, additional members, and integrations are denied until `activate-tenant` ([product 03, “Lifecycle”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md)).
+- Activation requires an accepted invitation, verified identity, `PolicyAcceptance` with identity, version, and instant, and an active `OwnerAppointment`; `active` never exists without an active Owner ([product 03, “Required outcome”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md)).
+- `appoint-owner`, `transfer-owner`, suspension, or revocation block the tenant and refuse to remove the last active Owner; transfer records predecessor, successor, reason, and instant ([product 03, “Ownership continuity”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md)).
+- Initial settings are neutral and local to the new `tenantId`; no branding, policy, or data from another tenant may be copied ([product 03, “Required outcome”](../../product/01-governanca-de-acesso-e-autorizacao-operacional/03-onboarding-do-tenant-e-owner.md)).
