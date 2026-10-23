@@ -17,6 +17,8 @@ export const OutboxMessageOrmEntity = new EntitySchema<OutboxMessageInterface>({
     occurredAt: { name: "occurred_at", type: "timestamp with time zone" },
     availableAt: { name: "available_at", type: "timestamp with time zone" },
     publishedAt: { name: "published_at", type: "timestamp with time zone", nullable: true },
+    leaseToken: { name: "lease_token", type: "uuid", nullable: true },
+    leaseExpiresAt: { name: "lease_expires_at", type: "timestamp with time zone", nullable: true },
     attempts: { type: "integer", default: 0 },
     lastError: { name: "last_error", type: "text", nullable: true },
   },

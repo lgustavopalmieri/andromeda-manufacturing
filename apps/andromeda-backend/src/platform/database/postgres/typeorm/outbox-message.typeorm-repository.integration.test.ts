@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import type { DataSource } from "typeorm";
 import { RepositoryError } from "@shared/errors/repository.error";
@@ -40,6 +40,10 @@ beforeAll(async () => {
 afterAll(async () => {
   await dataSource?.destroy();
   await container?.stop();
+});
+
+beforeEach(async () => {
+  await dataSource.query("TRUNCATE TABLE outbox_message");
 });
 
 describe("TypeormOutboxMessageRepository (PostgreSQL)", () => {
@@ -108,6 +112,158 @@ describe("TypeormOutboxMessageRepository (PostgreSQL)", () => {
         .getMany();
 
       expect(pendingMessages.map((message) => message.id)).toEqual([earlier.id, later.id]);
+    });
+  });
+
+  describe("when two relays claim the same available message", () => {
+    it("should lease it to only one relay and retain it for idempotent retry until acknowledgement", async () => {
+      const { sut, outboxMessages } = makeSut();
+      const message = makeOutboxMessage({
+        id: randomUUID(),
+        tenantId: "3c0b6330-6d95-4436-8f89-d4d08bf40804",
+        availableAt: new Date("2026-10-01T12:00:00.000Z"),
+      });
+      const now = new Date("2026-10-23T12:00:01.000Z");
+      const leaseExpiresAt = new Date("2026-10-23T12:00:31.000Z");
+
+      await sut.enqueue(message);
+      await expect(outboxMessages.findOneByOrFail({ id: message.id })).resolves.toEqual(
+        expect.objectContaining({ publishedAt: null, availableAt: message.availableAt }),
+      );
+      const [firstRelay, secondRelay] = await Promise.all([
+        sut.claimPending({ now, leaseExpiresAt, leaseToken: randomUUID(), limit: 1 }),
+        sut.claimPending({ now, leaseExpiresAt, leaseToken: randomUUID(), limit: 1 }),
+      ]);
+      const claimedLeases = [...firstRelay, ...secondRelay].filter(
+        (lease) => lease.message.id === message.id,
+      );
+
+      expect([...firstRelay, ...secondRelay]).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ message: expect.objectContaining({ id: message.id }) }),
+        ]),
+      );
+      expect(claimedLeases).toHaveLength(1);
+      expect(claimedLeases[0]).toEqual(
+        expect.objectContaining({ message: expect.objectContaining({ id: message.id }) }),
+      );
+
+      const lease = claimedLeases[0];
+      expect(lease).toBeDefined();
+      await expect(sut.markPublished(lease!, new Date("2026-10-23T12:00:02.000Z"))).resolves.toBe(true);
+
+      await expect(outboxMessages.findOneByOrFail({ id: message.id })).resolves.toEqual(
+        expect.objectContaining({
+          publishedAt: new Date("2026-10-23T12:00:02.000Z"),
+          leaseToken: null,
+          leaseExpiresAt: null,
+        }),
+      );
+    });
+  });
+
+  describe("when a broker failure is recorded before the lease expires", () => {
+    it("should defer the same tenant-scoped event until its retry availability and retain its idempotency data", async () => {
+      const { sut } = makeSut();
+      const message = makeOutboxMessage({
+        id: randomUUID(),
+        tenantId: "3a9bf7b8-8030-4125-bd5d-d56faeb61451",
+        correlationId: "03b45689-24a2-4997-94c3-e9e0c66c41c8",
+        availableAt: new Date("2026-10-23T12:00:00.000Z"),
+      });
+      const claimedAt = new Date("2026-10-23T12:00:10.000Z");
+      const retryAt = new Date("2026-10-23T12:01:10.000Z");
+
+      await sut.enqueue(message);
+      const [lease] = await sut.claimPending({
+        now: claimedAt,
+        leaseExpiresAt: new Date("2026-10-23T12:00:40.000Z"),
+        leaseToken: randomUUID(),
+        limit: 1,
+      });
+
+      await expect(
+        sut.rescheduleFailed({
+          lease: lease!,
+          now: new Date("2026-10-23T12:00:20.000Z"),
+          availableAt: retryAt,
+          lastError: "broker unavailable",
+        }),
+      ).resolves.toBe(true);
+      await expect(
+        sut.claimPending({
+          now: new Date("2026-10-23T12:01:09.000Z"),
+          leaseExpiresAt: new Date("2026-10-23T12:01:39.000Z"),
+          leaseToken: randomUUID(),
+          limit: 1,
+        }),
+      ).resolves.toEqual([]);
+
+      const [retryLease] = await sut.claimPending({
+        now: retryAt,
+        leaseExpiresAt: new Date("2026-10-23T12:01:40.000Z"),
+        leaseToken: randomUUID(),
+        limit: 1,
+      });
+
+      expect(retryLease).toEqual(
+        expect.objectContaining({
+          message: expect.objectContaining({
+            id: message.id,
+            tenantId: message.tenantId,
+            correlationId: message.correlationId,
+            attempts: 1,
+            lastError: "broker unavailable",
+            availableAt: retryAt,
+          }),
+        }),
+      );
+    });
+  });
+
+  describe("when a relay loses its lease before recording a failure", () => {
+    it("should refuse the stale retry and let another relay claim the event without changing its attempt history", async () => {
+      const { sut } = makeSut();
+      const message = makeOutboxMessage({
+        id: randomUUID(),
+        tenantId: "11b77655-d74a-4d6e-afd3-8bdb84f73c2b",
+        availableAt: new Date("2026-10-23T12:00:00.000Z"),
+      });
+      const firstLeaseToken = randomUUID();
+
+      await sut.enqueue(message);
+      const [firstLease] = await sut.claimPending({
+        now: new Date("2026-10-23T12:00:10.000Z"),
+        leaseExpiresAt: new Date("2026-10-23T12:00:20.000Z"),
+        leaseToken: firstLeaseToken,
+        limit: 1,
+      });
+
+      await expect(
+        sut.rescheduleFailed({
+          lease: firstLease!,
+          now: new Date("2026-10-23T12:00:20.000Z"),
+          availableAt: new Date("2026-10-23T12:01:00.000Z"),
+          lastError: "late worker failure",
+        }),
+      ).resolves.toBe(false);
+
+      const [successorLease] = await sut.claimPending({
+        now: new Date("2026-10-23T12:00:21.000Z"),
+        leaseExpiresAt: new Date("2026-10-23T12:00:51.000Z"),
+        leaseToken: randomUUID(),
+        limit: 1,
+      });
+
+      expect(successorLease).toEqual(
+        expect.objectContaining({
+          message: expect.objectContaining({
+            id: message.id,
+            attempts: 0,
+            availableAt: message.availableAt,
+          }),
+        }),
+      );
     });
   });
 

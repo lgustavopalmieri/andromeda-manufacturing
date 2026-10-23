@@ -20,7 +20,7 @@ const makeSut = (): MakeSutInterface => ({ sut: createDataSource(databaseConfig)
 
 describe("createDataSource", () => {
   describe("when configuring the PostgreSQL data source", () => {
-    it("should register the audit and outbox schemas with migrations rather than synchronize", () => {
+    it("should register the audit and outbox relay schemas with migrations rather than synchronize", () => {
       const { sut } = makeSut();
 
       expect(sut.options).toMatchObject({
@@ -31,7 +31,7 @@ describe("createDataSource", () => {
       });
       expect(sut.entityMetadatas).toEqual([]);
       expect(sut.options.entities).toHaveLength(2);
-      expect(sut.options.migrations).toHaveLength(1);
+      expect(sut.options.migrations).toHaveLength(2);
     });
   });
 });
