@@ -9,8 +9,8 @@
     "build": "tsup",
     "start": "NODE_ENV=production node dist/main.js",
     "test": "vitest run --project unit",
-    "test:integration": "vitest run --project integration",
-    "test:e2e": "vitest run --project e2e",
+    "test:integration": "vitest run --project integration --passWithNoTests",
+    "test:e2e": "vitest run --project e2e --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

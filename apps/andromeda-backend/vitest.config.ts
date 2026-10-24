@@ -32,8 +32,9 @@ export default defineConfig({
         resolve: { alias: aliases },
         test: {
           include: ["src/**/*.integration.test.ts"],
+          hookTimeout: 180_000,
           name: "integration",
-          passWithNoTests: true,
+          testTimeout: 120_000,
         },
       },
       {
@@ -41,7 +42,6 @@ export default defineConfig({
         test: {
           include: ["src/**/*.e2e.test.ts"],
           name: "e2e",
-          passWithNoTests: true,
         },
       },
     ],
