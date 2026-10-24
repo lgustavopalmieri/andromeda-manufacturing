@@ -45,7 +45,7 @@ export const bootstrap = async (): Promise<void> => {
 
   const httpServer = new HttpServer({
     port: Number(process.env["PORT"] ?? 3000),
-    routes: buildApiRoutes(buildAuthMiddlewares(), buildTenantContextMiddlewares()),
+    routes: buildApiRoutes(buildAuthMiddlewares(), buildTenantContextMiddlewares(), dataSource),
   });
 
   httpServer.start();

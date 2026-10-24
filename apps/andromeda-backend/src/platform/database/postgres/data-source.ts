@@ -4,6 +4,18 @@ import { AuditEventOrmEntity } from "./typeorm/entities/audit-event.orm-entity";
 import { OutboxMessageOrmEntity } from "./typeorm/entities/outbox-message.orm-entity";
 import { CreateAuditTrail1792713600000 } from "./migrations/1792713600000-CreateAuditTrail";
 import { AddOutboxRelayLease1792800000000 } from "./migrations/1792800000000-AddOutboxRelayLease";
+import { CreateTenantOnboarding1792886400000 } from "./migrations/1792886400000-CreateTenantOnboarding";
+import {
+  AccessPolicyRevisionOrmEntity,
+  PermissionDefinitionOrmEntity,
+  RoleDefinitionOrmEntity,
+  RoleRevisionOrmEntity,
+} from "./typeorm/entities/access-catalog.orm-entities";
+import {
+  OwnerAppointmentOrmEntity,
+  TenantOnboardingRequestOrmEntity,
+  TenantOrmEntity,
+} from "./typeorm/entities/tenant.orm-entities";
 
 export interface InitializeDatabaseOptionsInterface {
   runMigrations?: boolean;
@@ -19,8 +31,22 @@ export const createDataSource = (connection: DatabaseConfigInterface): DataSourc
     database: connection.database,
     ssl: connection.ssl,
     synchronize: false,
-    entities: [AuditEventOrmEntity, OutboxMessageOrmEntity],
-    migrations: [CreateAuditTrail1792713600000, AddOutboxRelayLease1792800000000],
+    entities: [
+      AuditEventOrmEntity,
+      OutboxMessageOrmEntity,
+      TenantOrmEntity,
+      TenantOnboardingRequestOrmEntity,
+      OwnerAppointmentOrmEntity,
+      PermissionDefinitionOrmEntity,
+      RoleDefinitionOrmEntity,
+      RoleRevisionOrmEntity,
+      AccessPolicyRevisionOrmEntity,
+    ],
+    migrations: [
+      CreateAuditTrail1792713600000,
+      AddOutboxRelayLease1792800000000,
+      CreateTenantOnboarding1792886400000,
+    ],
   });
 
 export const initializeDatabase = async (

@@ -24,6 +24,7 @@ export class HttpServer {
 
   public constructor(private readonly options: HttpServerOptions) {
     this.app = express();
+    this.app.use(express.json());
     this.app.use(createRequestLoggerMiddleware(options.logger ?? pino()));
 
     for (const { prefix, router } of options.routes) {
