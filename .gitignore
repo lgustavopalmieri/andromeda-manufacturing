@@ -1,0 +1,22 @@
+**/node_modules/
+dist
+build
+coverage
+.turbo
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfvars
+**/*.tfvars.json
+**/*.tfstate
+**/*.tfstate.backup
+**/*.tfstate.lock.info
+**/terraform.rc
+**/.terraformrc
+**/crash.log

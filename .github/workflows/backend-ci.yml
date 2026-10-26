@@ -1,0 +1,47 @@
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - "apps/andromeda-backend/**"
+      - ".github/workflows/backend-ci.yml"
+      - ".github/workflows/backend-test.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+  push:
+    branches:
+      - develop
+    paths:
+      - "apps/andromeda-backend/**"
+      - ".github/workflows/backend-ci.yml"
+      - ".github/workflows/backend-test.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+
+concurrency:
+  group: backend-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: Unit tests
+    uses: ./.github/workflows/backend-test.yml
+    with:
+      command: pnpm --filter andromeda-backend test
+
+  integration-tests:
+    name: Integration tests
+    uses: ./.github/workflows/backend-test.yml
+    with:
+      command: pnpm --filter andromeda-backend test:integration
+
+  e2e-tests:
+    name: E2E tests
+    uses: ./.github/workflows/backend-test.yml
+    with:
+      command: pnpm --filter andromeda-backend test:e2e
