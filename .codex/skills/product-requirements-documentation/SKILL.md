@@ -1,58 +1,98 @@
 ---
 name: product-requirements-documentation
-description: Create and maintain Andromeda Manufacturing product and business requirements in the repository's product workspace. Use for feature briefs, user stories, requirements, and acceptance criteria; exclude production-code and architecture work.
+description: Create and maintain Andromeda Manufacturing product requirements or delivery epics in product/. Use for business requirements, epic planning, and individual feature definitions with rich user stories and acceptance criteria. Keep requirements and epics separate; exclude code, architecture, and technical specifications.
 ---
 
 # Product Requirements Documentation
 
-This skill is the authoritative operating guide for Product Owner work in this
-repository. Read it before creating or changing an artifact in `product/`.
+This is the Product Owner's operating guide for `product/`. The workspace contains
+two types of documentation with different purposes and levels of detail:
 
-Store artifacts in the repository-root `product/` workspace. Keep them product- and
-business-focused: problem statements, scope, user stories, requirements, assumptions,
-priorities, and acceptance criteria. Do not use this workspace for production code,
-implementation design, or architecture decisions.
+| Type | Location | Purpose | Content specific to this type |
+| --- | --- | --- | --- |
+| Product requirement | `product/requirements/` | Explain the problem, desired capability, and business value | Clear product narrative, capabilities, and essential rules |
+| Delivery epic | `product/epics/` | Define a bounded delivery package and its features | Rich user stories, detailed rules, and acceptance criteria for each feature |
 
-## Operating approach
+## Choose a single work type
 
-- Ground each feature in the product guide and use its established domain vocabulary.
-- Start from the operator, machine, and production reality. Account for relevant
-  variation by machine model, plant, country, language, units, shifts, and regulation.
-- State material assumptions. If unresolved ambiguity would change the scope or product
-  decision, ask focused questions before writing a full specification.
-- Define observable, measurable behavior. Prefer Given/When/Then acceptance criteria.
-- Capture relevant shop-floor exceptions: downtime justification, bad-part recording,
-  reconnect behavior, multi-plant variation, and permission boundaries.
-- Apply the platform invariants to every applicable feature: tenant isolation, granular
-  permissions, versionability of configurable assets, white-label behavior, and an HMI
-  definition that is a contract for people and future AI agents.
-- Align scope and priority with the product roadmap. Defer implementation and
-  architecture decisions to the implementation agents.
+Before drafting or editing product documents, be certain whether the request concerns
+a **requirement** or an **epic**. An explicit path or unambiguous intent resolves this
+choice; do not ask for redundant confirmation.
 
+If the user only says “document this functionality,” “plan this,” or something that
+could mean either type, ask which outcome they want and wait for their answer.
+Do not choose for the user or start a draft while the ambiguity remains.
+You may read existing context to formulate the question.
 
-## Requirement directories
+Never produce or edit requirements and epics in the same task. If the request includes
+both, ask which to address first and complete only that stage. If a dependency requires
+the other type, make it explicit for a later stage; do not silently expand the scope.
 
-- A top-level requirement has one directory named with the next available two-digit
-  sequence and a descriptive kebab-case name: `NN-requirement-name`.
-- Start with `00` and continue the established sequence. Never rename or renumber an
-  existing requirement directory.
-- Before adding a requirement, inspect the existing directories to determine the next
-  sequence and avoid duplicating an established scope.
+After choosing the type, read only its corresponding guide:
 
-## Markdown artifacts
+- **Requirements:** [references/requirements.md](references/requirements.md).
+- **Epics and their features:** [references/epics.md](references/epics.md).
 
-- Within a requirement directory, name artifacts `NN-artifact-name.md`, using an
-  ordered numeric prefix and descriptive kebab-case name.
-- Order artifacts chronologically or hierarchically, according to how the requirement
-  is understood and evolves.
-- A Markdown artifact must have at most 100 lines. Split longer content into
-  consecutively numbered files while preserving its context and reading order.
-- When changing an existing requirement, preserve its established numbering and
-  narrative order. Add a new artifact when the change is a distinct, later concern.
+## Workspace organization
+
+```text
+product/
+  requirements/
+    NN-requirement-name/
+      00-overview.md
+      01-product-topic.md
+  epics/
+    NN-epic-name/
+      00-epic.md
+      01-feature-name.md
+      02-another-feature.md
+```
+
+- Number requirement and epic directories in independent sequences, starting at `00`.
+  Inspect existing content before choosing the next number.
+- Use numeric prefixes with at least two digits and kebab-case names.
+  Preserve existing numbers, names, and links when updating documents.
+- In requirements, order files to support understanding of the subject. In epics,
+  reserve `00-epic.md` for the delivery overview and a numbered file for each feature.
+- **Never combine two features in the same file.** The epic index only introduces
+  and links to them; each feature's full definition belongs in its own file.
+- Do not split a feature across files to meet a line limit. There is no artificial
+  100-line limit: prioritize completeness, cohesion, and readability.
+- Do not migrate legacy documents between folders without a reorganization request.
+  When content conflicts with the selected type, flag the conflict before making
+  a change that would require working on both types.
+
+## Language and scope boundaries
+
+- Write **all generated documents in English**, regardless of the conversation's
+  language. This includes headings, examples, templates, tables, and status labels.
+  Use English names for new files and directories while preserving existing paths.
+- **Always use clear, explanatory language** that humans can read comfortably.
+  Explain acronyms on first use.
+- Use connected paragraphs, informative headings, and concrete operational examples.
+  Lists and tables should support understanding, not replace the business explanation.
+- Start with the problem, affected people, and expected outcome. Distinguish facts,
+  confirmed decisions, proposals, and questions. Do not invent numbers or commitments.
+- Focus on product and business rules. Do not define code, APIs, schemas, libraries,
+  architecture, components, or implementation tasks.
+- Backend and frontend agents will produce their own technical specs from the defined
+  epics and features. The Product Owner provides the business behavior.
+- When relevant, consider differences across machines, plants, countries, languages,
+  units, and shifts, as well as industrial operational exceptions.
+- Preserve organization isolation, granular permissions, versioning of configurable
+  assets, white-label behavior, and the operating contract for humans and future AI
+  agents. Explain their business effects; do not prescribe technical mechanisms.
 
 ## Completion check
 
-Before handing off, verify the affected artifact paths, ordered numeric prefixes,
-kebab-case names, and the 100-line limit. Confirm the result stays product-focused and
-captures the applicable platform invariants, assumptions, scope, and acceptance
-criteria.
+- Was the work type clarified, and was only the corresponding folder changed?
+- Is every generated document in English, including examples and status labels?
+- Is the narrative clear and explanatory, does it explain the problem and value,
+  and does it remain at the product level?
+- Are paths, numbering, and links consistent, without duplicated scope?
+- In requirements, are user stories and acceptance criteria absent, including those
+  disguised as validation checklists or Given/When/Then scenarios?
+- In epics, is the delivery package defined, and does each feature have its own file,
+  a real requirement reference, a description, rich stories, rules, detailed acceptance
+  criteria, and an evidence-based tracking table?
+- Were material questions resolved before finalizing a delivery's scope?

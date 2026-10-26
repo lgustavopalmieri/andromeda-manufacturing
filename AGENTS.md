@@ -37,6 +37,12 @@ This file provides project context and agent routing. Technology choices, archit
 implementation patterns, commands, and detailed workflows belong in the responsible
 agents' instructions and their supporting skills.
 
+## Documentation language
+
+All generated documents must be written in **English**, regardless of the language
+used in the conversation. This applies to every agent and includes requirements,
+epics, feature definitions, technical specs, and other project documentation.
+
 ## Which agent is safe to act, by context
 
 Route work to the agent whose scope matches the target of the change. An agent is only
