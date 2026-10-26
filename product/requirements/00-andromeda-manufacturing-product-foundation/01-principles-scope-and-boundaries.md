@@ -1,50 +1,69 @@
-# Principles, scope, and boundaries
+# Product Principles, Scope and Responsibility Boundaries
 
-## Non-negotiable principles
+## Why these boundaries matter
 
-1. **Tenant isolation:** no organization's data, configuration, signal, identity, file, search, or
-   integration may be exposed to another.
-2. **Contextual permission:** viewing, approving, operating, releasing, editing, and administering
-   are distinct permissions, filterable by organization, site, area, line, asset, and shift.
-3. **Version and effective period:** product, recipe/formula, routing, procedure, rule, form, HMI,
-   KPI, and integration definitions have an identifier, owner, state, effective period, and usage
-   traceability. An execution preserves the version that governed it.
-4. **People and process safety first:** the platform supports decision-making and supervision; it
-   may not bypass local safeguards, interlocks, permissives, or stop authority.
-5. **Data with context:** every relevant observation carries time, origin, quality, asset/location,
-   order/lot when known, and correlation with the action that generated it.
-6. **Operator at the center:** the interface reduces ambiguity, shows relevant state and exception,
-   operates by role, and records authorship; HMI principles follow [S06].
-7. **Human–agent operational contract:** a versioned HMI/action definition specifies inputs,
-   preconditions, effects, confirmations, alarms, and evidence. Humans and future agents consume
-   it, but agents never receive implicit authority.
-8. **White-label configuration:** language, unit, time zone, brand, terminology, and permitted
-   behavior are per tenant/site; one customer's brand or convention is not a global standard.
+Andromeda connects decisions made by different people and systems. Without clear ownership, a
+production target can override a quality restriction, an operational screen can appear to promise
+machine safety, or two systems can disagree about the same fact. These principles define the
+trust the product must preserve as its capabilities grow.
 
-## Platform functional scope
+## Principles that apply throughout the product
 
-Covers MOM (production, quality, inventory, and maintenance), execution MES, integration with ERP
-and other systems, SCADA/HMI connectivity and supervision, and operational data/KPIs. Capabilities
-are in map 03 and are independent of the factory's degree of automation [S01] [S03].
+Each tenant is an isolated organizational space. Its data, identities, signals, files, searches,
+notifications, integrations and configuration belong to that organization and are visible only
+within authorized scope. White-label behavior is part of this boundary: brand, language, units,
+time zone, terminology and permitted local behavior are governed by tenant or site configuration,
+not imposed as another customer's convention.
 
-## Responsibility boundaries
+Authority is contextual. Viewing, operating, approving, releasing, editing and administering are
+different activities. Permission may depend on the organization, site, area, line, asset, shift,
+object state and requested action. A person who administers access does not thereby acquire the
+right to release a quality lot or change a live process definition.
 
-| System/domain | System of record or primary authority | Andromeda's role |
-|---|---|---|
-| ERP | finance, purchasing, sales, enterprise planning | receive/return commitments and actuals |
-| PLC/DCS/SIS | real-time control, functional safety | observe/supervise; command only when authorized |
-| Legacy WMS/LIMS/CMMS | when adopted as the specific master system | integrate and compose context, without duplicating decisions |
-| Andromeda | MOM execution, operational evidence, and configurable definitions | orchestrate, trace, alert, and analyze |
+Configurable definitions are versioned and have an owner, state and effective period. This applies
+to products, recipes and formulas, routings, procedures, rules, forms, HMI definitions, indicators
+and integration definitions. An execution keeps the version that governed it, so a later change
+cannot silently reinterpret earlier production.
 
-## Assumptions and open decisions
+Operational information needs context. Relevant observations retain time, origin, quality,
+asset or location, order and lot when known, and their relationship to the action or event that
+created them. People must be able to distinguish a raw observation from an interpretation of it.
 
-- An organization may operate multiple countries, sites, calendars, languages, units, and rules.
-- Chain of custody and regulatory requirements vary by sector; the core supports evidence, but
-  certifiable sector compliance is an explicit later scope.
-- Manual, semi-automated, and automated operation coexist on the same line.
-- Functional safety, recipes directly on the controller, and deterministic sequencing are not
-  replaced by this platform. Any remote command requires local risk assessment.
-- Finite planning/advanced optimization, accounting, and external transportation are not in the
-  v1 core, although their events and data may be integrated.
+People and process safety take priority. The platform supports supervision and decisions without
+bypassing local safeguards, interlocks, permissives or stop authority. The HMI reduces ambiguity,
+shows relevant states and exceptions, adapts to the person's role and records authorship. [S06]
 
-**References:** [S01], [S06], [S07], [S08].
+The same versioned HMI/action definition serves people and future AI agents. It explains the
+required inputs, prerequisites, effects, confirmations, alarms and evidence of an action. An agent
+requires its own identity and explicit authority; access to the definition is not permission to
+execute it.
+
+## Functional scope and ownership
+
+The product covers manufacturing operations in production, quality, inventory and maintenance;
+production execution; enterprise integration; asset supervision and HMI; and operational data and
+key performance indicators (KPIs). Manual, semi-automated and automated operations can coexist.
+The capability map explains how these areas relate. [S01] [S03]
+
+| Responsible system or domain | Primary authority | Andromeda's relationship |
+| --- | --- | --- |
+| Enterprise resource planning (ERP) | Finance, purchasing, sales and enterprise planning | Exchange commitments, actual results and exceptions |
+| Programmable logic controllers (PLC), distributed control systems (DCS) and safety instrumented systems (SIS) | Deterministic control and functional safety | Observe and supervise; request a command only under authorized local conditions |
+| Existing warehouse, laboratory or maintenance systems | The information and decisions for which they remain the designated master | Combine operational context without creating competing owners |
+| Andromeda | Manufacturing operations, execution evidence and configurable operational definitions | Coordinate, trace, alert and analyze within assigned authority |
+
+## Assumptions and product limits
+
+An organization may span countries, plants, calendars, languages, units and local rules. The core
+needs to support that variation while making the governing policy visible. Chain of custody and
+regulatory obligations vary by sector; supporting evidence does not automatically provide a
+certified sector solution.
+
+Functional safety, controller-resident recipes and deterministic sequencing remain outside the
+platform's replacement role. Remote commands require an appropriate local risk assessment.
+Enterprise accounting, external transportation and advanced finite planning or whole-chain
+optimization are outside this foundation's direct operational responsibility, although the
+product may exchange their information. These boundaries avoid conflicting decisions and keep
+the product focused on reliable manufacturing operations.
+
+**Conceptual references:** [S01], [S06], [S07], [S08].

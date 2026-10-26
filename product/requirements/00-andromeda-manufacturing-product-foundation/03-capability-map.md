@@ -1,33 +1,44 @@
-# Platform capability map
+# Connected Product Capabilities
 
-The map uses the four MOM operations of production, quality, inventory, and maintenance and their
-recurring activities (definition, resources, detailed scheduling, dispatch, execution,
-collection, tracking, and analysis) as its backbone [S03] [S04]. The modules are integrated; they are not
-isolated information licenses or services.
+## A shared view of the factory
 
-| Domain | Business capabilities | Observable outcome |
-|---|---|---|
-| Organization and governance | tenant, brand, locations, calendars, units, policies, users, and permissions | coherent and isolated global operation |
-| Industrial model | physical hierarchy, assets, capabilities, states, materials, products, specifications | single shop-floor language |
-| Product/process engineering | BOM/formula, recipe, routing, parameters, instructions, and changes | reproducible execution by version |
-| Enterprise integration | requests/orders, demand, inventory, master data, confirmation, and exceptions | reconciled ERP and operation |
-| Planning and dispatch | capacity, calendar, queue, sequencing, allocation, and priorities | right order at the right resource and shift |
-| Production execution (MES) | preparation, setup, start/end, counting, consumption, losses, rework, closure | complete electronic production record |
-| SCADA, connectivity, and HMI | acquisition, state, alarms, trends, authorized command, screens, and actions | real-time context with safe interaction |
-| Materials and inventory | receipt, inspection, balance, reservation, movement, consumption, lot/serial | correct, traceable, and available material |
-| Quality | control plan, sampling, inspection, future SPC, NC, containment, release | quality decision linked to genealogy |
-| Maintenance and reliability | condition, failure, request, preventive/corrective maintenance, parts, history | controlled asset availability and risk |
-| Work and competency | shifts, team, qualification, instruction, reporting, and local fatigue/limit | qualified person on the permitted task |
-| EHS and compliance | risks, work permits, incidents, actions, evidence | protection and systemic improvement |
-| Logistics and shipping | packaging, aggregation, picking, verification, dispatch, tracking | released product arrives with proof of origin |
-| Data and performance | events, history, genealogy, KPI, reports, alerts, investigation | fact-based decision, not an isolated spreadsheet |
-| Configuration and extensibility | forms, rules, workflows, HMI, versions, templates, localizations | adaptation without losing control |
-| Security and auditing | identity, authorization, logs, retention, privacy, integration governance | operational trust and accountability |
+A factory gains little from an execution screen that cannot explain material availability,
+quality status or equipment readiness. This map describes how Andromeda's capabilities contribute
+to a connected operation. It uses production, quality, inventory and maintenance as the four
+manufacturing operations management areas, together with definition, resource management,
+scheduling, dispatch, execution, collection, tracking and analysis. [S03] [S04]
 
-## Module completeness criterion
+These are product responsibilities, not a prescription for software modules, services or licensing.
+The relationships matter because an operational decision often depends on more than one area.
 
-A module is considered usable only when it defines: master data, roles and permissions, normal
-flow and exceptions, evidence/auditing, versioning, tenant/local scope, and adoption indicators.
-A screen without these decisions does not constitute an industrial capability.
+| Capability area | What the product helps people do | Business contribution |
+| --- | --- | --- |
+| Organization and governance | Govern organizational spaces, brand, locations, calendars, units, users and policies | Consistent operation without losing isolation or local authority |
+| Industrial model | Describe physical resources, capabilities, states, materials, products and specifications | A common language for shop-floor information |
+| Product and process engineering | Control bills of materials, formulas, recipes, routings, parameters, instructions and changes | Reproducible production governed by the correct version |
+| Enterprise integration | Relate demand, orders, inventory, master information, confirmations and exceptions | Reconciliation between enterprise commitments and actual operation |
+| Planning and dispatch | Consider capacity, calendars, queues, sequencing, allocation and priority | Work sent to a suitable resource and team at an appropriate time |
+| Production execution | Connect preparation, setup, production, consumption, downtime, losses, rework and closure | A coherent electronic production record |
+| Supervision, connectivity and HMI | Relate signals, states, alarms, trends, authorized commands and operator actions | Timely operational context and clear interaction |
+| Materials and inventory | Follow receipts, inspection, balances, reservations, movements, lots and serial numbers | Available material with known identity, status and origin |
+| Quality | Relate control plans, samples, inspections, nonconformity, containment and release | Quality decisions connected to production history |
+| Maintenance and reliability | Connect condition, failures, work requests, maintenance, parts and asset history | Explainable availability and asset risk |
+| Work and competency | Relate teams, shifts, qualifications, instructions, work reporting and local work limits | Suitable people assigned to tasks within their authority |
+| Environment, health and safety | Connect risks, work permits, incidents, actions and evidence | Protection of people and learning from unsafe conditions |
+| Logistics and shipping | Follow packaging, aggregation, picking, verification, dispatch and destinations | Released product accompanied by evidence of origin and disposition |
+| Data and performance | Explain events, history, genealogy, indicators, alerts and investigations | Decisions grounded in operational facts |
+| Configuration and adaptation | Govern forms, rules, workflows, HMI, templates, versions and localization | Reuse with controlled local variation |
+| Security and auditing | Govern identities, authorization, evidence, retention, privacy and information exchange | Trust and accountability across the operation |
 
-**References:** [S01], [S03], [S04], [S09], [S10].
+## What makes a capability meaningful
+
+A capability includes more than its visible screen. People need to understand its information,
+responsible roles, permissions, normal operation and exceptions, and the evidence left by an
+important decision. Configurable behavior also needs an understandable version and local scope.
+These elements make the capability usable and governable rather than an isolated reporting tool.
+
+Operational adoption is part of the business purpose. Information that is routinely captured
+elsewhere or reconstructed after the shift weakens the connected record. The product therefore
+needs to make routine work understandable and support the people who provide its evidence.
+
+**Conceptual references:** [S01], [S03], [S04], [S09], [S10].

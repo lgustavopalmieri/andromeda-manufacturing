@@ -1,34 +1,47 @@
-# Sources and research method
+# Sources and Interpretation Method
 
-## Method
+## Purpose of the source register
 
-Research conducted on **October 18, 2026**. Standards bodies, public authorities, and recognized
-industrial communities were prioritized; commercial sources did not determine requirements.
-Standards are conceptual references, not a certification claim. Each [Sxx] in the
-other artifacts points to a source below.
+The foundation uses industrial references to establish shared vocabulary and responsibility
+boundaries. They help explain concepts such as manufacturing operations, recipes, genealogy,
+indicator definitions and operational technology risk. They do not turn every referenced concept
+into an adopted customer policy or a certification claim.
 
-| ID | Source and why it is authoritative | Concepts used | Direct link and access |
-|---|---|---|---|
-| S01 | ISA-95 / IEC 62264; ISA is an international automation standards body | levels 0–4, ERP–MOM boundary, hierarchy, and exchange | [ISA-95](https://www.isa.org/standards-and-publications/isa-standards/isa-95-standard) — 10/18/2026 |
-| S02 | ISA-88; batch-control standards series | recipe models, procedures, batch records | [ISA-88](https://www.isa.org/standards-and-publications/isa-standards/isa-88-standards) — 10/18/2026 |
-| S03 | NIST, a U.S. government scientific agency, publishes the MESA/MOM assessment | four MOM operations and eight activities per operation | [NIST MESA MOM/CMM](https://www.nist.gov/services-resources/software/mesa-manufacturing-operation-management-maturity-assessment-tool) — 10/18/2026 |
-| S04 | ISO/TC 184, international KPI standard for MOM | KPI terminology, construction, and use; MOM categories | [ISO 22400-1](https://www.iso.org/standard/56847.html) — 10/18/2026 |
-| S05 | OPC Foundation, maintainer of the OPC UA specification | secure interoperability, information models, and OT–MES–ERP connectivity | [OPC UA Part 1](https://reference.opcfoundation.org/specs/OPC-10000-1/4/) — 10/18/2026 |
-| S06 | ISA-101, standard and expert community for industrial HMI | HMI lifecycle, usability, alarms, safety, and change management | [ISA-101](https://www.isa.org/standards-and-publications/isa-standards/isa-101-standards) — 10/18/2026 |
-| S07 | NIST SP 800-82r3, public guide to OT security | OT risks, reliability, availability, safeguards, and threats | [NIST SP 800-82r3](https://csrc.nist.gov/pubs/sp/800/82/r3/final) — 10/18/2026 |
-| S08 | ISA/IEC 62443, consensus standards for IACS cybersecurity | risk, lifecycle, owner/supplier/integrator responsibilities | [ISA/IEC 62443](https://www.isa.org/standards-and-publications/isa-standards/isa-iec-62443-series-of-standards) — 10/18/2026 |
-| S09 | GS1, global organization for identification and supply-chain standards | identify–capture–share; transformation, custody, and traceability | [GS1 GTS](https://www.gs1.org/standards/gs1-global-traceability-standard/current-standard) — 10/18/2026 |
-| S10 | ISO 55001, international asset-management standard | asset lifecycle, performance, risk, and expenditure | [ISO 55001:2024](https://www.iso.org/standard/83054.html) — 10/18/2026 |
-| S11 | ISO 9001, international quality-management standard | process, consistent quality, risk, and continual improvement | [ISO 9001:2026](https://www.iso.org/standard/9001) — 10/18/2026 |
-| S12 | ISO 45001, international occupational health and safety standard | hazards, risks, participation, incidents, and continual improvement | [ISO 45001:2018](https://www.iso.org/standard/63787.html) — 10/18/2026 |
-| S13 | ISO 8601, international standard for date and time representation | UTC, offset, dates, instants, and unambiguous intervals | [ISO 8601-1:2019](https://www.iso.org/standard/70907.html) — 10/18/2026 |
-| S14 | IANA Time Zone Database, public reference for civil time-zone rules | time-zone identifier, policy changes, offsets, and daylight saving time | [IANA TZDB](https://www.iana.org/time-zones) — 10/18/2026 |
-| S15 | GS1 EPCIS 2.0, official standard for supply-chain visibility events | `eventTime`/`recordTime`, transformation, aggregation, and disaggregation | [GS1 EPCIS 2.0](https://ref.gs1.org/standards/epcis/2.0.0/) — 10/18/2026 |
-| S16 | GS1 General Specifications, foundational standard for identification keys and data | GTIN, lot, serial, SSCC, and logistics unit | [GS1 General Specifications](https://ref.gs1.org/standards/genspecs/) — 10/18/2026 |
+The original foundation register recorded research on **18 October 2026**. This revision preserves
+that catalog while reorganizing the product narrative; it does not claim a new review of the
+linked pages, their current editions or their full normative text. The identifiers [S01]–[S16]
+in the other chapters refer to the sources below.
 
-## Interpretation limits
+## Source catalog
 
-The public pages describe the purpose of the standards; they do not reproduce their full text. Before
-claiming regulatory compliance or certification, or adopting a sector requirement (for example,
-food, pharmaceutical, aerospace), the tenant must conduct local legal/technical analysis and
-acquire/consult the applicable standards edition.
+| ID | Source | Why it informs the product narrative | Direct reference |
+| --- | --- | --- | --- |
+| S01 | ISA-95 / IEC 62264 | Relationship between enterprise planning and manufacturing operations, physical hierarchy and information ownership | [ISA-95](https://www.isa.org/standards-and-publications/isa-standards/isa-95-standard) |
+| S02 | ISA-88 | Batch recipe, procedure and production-record concepts | [ISA-88](https://www.isa.org/standards-and-publications/isa-standards/isa-88-standards) |
+| S03 | NIST's MESA manufacturing operations management assessment | Production, quality, inventory and maintenance activities as a connected operational view | [NIST MESA MOM assessment](https://www.nist.gov/services-resources/software/mesa-manufacturing-operation-management-maturity-assessment-tool) |
+| S04 | ISO 22400, referenced through ISO/TC 184 material | Purpose, construction and interpretation of manufacturing operations indicators | [ISO 22400-1](https://www.iso.org/standard/56847.html) |
+| S05 | OPC Foundation's OPC Unified Architecture material | Meaningful industrial information exchange across different operating environments | [OPC UA Part 1](https://reference.opcfoundation.org/specs/OPC-10000-1/4/) |
+| S06 | ISA-101 | Human-machine interface context, usability, attention and controlled change | [ISA-101](https://www.isa.org/standards-and-publications/isa-standards/isa-101-standards) |
+| S07 | NIST SP 800-82 Revision 3 | Operational technology risk, reliability, availability and safeguards | [NIST operational technology security guide](https://csrc.nist.gov/pubs/sp/800/82/r3/final) |
+| S08 | ISA/IEC 62443 | Risk and lifecycle responsibilities among industrial asset owner, supplier and integrator | [ISA/IEC 62443](https://www.isa.org/standards-and-publications/isa-standards/isa-iec-62443-series-of-standards) |
+| S09 | GS1 Global Traceability Standard | Identification, capture and sharing of product history, transformations and custody | [GS1 Global Traceability Standard](https://www.gs1.org/standards/gs1-global-traceability-standard/current-standard) |
+| S10 | ISO 55001 | Asset lifecycle decisions involving performance, risk and expenditure | [ISO asset management reference](https://www.iso.org/standard/83054.html) |
+| S11 | ISO 9001 | Process-based quality management, risk and improvement | [ISO quality management reference](https://www.iso.org/standard/9001) |
+| S12 | ISO 45001 | Hazards, worker participation, incidents and continual improvement | [ISO occupational health and safety reference](https://www.iso.org/standard/63787.html) |
+| S13 | ISO 8601 | Unambiguous expression of dates, instants, offsets and intervals | [ISO date and time representation reference](https://www.iso.org/standard/70907.html) |
+| S14 | IANA Time Zone Database | Named civil time zones, offsets and daylight-saving history | [IANA Time Zone Database](https://www.iana.org/time-zones) |
+| S15 | GS1 EPCIS 2.0 | Distinction between fact and recording time, transformations and aggregation relationships | [GS1 EPCIS](https://ref.gs1.org/standards/epcis/2.0.0/) |
+| S16 | GS1 General Specifications | Product, lot, serial and logistics-unit identification concepts | [GS1 General Specifications](https://ref.gs1.org/standards/genspecs/) |
+
+## How to interpret these sources
+
+Standards bodies, public authorities and recognized industrial communities informed the baseline;
+commercial product descriptions did not determine its requirements. The narrative uses their
+concepts to explain business needs rather than reproduce standards or prescribe implementation.
+A product rule remains an explicit decision of this requirement or a separately understood local
+policy, not an inference that every customer has adopted every referenced standard.
+
+Public introductory pages do not substitute for the applicable standard's full text. Sector-specific
+obligations, local legal analysis and the appropriate edition need separate attention before an
+organization makes a compliance or certification claim. This foundation establishes no automatic
+certification for food, pharmaceutical, aerospace or another regulated operation.

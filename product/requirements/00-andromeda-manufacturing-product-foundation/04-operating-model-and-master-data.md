@@ -1,72 +1,86 @@
-# Operating model and master data
+# Shared Operating Model and Master Information
 
-## Physical and organizational hierarchy
+## Why a common language is needed
 
-Adopt the hierarchy **tenant/organization → legal entity (when needed) → site/plant → area →
-line/process → cell/work center → work unit/equipment → component or measurement point** as a
-configurable logical model. It must be able to represent discrete manufacturing, continuous
-processes, batch production, and warehousing operations without forcing every level. It is the
-anchor for permissions, capacity, planning, telemetry, analytical cost, and KPIs [S01].
+An equipment signal, a production order and a maintenance record may describe the same machine
+using different names. A shared operating model makes those relationships understandable without
+forcing every plant into the same physical arrangement. It supports consistent permissions,
+resource planning, operational analysis and key performance indicators. [S01]
 
-## Shared master data
+## Physical and organizational context
 
-| Family | Minimum content and relationship |
-|---|---|
-| Resource | person, skill/certification, team, asset, tool, capacity, state, and calendar |
-| Material | item, unit, specification, lot/serial number, quality status, validity, location, and balance |
-| Product | finished/intermediate product, revision, specification, BOM/formula, and substitution rule |
-| Process | routing/operation, eligible resource, standard time, instruction, parameter, recipe, and acceptance criterion |
-| Order | origin, product/version, quantity, due date/priority, state, frozen routing, and lot link |
-| Quality | plan, characteristic, method, sampling, limit, instrument, decision, and nonconformity |
-| Asset | identifier, manufacturer/model, capacity, criticality, location, counter, condition, and maintenance |
-| Context | shift, calendar, language, unit, time zone, standardized reason, and local policy |
+The product can describe organization, legal entity where relevant, site or plant, area,
+line or process, cell or work center, work unit or equipment, and component or measurement point.
+Levels that do not exist in a particular plant need not be invented. Discrete manufacturing,
+continuous processes, batch production and warehousing can share this language while retaining
+their different resource relationships.
 
-## Ownership and synchronization rule
+This hierarchy provides the context for permissions, capacity, calendars, telemetry and analytical
+cost attribution. Human-readable equipment codes remain useful, but cannot replace stable identity
+when a name or location changes.
 
-For every master attribute, there must be an owning system, data steward, stable internal key,
-external identifiers/aliases, version, and conflict-resolution rule. Andromeda must not create two
-"owners" for the same fact. The exchange of objects and transactions between enterprise and
-operations levels must be contracted and traceable, consistent with ISA-95 [S01].
+## Master information and ownership
 
-## Controlled states and transitions
+| Information family | Content and relationships the operation needs |
+| --- | --- |
+| Resources | People, skills and certifications, teams, assets, tools, capacity, states and calendars |
+| Materials | Item, unit, specification, lot or serial, quality status, expiry, location and balance |
+| Products | Finished or intermediate product, revision, specification, bill of materials or formula, and substitution policy |
+| Processes | Routing, operations, eligible resources, standard time, instructions, parameters, recipes and quality limits |
+| Orders | Origin, product and version, quantity, due date, priority, state, governing routing and related lots |
+| Quality | Plans, characteristics, methods, sampling, limits, instruments, decisions and nonconformity |
+| Assets | Identity, manufacturer and model, capacity, criticality, location, counters, condition, documentation and maintenance history |
+| Operating context | Shifts, calendars, language, units, time zone, standardized reasons and local policy |
 
-Critical objects use explicit lifecycles. Examples: definition in draft → revision → approved →
-effective → replaced/obsolete; planned order → released → prepared → in progress → paused →
-completed/cancelled; available material → reserved → consumed/quarantined/blocked; pending
-quality lot → approved/rejected/conditional. Every change records its author, instant, reason,
-evidence, and, when required, a different approver.
+For each shared fact, the organization needs a designated owning system and a responsible data
+steward. Stable identity, external aliases, version and a conflict-resolution policy prevent two
+systems from becoming competing authorities. Information exchanged between enterprise planning and
+manufacturing operations remains attributable to that ownership. [S01]
 
-## Time, calendar, and shift
+## Lifecycles and controlled change
 
-A **shift template** is the planned and versioned rule (site, recurrence days, local time,
-intervals, expected team/role, and nominal duration). A **shift occurrence** is the concrete
-instance generated for a date/location: unique identifier, planned start and end as instants, IANA
-time zone, template/policy version, planned duration, and state (scheduled, open, closed,
-cancelled). An occurrence may have a team substitution or authorized adjustment without changing
-the template that originated it.
+Important objects have recognizable states and permitted changes. A definition can move through
+draft, review, approval, effectiveness and replacement. An order can move from planning and release
+through preparation, execution, pause and completion or cancellation. Material and quality states
+express whether a quantity is available, reserved, consumed, contained, approved, rejected or subject
+to a conditional disposition.
 
-Every site must have an operational calendar, IANA time zone, operational-day convention, and
-allocation policy for a shift that crosses midnight: by start date, end date, or another explicit
-rule approved by the tenant. The policy produces an `operational date` for the occurrence; it is
-not inferred from the displayed calendar date. A 22:00–06:00 shift, for example, belongs to the
-date defined by the policy and is not silently divided into two days.
+The product preserves who changed a consequential state, when, why and on what evidence. A separate
+approver is associated where policy requires it. The business significance of a state matters:
+maintenance completion, for example, does not itself mean equipment has been released for production.
 
-Every raw event immutably preserves: identifier/origin, `event instant` with offset, the instant
-provided by the source when different, receipt instant, quality, and allocation to the shift
-occurrence/operational date with the policy version used. The model distinguishes actual event
-instant from record instant, like the GS1 EPCIS `eventTime`/`recordTime` distinction [S15].
-Interchangeable dates/times use an unambiguous representation based on ISO 8601 [S13].
+## Shift templates, occurrences and operational dates
 
-Occurrences are materialized in the site's time zone, not by ambiguous abbreviation. Daylight
-saving time changes may yield an actual duration shorter or longer than the nominal duration:
-actual duration is always the difference between instants; planned duration is the template's
-expectation. The rule must use the IANA database, which maintains historical and future time zone/
-daylight-saving transitions [S14].
+A shift template describes a recurring local schedule: site, recurrence days, local start and end,
+intervals, expected team or role, nominal duration and the governing version. A shift occurrence is
+the particular shift on a particular date and site. It has its own identity, planned start and end,
+planned duration, time zone, template and policy versions, and a state such as scheduled, open,
+closed or cancelled. An authorized team substitution or schedule adjustment changes that occurrence
+without rewriting its originating template.
 
-## Units and identification
+The site has an operational calendar and an explicit convention for shifts crossing midnight.
+It may assign an overnight shift to its start date, end date or another approved operational rule.
+For example, a 22:00–06:00 shift starting on 10 June can retain 10 June as its operational date;
+a production observation at 02:00 on 11 June still belongs to that same occurrence. The displayed
+civil date does not silently divide the shift or decide its operational ownership.
 
-Values always preserve the original unit and the conversion used. Human-readable codes do not
-replace stable identifiers. Lot, serial number, and logistic unit may be linked through
-transformation, aggregation, and disaggregation [S09] [S15].
+Time zones use their full IANA identifiers, rather than ambiguous abbreviations. The Internet
+Assigned Numbers Authority (IANA) maintains the time-zone reference used to distinguish local civil
+time rules. A change in daylight saving time can make a nominal eight-hour local schedule last
+seven or nine actual hours during a one-hour clock change. Planned duration remains an expectation;
+actual duration comes from the start and end instants. [S13] [S14]
 
-**References:** [S01], [S02], [S09], [S10], [S13], [S14], [S15].
+## Evidence of time and quantity
+
+An observation retains its origin, identity, occurrence instant and offset, source time where
+different, receipt instant, quality and available sequence information. It also retains the shift
+occurrence, operational date and allocation policy used. Distinguishing occurrence from recording
+makes late information explainable; the EPCIS reference uses a similar distinction between fact
+time and record time. [S15]
+
+Original units and the conversion applied to a value remain visible. Lot, serial and logistics-unit
+identities can be related through transformation, aggregation and disaggregation without becoming
+interchangeable concepts. This context lets other capabilities reconcile quantities and explain
+history even after names, calendars or organizational structures change. [S09] [S15]
+
+**Conceptual references:** [S01], [S02], [S09], [S10], [S13], [S14], [S15].

@@ -1,52 +1,82 @@
-# Exception, lot, and genealogy flows
+# Interruptions, Corrections and Operational Investigation
 
-## Downtime, deviation, and resumption
+## Why exceptions belong in the product requirement
 
-1. A signal, alarm, or operator records the loss of condition/rate.
-2. The platform correlates asset, order/operation, shift, and duration; it suggests a category,
-   but the responsible person classifies and justifies it when policy requires.
-3. If quality, safety, maintenance, or material is involved, containment and the specialized
-   flow are created; production resumes only after the applicable release condition.
-4. A classification change preserves author, reason, versions, and history; the indicator shows
-   raw data, classified data, and outstanding items.
+A factory rarely follows its planned sequence without interruption. Stoppages, quality findings,
+material discrepancies and delayed observations are part of the operation, not missing detail to
+be hidden by a successful completion record. Andromeda needs to preserve their context so people
+can contain risk, restore work and understand the consequences afterward.
 
-## Quality failure and traceability
+## Downtime, classification and resumption
 
-1. An out-of-specification result, expired inspection, or rejected sample identifies the affected
-   lot, unit, or interval.
-2. The system contains material/production according to policy and creates a nonconformity with evidence.
-3. Quality decides to reinspect, rework, use under concession, scrap, or release; every decision
-   has an owner, justification, and, where applicable, segregated approval.
-4. Genealogy finds materials/components and process conditions backwards, and affected products,
-   aggregations, inventory, orders, and shipping forwards. End-to-end traceability considers
-   transformation, custody, and distribution [S09] [S15].
+A machine observation, alarm or operator report can reveal a loss of operating condition or rate.
+The product relates the interruption to the asset, order or operation, shift and duration.
+Classification may be suggested, but the responsible person supplies the category and justification
+when the tenant's policy requires it, including any duration that triggers a required explanation.
 
-## Unavailable or incorrect material
+The reason for a pause determines who needs to act. Quality, safety, maintenance and material
+restrictions lead to their own containment and release responsibilities. Production resumes under
+the applicable release condition; a downtime explanation alone cannot clear an unrelated hold.
+Changes to classification retain the author, reason, governing version and earlier interpretation.
+Indicators can therefore distinguish raw observations, classified losses and unresolved items.
 
-Dispatch verifies balance, quality status, expiration, location, and approved substitute. When it
-reads a lot/serial identifier, it validates the reservation and product/stage. Substitution, extra
-consumption, return, and scrap record quantity, unit, cause, and genealogy relationship. Blocked
-material cannot be consumed through an interface shortcut.
+## Quality findings and genealogy
 
-## Loss of connectivity, delay, and correction
+An out-of-limit result, expired inspection or rejected sample identifies an affected unit, lot or
+production interval. Containment follows the product and site policy, while a nonconformity connects
+the finding to its evidence. Quality may decide on reinspection, rework, use under concession,
+scrap or release, with an owner, explanation and separate approval where required.
 
-The operation must distinguish: received, delayed, duplicate, missing, estimated, and corrected
-event. The user knows when acting on stale information. On reconnection, the event preserves its
-occurrence instant, source, and receipt; it is deduplicated by identification/evidence and ordered
-by event instant without concealing conflict. Historical allocation uses the occurrence and policy
-effective when the event occurred; it is not recalculated merely because the calendar changed later.
+Genealogy supports the investigation in both directions. Looking backward explains materials,
+components and process conditions; looking forward identifies affected production, packaging,
+inventory, orders and destinations. Transformation, custody and distribution remain part of the
+same investigation. The selected granularity and missing information must be visible rather than
+implied to be more precise or complete than the records support. [S09] [S15]
 
-Human correction neither edits nor deletes the raw event: it creates a versioned adjustment that
-references the original and states author, instant, reason, approval when required, new
-interpretation, and effect on quantities/KPI. The report must show original data, adjustment,
-reprocessing time, and completeness indicator. A critical decision requires confirmation of the
-current state, not merely historical reading. Separating fact time and record time parallels EPCIS [S15].
+## Material discrepancies
 
-## Safety/EHS incident
+Material availability includes quantity, location, quality status, expiry and approved substitution,
+not only a visible balance. Reading a lot or serial identity relates the material to the reservation,
+product and production stage. Substitution, additional consumption, return and scrap preserve their
+quantity, original unit, reason and genealogy relationship.
 
-Any authorized person can record or escalate an unsafe condition; the platform captures location,
-activity, potentially exposed people, initial containment, and investigation. Management follows
-local policy and legislation, informed by the hazard identification, risk, participation, and
-continuous improvement in [S12]; it does not replace emergency response or local authority.
+A blocked or expired lot remains restricted unless the applicable policy permits a formal
+concession. That decision identifies the authorized reason, approver and affected genealogy.
+An operator interface shortcut cannot turn restricted material into ordinary available stock.
 
-**References:** [S04], [S09], [S11], [S12].
+## Delayed information and loss of connectivity
+
+People need to distinguish information that is received on time, delayed, duplicated, missing,
+estimated or corrected. The interface makes stale information recognizable, especially where a
+current-state decision could affect safety, quality or material use. A historical observation is
+not proof that a resource is still in that condition.
+
+An equipment event may occur at 23:58 and arrive at 00:10. Its occurrence and receipt remain two
+separate facts. Reconnection preserves source, occurrence instant, receipt, quality and available
+sequence information. A repeated observation is identified without doubling production or an
+indicator. Event-time ordering can expose a conflict, but must not conceal it.
+
+The historical shift occurrence and policy effective at the time of the event govern its allocation.
+A later calendar change does not move that observation into a different historical shift. This
+separation of fact time and record time is consistent with the visibility concepts referenced in
+EPCIS, the Electronic Product Code Information Services standard. [S15]
+
+## Human correction and transparent interpretation
+
+A correction is a traceable adjustment to an earlier observation, not an edit or deletion of the
+raw evidence. It relates the new interpretation to the original, identifies author, time, reason
+and any required approval, and explains its effect on quantities or indicators. Reports preserve
+original information, adjustments, recalculation time and the completeness of the underlying data.
+
+This allows an organization to correct a mistake while still explaining the information available
+when an earlier decision was made. A critical action depends on confirmation of the current state,
+not merely a corrected historical reading.
+
+## Unsafe conditions and incidents
+
+An authorized person can record or escalate an unsafe condition with its location, activity,
+potentially exposed people, immediate containment and investigation. The product connects that
+information to operational responsibility and local policy. It supports hazard identification,
+participation and improvement without replacing emergency response or site authority. [S12]
+
+**Conceptual references:** [S04], [S09], [S11], [S12], [S15].

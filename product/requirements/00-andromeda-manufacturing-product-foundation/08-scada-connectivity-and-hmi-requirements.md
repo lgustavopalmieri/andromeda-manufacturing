@@ -1,37 +1,64 @@
-# Requirements — SCADA, connectivity, and HMI
+# Asset Supervision, Connectivity and the Operator Interface
 
-## Connectivity and operational observability
+## Operational problem and value
 
-- Must register asset/device, manufacturer/model, location, capabilities, signals, units,
-  expected data quality, connection state, and operational owner.
-- Must acquire telemetry and events from industrial sources, associating origin, timestamp,
-  quality, asset context, and correlation with order/state when available.
-- Must support protocols and connectors according to the environment, prioritizing semantic
-  interoperability. OPC UA covers everything from sensors and actuators to MES and ERP [S05]; MQTT may coexist.
-- Must represent machine state, alarm/event, trend, and history, and distinguish raw signal
-  from derived state. Every derivation rule is versioned and explainable.
-- Must allow connectivity to be enabled/disabled by asset and reviewed when configuration
-  or credential changes; an unauthorized source or one outside the tenant scope is rejected.
+A signal without a machine, unit, quality indication or relevant production context can mislead
+rather than inform. An operational screen with unclear action effects can create the same problem.
+Andromeda needs to turn equipment observations into understandable context while keeping human and
+machine authority explicit.
 
-## Configurable HMI and action contract
+SCADA means supervisory control and data acquisition. In this product it connects observation,
+state, alarms, trends and history to the human-machine interface (HMI), helping people identify
+what needs attention and what they are allowed to do.
 
-- The screen is composed of versioned definitions: context, widgets, data, instructions, alarms,
-  actions, validations, pre/postconditions, confirmation, exceptions, and accessibility/localization.
-- Must present the task at the role's level of detail: the operator sees what is needed to decide;
-  the supervisor sees additional context; each sees only the granted scope.
-- Actions include at least reporting/confirming production, starting/pausing/closing an order
-  representation, justifying downtime, declaring loss, recording inspection, and requesting support — always with
-  a contracted effect and evidence of the result.
-- Must adopt high-performance HMI principles: attention hierarchy, consistent navigation,
-  intentional use of color, actionable alarm, feedback, and change management [S06].
-- The same contract must make a consumable format available to a future agent; autonomous execution is
-  prohibited until identity, permission, scope, approval policy, and record are active.
+## Understand the connected resource
+
+An asset or device has an operational identity, manufacturer and model, location, capabilities,
+signals and units, expected data quality, connection state and responsible owner. Received
+telemetry and events retain their source, occurrence time, quality and asset context, together
+with the order or operational state when that relationship is known.
+
+Industrial environments use different protocols and connectors. The product needs to preserve the
+meaning of the information exchanged rather than assume that a connection alone makes signals
+comparable. OPC Unified Architecture and MQTT are examples of industrial communication contexts
+that may coexist; their use depends on the operating environment. [S05]
+
+Raw signals remain distinguishable from derived states. A calculated running state, for example,
+has a versioned and explainable derivation. Connectivity can be enabled or disabled for an asset
+and reviewed after relevant configuration or credential changes. A source without authority or
+outside the organization's scope cannot contribute as though it were trusted operational evidence.
+
+## A configurable HMI and a shared action contract
+
+An HMI definition describes context, visible elements, data, instructions, alarms, actions,
+validations, prerequisites, effects, confirmations and exception handling. Accessibility and
+localization belong to that definition. It is versioned so the organization can explain the
+interface and actions that governed a particular execution.
+
+The operator sees the detail needed for the task; a supervisor may see wider operational context.
+Both remain within granted scope. Typical actions include reporting production, requesting or
+confirming a start, pausing or closing the order representation, explaining downtime, declaring
+loss, recording an inspection and requesting support. The meaning and evidence of the action are
+explicit, rather than inferred from a button label.
+
+Attention hierarchy, consistent navigation, intentional use of color, actionable alarms, feedback
+and controlled change help people respond without unnecessary ambiguity. These are HMI principles,
+not a prescribed screen layout. [S06]
+
+The same action definition is understandable to future AI agents. Autonomous execution is not
+implicitly enabled by making it available: the agent needs an active identity, permission,
+delegated scope, approval policy and an attributable record, including any required human
+confirmation. A delegation can be revoked.
 
 ## Alarms and commands
 
-An alarm is not merely a notification: it has severity, condition, asset, timestamp, acknowledgment,
-owner, and escalation policy. A command appears only if permission and state
-allow it, leaves an end-to-end trail, and returns unambiguous confirmation, timeout, or failure. The
-platform does not declare that a command was executed without confirmation from the corresponding authority.
+An alarm describes a condition requiring attention, with severity, asset, occurrence time,
+acknowledgment, owner and escalation policy. It is more than an undifferentiated notification.
+A command is available only under permitted state and authority, leaves an end-to-end record and
+has a recognizable outcome: confirmed success, rejection, timeout or failure.
 
-**References:** [S05], [S06], [S07], [S08].
+The product must not present physical execution as confirmed without a response from the
+corresponding authority. Distinguishing a request from confirmation protects operational trust
+and keeps supervision separate from deterministic or safety control.
+
+**Conceptual references:** [S05], [S06], [S07], [S08].
