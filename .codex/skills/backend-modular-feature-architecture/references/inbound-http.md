@@ -1,29 +1,19 @@
 # `inbound/http/` layer — HTTP input adapter
 
-> Reference for the `modular-feature-architecture` skill. Reference example:
-> `src/modules/device/features/register/inbound/http/`. `wire.ts` lives here, but has
-> its own reference: `references/wire.md`.
+Reference: `src/modules/device/features/register/inbound/http/`.
+Wire lives here; see `references/wire.md` for its separate responsibilities.
 
 ## 1. Core concept
 
-`inbound/` is the **input adapter**: it translates a request from a specific
-protocol (here, HTTP) into a usecase call and returns the response in that
-protocol's format. It's the hexagon's "front door".
-
-`inbound/http/` is the HTTP adapter. Tomorrow there could be `inbound/mqtt/`,
-`inbound/grpc/`, or `inbound/cli/` for the same feature — **the usecase doesn't
-change**, it just gains another adapter. That's why `http` is a subfolder: the
-protocol is an inbound detail.
+Inbound adapts a protocol request into a usecase call and returns protocol-specific
+output. HTTP, MQTT, gRPC or CLI adapters can share the same unchanged usecase;
+the protocol belongs in the inbound subfolder.
 
 ## 2. Role and when to use it
 
-Use `inbound/http/` to: read the `req` (body/params/query), resolve the identity the
-authentication middleware attached, call `usecase.execute(...)`, capture errors for
-observability, and **map** the result (or the error) to the correct **HTTP status**
-and response envelope.
-
-Don't put here: business rules, database access, or dependency instantiation
-(that's `wire`'s job).
+Extract body/params/query and middleware-attached identity; call `usecase.execute`,
+capture errors and delegate statuses/envelopes to the mapper. No business rules,
+database access or dependency assembly (wire owns assembly).
 
 ## 3. File structure (`register` example)
 
@@ -71,20 +61,12 @@ export class RegisterDeviceHandler {
 }
 ```
 
-Key points:
-
-- Depends on **interfaces** (`AuthorizedRegisterDeviceUsecaseInterface`,
-  `ObservabilityInterface`), never on concrete classes. That's what lets you test
-  the handler with a `UsecaseStub` and an observability mock.
-- The handler is **thin**: it extracts the input, resolves the identity the
-  authentication middleware attached to `req`, calls the usecase, and delegates the
-  response to the mapper. Every `catch` goes through **observability** (`capture`)
-  and then error mapping — no error escapes unlogged or leaks raw to the client.
-- `resolveIdentity` is defense in depth: even if the route weren't protected, a
-  missing identity throws `MissingTokenError` (→ 401). The identity flows into the
-  usecase, where the authorization gate lives — see `references/auth.md`.
-- It has no business rule and knows nothing about `status codes` directly (that's
-  the mapper's job).
+Inject `AuthorizedRegisterDeviceUsecaseInterface` and `ObservabilityInterface`, never
+concretes. The thin handler extracts input/identity, invokes usecase and delegates
+responses; every catch captures the error before mapping it. No raw errors escape.
+`resolveIdentity` throws `MissingTokenError` (`401`) if middleware identity is missing,
+even on an accidentally unprotected route. Authorization runs in the usecase
+(`references/auth.md`); status codes belong only in the mapper.
 
 ### `http-response-mapper.ts` — domain error → HTTP status
 
@@ -115,45 +97,30 @@ export class RegisterDeviceHttpResponse extends HttpResponse {
 }
 ```
 
-This is the **anti-corruption layer** between the domain's error vocabulary and
-HTTP statuses:
-
-- It extends `HttpResponse` (the `@shared` base, see `references/shared.md`), which
-  provides `ok(status, data)` → `{ error: false, data }` and `fail(status, msg)` →
-  `{ error: true, message }`. The envelope is standardized across the whole
-  service.
-- **The `instanceof` order matters**: auth errors first, then the domain family.
-  `DeviceAlreadyExistsError` is a subtype of `DeviceRegisterError`, so it must be
-  tested **first** to become `409` instead of falling into the family's generic
-  `422`. The auth error mapping is detailed in `references/auth.md`.
-- **Technical errors don't leak**: `RepositoryError` and unknown errors become
-  `500 "Internal server error"` — a generic message, with no stack trace or
-  database detail.
-- **Domain messages leak on purpose**: for `422`/`409`, the domain's `error.message`
-  is the response (it's business language, meant for the client).
+Extend shared HttpResponse (`references/shared.md`): `ok(status, data)` gives
+`{ error: false, data }`; `fail(status, msg)` gives `{ error: true, message }`.
+Order checks from specific to generic: auth first; `DeviceAlreadyExistsError` → `409`
+**before** its `DeviceRegisterError` base → `422`. Domain messages are intentionally
+client-facing. Repository/unknown errors become generic `500 "Internal server error"`,
+never technical messages, database details or stack traces.
 
 ### This feature's status map
 
-| Situation                   | Error                                     | Status | Body                                                |
-| --------------------------- | ----------------------------------------- | ------ | --------------------------------------------------- |
-| Success                     | —                                         | `201`  | `{ error: false, data }`                            |
-| Not authenticated           | `MissingTokenError` / `InvalidTokenError` | `401`  | `{ error: true, message }`                          |
-| Missing role                | `InsufficientRolesError`                  | `403`  | `{ error: true, message }`                          |
-| Invalid input               | `DeviceRegisterError` family              | `422`  | `{ error: true, message }` (domain message)         |
-| Already exists (uniqueness) | `DeviceAlreadyExistsError`                | `409`  | `{ error: true, message }`                          |
-| Persistence failure         | `RepositoryError`                         | `500`  | `{ error: true, message: "Internal server error" }` |
-| Unknown                     | any `Error`                               | `500`  | same                                                |
+| Situation | Error | Status | Body |
+| --- | --- | --- | --- |
+| Success | — | `201` | `{ error: false, data }` |
+| Not authenticated | MissingTokenError / InvalidTokenError | `401` | `{ error: true, message }` |
+| Missing role | InsufficientRolesError | `403` | `{ error: true, message }` |
+| Invalid business input | DeviceRegisterError family | `422` | Domain message |
+| Uniqueness conflict | DeviceAlreadyExistsError | `409` | Domain message |
+| Persistence failure | RepositoryError | `500` | `{ error: true, message: "Internal server error" }` |
+| Unknown | Any Error | `500` | Same generic envelope |
 
 ### Variations (from the `create-account` feature)
 
-Not every feature maps input and errors identically. `account/create-account` shows
-three common deviations — all still handled in the handler/mapper, never by leaking
-infra:
-
-- **Public endpoint → anonymous identity, no `401`.** When the feature requires no
-  role, the handler **falls back to an anonymous identity** instead of throwing
-  `MissingTokenError`; the empty `allowedRoles` gate in the usecase lets it through
-  (see `references/auth.md` and the public-endpoint test in `references/testing.md`):
+- **Public endpoint:** resolve missing identity to anonymous rather than raising `401`;
+  the usecase's empty allowedRoles accepts it (`references/auth.md` and public-endpoint
+  test in [application.md](application.md#public-endpoint)):
 
   ```ts
   const ANONYMOUS_IDENTITY: AuthenticatedIdentity = {
@@ -165,17 +132,12 @@ infra:
   const identity = req.identity ?? ANONYMOUS_IDENTITY;
   ```
 
-- **Edge input validation → `400`.** A feature with a structured payload validates the
-  **shape** at the edge with a Zod schema before calling the usecase; a parse failure
-  becomes a `RequestValidationError` mapped to `400` — distinct from the domain's
-  `422` (a business-rule violation). The domain still re-validates: the schema is a
-  fast, shape-level guard, not a replacement for the rule.
-
-- **Upstream dependency failure → `502`, not `422`.** `IdentityProviderError` means the
-  external IdP (Keycloak) failed to provision the tenant. The client cannot fix that by
-  changing the payload, so it maps to **`502` (Bad Gateway)** with a **stable, generic
-  message** — placed **before** the domain-family `422` branch (it's a subtype of the
-  feature's error base) and **without** leaking the upstream detail:
+- **Edge validation:** validate structured payload shape with Zod before the usecase;
+  parse failure → RequestValidationError → `400`. Domain revalidation remains mandatory;
+  business-rule failure → `422`.
+- **Upstream failure:** IdentityProviderError indicates IdP provisioning failure, not
+  client-fixable input. Map it before its feature error base to `502` with a stable,
+  generic message, never upstream detail:
 
   ```ts
   if (error instanceof IdentityProviderError)
@@ -183,56 +145,104 @@ infra:
   if (error instanceof CreateAccountError) return this.fail(422, error.message);
   ```
 
-  The rule generalizes: **client-fixable → 4xx** (`400` shape, `422` business, `409`
-  conflict); **upstream/infra, not client-fixable → 5xx** (`502` a failed dependency,
-  `500` an unexpected/repository error — always a generic message).
+Client-fixable errors are 4xx (`400` shape, `422` business, `409` conflict); infrastructure
+failures are generic 5xx (`502` failed dependency, `500` repository/unexpected).
 
 ## 4. Interfaces and testability
 
-Two testing fronts (both unit tests, see `references/testing.md`):
+Read [common testing rules](testing.md) before writing this layer's tests.
 
-- **Handler**: built on a test `express()` + `supertest`, with a
-  `UsecaseStub implements AuthorizedRegisterDeviceUsecaseInterface` (its `execute`
-  receives input **and** identity), a short middleware that sets `req.identity`, and
-  an observability mock (`makeObservabilityMock`). It checks status/body on success,
-  `401` when there's no identity, and every error mapping, plus that
-  `observability.capture` was called with the error.
-- **Response mapper**: tested directly with a mocked `Response`
-  (`makeHttpResponseMock`), asserting `res.status(...)`/`res.json(...)` for every
-  branch of `mapError` + `success`.
+### Handler
 
-Swapping the real usecase for a stub is only possible because the handler depends
-on the **interface**. It's the same principle as the application layer, now at the
-input edge.
+Use real Express + supertest with an authorized-port UsecaseStub, observability mock
+and middleware attaching req.identity, without a database.
+
+```ts
+const makeSut = (
+  overrides: Partial<UsecaseStub> = {},
+  identity: AuthenticatedIdentity | null = makeIdentity(),
+): MakeSutInterface => {
+  const usecase = Object.assign(new UsecaseStub(), overrides);
+  const observability = makeObservabilityMock();
+  const handler = new RegisterDeviceHandler(usecase, observability);
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    if (identity) req.identity = identity;
+    next();
+  });
+  app.post("/devices", handler.handle.bind(handler));
+  return { app, usecase, observability };
+};
+
+describe("RegisterDeviceHandler", () => {
+  describe("when the request has no authenticated identity", () => {
+    it("should return 401", async () => {
+      const { app } = makeSut({}, null);
+      const res = await request(app).post("/devices").send(makeRegisterDeviceInput());
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe("when the usecase rejects the input", () => {
+    it("should return 422 with the domain error message", async () => {
+      const { app, usecase } = makeSut();
+      vi.spyOn(usecase, "execute").mockRejectedValue(new DeviceNameRequiredError());
+      const res = await request(app).post("/devices").send(makeRegisterDeviceInput());
+      expect(res.status).toBe(422);
+      expect(res.body).toEqual({ error: true, message: "Device name is required." });
+    });
+  });
+});
+```
+
+Assert success 201/envelope, missing-identity 401, every 422/409/403/500 mapping and
+observability.capture(error).
+
+Always bind the handler method when registering it in a test route.
+
+### Response mapper
+
+Test directly without Express/HTTP.
+
+```ts
+const makeSut = (): MakeSutInterface => {
+  const res = makeHttpResponseMock();
+  return { sut: new RegisterDeviceHttpResponse(res), res };
+};
+
+describe("RegisterDeviceHttpResponse", () => {
+  describe("when mapping a duplicate-device error", () => {
+    it("should call res with status 409 and the domain error message", () => {
+      const { sut, res } = makeSut();
+      sut.mapError(new DeviceAlreadyExistsError("SN-123456"));
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json).toHaveBeenCalledWith({ error: true, message: "...already registered." });
+    });
+  });
+});
+```
+
+Assert every mapError branch (specific → generic) and success, using makeHttpResponseMock
+with chainable status/json vi.fn methods.
 
 ## 5. How to start (new feature)
 
 1. Create `features/<feat>/inbound/http/`.
-2. `http-response-mapper.ts`: `class <Feat>HttpResponse extends HttpResponse` with a
-   `success(data)` (the verb's correct status: `201` for create, `200` for
-   read/update) and a `mapError(error)` covering, **from most specific to most
-   generic**, the auth errors (`401`/`403`), the feature's errors, `RepositoryError`,
-   and the `500` fallback.
-3. `http-handler.ts`: `class <Feat>Handler` receiving `Authorized...UsecaseInterface`
-   - `ObservabilityInterface` through the constructor; in `handle`, `try` →
-     `resolveIdentity(req)` → `usecase.execute(input, identity)` → `response.success`;
-     `catch` → `observability.capture` + `response.mapError`.
-4. Only then create `wire.ts` (see `references/wire.md`).
+2. Define `<Feat>HttpResponse extends HttpResponse` in `http-response-mapper.ts`:
+   success (`201` create, `200` read/update), auth `401`/`403`, specific feature errors,
+   domain family, RepositoryError and generic `500` fallback.
+3. Define `<Feat>Handler` with usecase/observability ports. In handle: try →
+   resolveIdentity → execute(input, identity) → success; catch → capture + mapError.
+4. Then create wire (`references/wire.md`).
 
 ## 6. Common mistakes (what NOT to do)
 
-- ❌ Instantiating usecase/repository/observability inside the handler. ✅ It
-  receives everything through the constructor; assembly is `wire`'s job.
-- ❌ Scattering `status`/`json` calls across the handler. ✅ Every response goes
-  through the mapper (`success`/`fail`), with a standardized envelope.
-- ❌ Testing `DeviceRegisterError` before `DeviceAlreadyExistsError` in `mapError`.
-  ✅ From the most specific subtype to the most generic.
-- ❌ Leaking `error.message` from `RepositoryError`/a technical error to the
-  client. ✅ `500 "Internal server error"`.
-- ❌ Forgetting `observability.capture(error)` in the catch. ✅ Every error is
-  captured before responding.
-- ❌ Coupling the usecase to Express. ✅ The usecase knows nothing about
-  `req`/`res`; only the handler does.
-- ❌ Mapping an **upstream dependency failure** (e.g. an identity-provider error) to
-  `422`/`409`, or leaking its raw message. ✅ It's a `5xx` (`502` for a failed
-  dependency) with a stable, generic message; `4xx` is for client-fixable errors only.
+- Inject dependencies; never instantiate usecase/repository/observability in handler.
+- No scattered status/JSON calls; all responses use the standardized mapper envelope.
+- Specific subtypes precede bases (AlreadyExists before RegisterError).
+- Never expose technical error messages; use generic `500`.
+- Always capture caught errors before responding.
+- Keep Express/req/res out of the usecase.
+- Do not map upstream failures to `422`/`409` or expose raw messages; use generic `502`
+  for failed dependencies. Reserve 4xx for client-fixable problems.

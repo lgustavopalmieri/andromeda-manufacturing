@@ -1,28 +1,19 @@
 # `outbound/` layer — output adapter (persistence)
 
-> Reference for the `modular-feature-architecture` skill. Reference example:
-> `src/modules/device/features/register/outbound/typeorm/`.
+Reference: `src/modules/device/features/register/outbound/typeorm/`.
 
 ## 1. Core concept
 
-`outbound/` is the **output adapter**: it implements a repository interface
-declared in `application/` using a concrete technology (here, TypeORM/Postgres).
-It's the end that actually talks to the outside world (database, queue, API), and
-the only place in the feature that knows the details of that technology.
-
-`outbound/typeorm/` is the TypeORM persistence adapter. The subfolder names the
-technology: if we ever swap to another driver, `outbound/prisma/` is born without
-touching domain/application.
+Outbound implements application ports using concrete databases, queues or APIs; only
+this feature edge knows the technology. Name the subfolder after it (`outbound/typeorm/`);
+swapping to `outbound/prisma/` must not change domain/application.
 
 ## 2. Role and when to use it
 
-Use `outbound/` to: implement `save`/`findById`/`update`... from the
-`...RepositoryInterface`, convert the domain data into the ORM's format, run the
-operation, and **translate technical errors** into domain errors
-(`DeviceAlreadyExistsError`) or into the generic `RepositoryError`.
-
-Don't put here: business rules (that's `domain/`), dependency assembly (that's
-`wire`), column↔field mapping (that's the `EntitySchema` in `platform/`).
+Implement repository operations (`save`/`findById`/`update`), convert domain input to ORM
+format and translate technical failures into domain errors or `RepositoryError`.
+Keep business rules in domain, dependency assembly in wire and column mapping in
+platform's `EntitySchema`.
 
 ## 3. Real example (`register`)
 
@@ -52,38 +43,24 @@ export class RegisterDeviceTypeormRepository implements RegisterDeviceRepository
 }
 ```
 
-Key points:
-
-- **`implements RegisterDeviceRepositoryInterface`**: the outbound layer fulfills
-  the application's contract. It receives `RegisterDeviceOutputProps` (data already
-  normalized by the domain) and returns the full `DeviceEntityInterface` (TypeORM
-  fills in `id` and timestamps).
-- **The dependency is TypeORM's `Repository<DeviceEntityInterface>`, injected
-  through the constructor.** The one who creates this repository from the
-  `EntitySchema` is the `wire` (`AppDataSource.getRepository(DeviceOrmEntity)`). The
-  outbound layer knows nothing about the `DataSource` — only the generic
-  `Repository`.
-- **Error translation is the outbound layer's responsibility.** A Postgres
-  uniqueness violation (code `23505`, detected by
-  `PostgresError.isUniqueViolation`) becomes the **domain** error
-  `DeviceAlreadyExistsError` — which the inbound layer maps to `409`. Any other
-  failure becomes a `RepositoryError` with `{ cause: error }`, preserving the cause
-  for observability while hiding the technical detail from the client (`500`).
-- The technical detector (`PostgresError`) lives in `platform/` (it's infra), not in
-  the feature.
+- Implement `RegisterDeviceRepositoryInterface`: accept normalized
+  `RegisterDeviceOutputProps`, return full `DeviceEntityInterface` with generated
+  IDs/timestamps.
+- Inject TypeORM `Repository<DeviceEntityInterface>`; wire obtains it with
+  `AppDataSource.getRepository(DeviceOrmEntity)`. This simple adapter knows no DataSource.
+- Translate Postgres uniqueness (`23505`, detected by platform's
+  `PostgresError.isUniqueViolation`) into `DeviceAlreadyExistsError` (inbound → `409`).
+  Wrap other failures in `RepositoryError` with `{ cause: error }` for observability,
+  while clients receive generic `500`.
 
 ## 3B. Variations (from the `create-account` feature)
 
-`register` persists one aggregate through one repository. Richer features add two
-outbound shapes — both still "implement an application port and translate infra
-errors", just at a larger scope. Reference:
-`modules/account/features/create-account/outbound/**`.
+Reference: `modules/account/features/create-account/outbound/**`. Both variations
+implement application ports and translate infrastructure errors.
 
-**Transaction spanning multiple aggregates — a transaction manager.** When a use case
-must persist two aggregates atomically (account **and** owner user), the transaction
-boundary is itself an outbound port: `CreateAccountTransactionInterface.run(work)`.
-The `CreateAccountTransactionManager` opens a `QueryRunner` and hands the work a
-`TransactionalContext` of repositories bound to the **same** `EntityManager`:
+**Multi-aggregate transactions.** For atomic account + owner persistence, expose
+`CreateAccountTransactionInterface.run(work)`. `CreateAccountTransactionManager` opens
+a QueryRunner and supplies a `TransactionalContext` whose repositories share one EntityManager:
 
 ```ts
 public async run<T>(work: (ctx: TransactionalContext) => Promise<T>): Promise<T> {
@@ -109,71 +86,163 @@ public async run<T>(work: (ctx: TransactionalContext) => Promise<T>): Promise<T>
 }
 ```
 
-For this to work, the repositories accept **`DataSource | EntityManager`** in their
-constructor, so the same class runs standalone (a uniqueness check outside a
-transaction) or inside the transactional context. Error translation stays per repo
-(uniqueness → the right domain error; else `RepositoryError`). It's tested with
-**both** a unit test (fake `QueryRunner`) and an integration test (real
-commit/rollback) — see `references/testing.md`.
+Repositories accept `DataSource | EntityManager` so the same class supports standalone
+uniqueness checks and transactional writes. Each repository still translates its own
+errors. Test the manager with both a fake-QueryRunner unit test and real commit/rollback
+integration tests (see [transaction manager tests](#transaction-manager)).
 
-**External-system adapter — a provider port.** An outbound adapter doesn't have to be
-a database. `KeycloakIdentityProvider implements IdentityProviderInterface` adapts an
-application port to an external IdP: it provisions the tenant realm + owner user, and
-on partial failure runs **compensation** (delete the realm) before throwing the domain
-`IdentityProviderError`. Same rules as persistence: speak the port's language,
-translate the infra error into a domain error, and never leak the raw SDK error. The
-usecase orchestrates the saga (provision before the local transaction; compensate if
-the transaction fails); the adapter just owns the external call and its cleanup.
+**External provider.** `KeycloakIdentityProvider implements IdentityProviderInterface`
+provisions realm + owner and compensates partial failure (delete realm) before throwing
+`IdentityProviderError`. Never leak SDK errors. The usecase orchestrates provisioning
+before the local transaction and compensation if that transaction fails; the adapter
+owns external calls and their cleanup.
 
 ## 4. Interfaces and testability
 
-The outbound layer is the one tested with an **integration test**, not a unit
-test — because its value lies precisely in talking to a real database. The pattern
-(see `references/testing.md`):
+Read [common testing rules](testing.md) before writing this layer's tests.
 
-- File `device.repository.integration.test.ts`, run by
-  `vitest.integration.config.ts` (`npm run test:integration`).
-- Spins up a **real, disposable Postgres** with `@testcontainers/postgresql`
-  (`postgres:16-alpine`), initializes the `DataSource`, and **runs the migrations**
-  (`initializeDatabase(..., { runMigrations: true })`).
-- Uses the real TypeORM repository (`dataSource.getRepository(DeviceOrmEntity)`) and
-  the real domain (`DeviceRegister.create(...)`) to build the input.
-- Verifies what only the database can prove: a generated numeric `id`, timestamps,
-  `telemetry`'s `jsonb` round-tripping, auto-increment, persisted metadata.
+### Persistence integration
 
-The outbound layer is never tested with a mocked database: it's either a real
-integration test, or it's worthless.
+Use real disposable Postgres, migrations, repository and domain.
+
+```ts
+interface MakeSutInterface {
+  sut: RegisterDeviceTypeormRepository;
+  repository: Repository<DeviceEntityInterface>;
+  dataSource: DataSource;
+  container: StartedPostgreSqlContainer;
+}
+
+const makeSut = async (): Promise<MakeSutInterface> => {
+  const container = await new PostgreSqlContainer("postgres:16-alpine").start();
+  const dataSource = await initializeDatabase(
+    createDataSource({
+      host: container.getHost(),
+      port: container.getPort(),
+      username: container.getUsername(),
+      password: container.getPassword(),
+      database: container.getDatabase(),
+    }),
+    { runMigrations: true },
+  );
+  const repository = dataSource.getRepository(DeviceOrmEntity);
+  return { sut: new RegisterDeviceTypeormRepository(repository), repository, dataSource, container };
+};
+
+describe("RegisterDeviceTypeormRepository", () => {
+  let context: MakeSutInterface;
+
+  beforeAll(async () => {
+    context = await makeSut();
+  }, 180_000);
+
+  afterAll(async () => {
+    await context.dataSource.destroy();
+    await context.container.stop();
+  });
+
+  describe("when saving a valid device", () => {
+    it("should store the row with the telemetry jsonb round-tripping", async () => {
+      const device = DeviceRegister.create(
+        makeRegisterDeviceInput({ telemetry: makeTelemetrySource({ address }) }),
+      );
+      const saved = await context.sut.save(device);
+      const found = await context.repository.findOneByOrFail({ id: saved.id });
+      expect(found.telemetry).toEqual({ protocol: INGEST_PROTOCOL.MQTT, address });
+    });
+  });
+});
+```
+
+Assert generated ID, Date timestamps, JSONB round-trip, auto-increment and metadata.
+Always destroy DataSource and stop container in afterAll; never mock this database.
+
+Use `vitest.integration.config.ts` / `npm run test:integration`. The reference uses
+`@testcontainers/postgresql` with `postgres:16-alpine`; initialize with
+`initializeDatabase(..., { runMigrations: true })` and the real TypeORM repository.
+
+### Transaction manager
+
+Manager owns connect → startTransaction → work(ctx) → commit; rollback on error,
+release in finally. Test both:
+
+- Real-container integration: commit/rollback visibility and shared transactional
+  EntityManager; writes visible inside but not on another connection before commit.
+- Unit fake QueryRunner: the manager's actual control flow, without Docker.
+  **Call the SUT**, never reproduce its try/finally:
+
+```ts
+interface MakeSutInterface {
+  sut: CreateAccountTransactionManager;
+  queryRunner: QueryRunner;
+}
+
+const makeSut = (queryRunner = makeQueryRunner()): MakeSutInterface => {
+  const dataSource = {
+    createQueryRunner: vi.fn(() => queryRunner as unknown as QueryRunner),
+  } as unknown as DataSource;
+  return { sut: new CreateAccountTransactionManager(dataSource), queryRunner };
+};
+
+describe("CreateAccountTransactionManager", () => {
+  describe("when the transactional work throws", () => {
+    it("should roll back and re-throw the original error", async () => {
+      const workError = new Error("work failed");
+      const { sut, queryRunner } = makeSut();
+      await expect(
+        sut.run(async () => {
+          throw workError;
+        }),
+      ).rejects.toThrow(workError);
+      expect(queryRunner.rollbackTransaction).toHaveBeenCalledTimes(1);
+      expect(queryRunner.commitTransaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when releasing the query runner fails", () => {
+    it("should throw RepositoryError", async () => {
+      const { sut } = makeSut(
+        makeQueryRunner({
+          release: vi.fn(async () => {
+            throw new Error("pool exhausted");
+          }),
+        }),
+      );
+      await expect(sut.run(async () => "ok")).rejects.toThrow(RepositoryError);
+    });
+  });
+});
+```
+
+A release throw in finally can mask the original error; prove it through the manager,
+not a hand-rebuilt flow around raw QueryRunner (which only tests TypeORM).
+
+### External-service adapters
+
+Unit-test KeycloakIdentityProvider using mocked platform realm/user services: realm
+before user; failures → domain IdentityProviderError, never raw SDK error; partial
+failure → deleteRealm compensation. Best-effort deleteAccountWithOwner must not throw,
+even if its steps fail. Adapter owns cleanup and infrastructure → domain translation.
 
 ## 5. How to start (new feature)
 
 1. Create `features/<feat>/outbound/<technology>/`.
-2. A `<Feat><Technology>Repository implements <Feat>RepositoryInterface` class.
-3. Receive the concrete client (e.g., TypeORM's `Repository<...>`) through the
-   constructor.
-4. Implement the methods speaking domain types in the signature; convert to the
-   ORM's format internally (`repository.create(...)`).
-5. Wrap the operation in `try/catch`: translate known errors (uniqueness →
-   `<Feat>AlreadyExistsError`) and fall back to `RepositoryError` for the generic
-   case, always with `{ cause: error }`.
-6. Write the **integration** test with testcontainers.
+2. Define `<Feat><Technology>Repository implements <Feat>RepositoryInterface`.
+3. Inject the concrete client (e.g. TypeORM `Repository<...>`).
+4. Keep signatures domain-typed; convert internally (`repository.create(...)`).
+5. In try/catch, map known failures (uniqueness → `<Feat>AlreadyExistsError`), otherwise
+   throw `RepositoryError`, preserving `{ cause: error }`.
+6. Add testcontainer integration tests.
 
 ## 6. Common mistakes (what NOT to do)
 
-- ❌ Putting business rules in the repository. ✅ The rule belongs to `domain/`;
-  the outbound layer only persists and translates technical errors.
-- ❌ Letting the raw Postgres/TypeORM error bubble up. ✅ Translate it into a
-  domain error or `RepositoryError` (with `cause`).
-- ❌ The public signature exposing ORM types. ✅ The signature speaks domain
-  (`RegisterDeviceOutputProps`/`DeviceEntityInterface`); the ORM is an internal
-  detail.
-- ❌ Instantiating the `DataSource`/connection here. ✅ It receives the ready-made
-  `Repository` from the wire.
-- ❌ Testing with a mocked database. ✅ Integration testing with testcontainers.
-- ❌ Scattering error-code strings (`"23505"`). ✅ Use the `PostgresError` helper
-  from `platform/`.
-- ❌ A repository that only works standalone **or** only inside a transaction. ✅
-  Accept `DataSource | EntityManager` so the same class serves the uniqueness check
-  and the transactional `save`.
-- ❌ Assuming an outbound adapter is always a database. ✅ An external system (an IdP,
-  a queue, an API) is also `outbound/` — implement the port, translate errors into the
-  domain, and own any compensation.
+- No business rules here; persist and translate errors only.
+- Never leak raw Postgres/TypeORM errors; use domain errors/`RepositoryError` with cause.
+- No ORM types in public contracts; domain input/entity output only.
+- Do not create DataSource/connections here; wire supplies the ready client.
+- Never mock persistence; use real testcontainers.
+- Do not scatter `23505`; use platform's `PostgresError` helper.
+- Transaction-capable repositories must support both standalone and transactional use
+  through `DataSource | EntityManager`.
+- Outbound also includes IdPs, queues and APIs: implement the port, translate failures
+  and own required compensation.

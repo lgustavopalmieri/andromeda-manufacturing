@@ -1,41 +1,25 @@
 # Listing queries — pagination, sort, filters, text search & facets
 
-> Reference for the `modular-feature-architecture` skill. Shared building blocks:
-> `src/modules/@shared/query/` and `src/modules/@shared/pagination/`. TypeORM
-> translator: `src/platform/database/postgres/typeorm/query/`. Reference feature (real
-> code): `src/modules/machine/features/list-machines/`.
+Shared: `src/modules/@shared/query/`, `src/modules/@shared/pagination/`.
+Translator: `src/platform/database/postgres/typeorm/query/`.
+Reference: `src/modules/machine/features/list-machines/`.
 
 ## 1. Core concept
 
-Every **listing** (a feature that returns a collection) speaks the same query language:
-**pagination + sort + structured filters + free-text search + facets**. The standard
-follows the same philosophy as the rest of the architecture:
-
-- **Pure value objects in `@shared/query`** (no framework, no SQL) carry the caller's
-  intent already validated and normalized: `Pagination`, `Sort`, `TextSearch`,
-  `ListQuery`.
-- **A single TypeORM translator in `platform/`** turns those VOs into query-builder
-  calls. It is the only place that knows the ORM — swapping it never touches the
-  domain or `@shared`.
-- **Each feature declares an explicit whitelist** (a `ListQuerySpec`) of what is
-  sortable / searchable / facetable, plus the physical column map in its outbound
-  adapter. Business intent stays visible; we never sort/filter on an arbitrary column.
-
-The output shape adapts to the input: `facets` only appear in the response when the
-caller asks for them.
+Listings share pagination, sort, structured filters, free-text search and facets.
+Pure shared VOs (`Pagination`, `Sort`, `TextSearch`, `ListQuery`) validate/normalize
+intent without SQL/frameworks. One platform TypeORM translator maps them to query-builder
+calls; replacing it leaves domain/shared unchanged. Each feature declares an explicit
+sortable/searchable/facetable whitelist (`ListQuerySpec`) and outbound physical column
+maps. Never accept arbitrary columns. Return facets only when requested.
 
 ## 2. Role and when to use it
 
-Use this standard for **any feature that lists a collection** (`list-machines`,
-`list-sites`, and future `list-production-orders`, KPIs, quality metrics, telemetry
-slices...). If a feature returns a single aggregate (`get-one`, `find-by-id`), it does
-**not** need this — it's for collections that a UI (or an AI agent) paginates and
-narrows down.
-
-Don't reach for the whole standard when a listing is genuinely trivial: pagination
-alone (`@shared/pagination`) is still fine. But when a listing needs client-controlled
-ordering, more than one filter, text search, or facet counts, adopt the full standard
-instead of inventing per-feature parsing.
+Use for collections narrowed/paginated by humans or AI: machines, sites, orders, KPIs,
+quality and telemetry. Single-aggregate get-one/find-by-id needs no listing query.
+Pagination alone (`@shared/pagination`) is enough for genuinely trivial lists; adopt
+the full standard for client-controlled order, multiple filters, search or facet counts,
+rather than inventing per-feature parsing.
 
 ## 3. The HTTP contract
 
@@ -48,7 +32,7 @@ instead of inventing per-feature parsing.
 &facets=status,siteId            # opt-in: adds count-per-value buckets to the response
 ```
 
-Response (extends the paginated envelope; `facets` present only when requested):
+Extend the paginated response; include facets only on request:
 
 ```jsonc
 {
@@ -73,32 +57,27 @@ Response (extends the paginated envelope; `facets` present only when requested):
 }
 ```
 
-Filters are **optional by default**; a feature that needs one **required** simply makes
-its own Zod field non-optional in the feature schema.
+Filters default to optional; make the feature's Zod field non-optional when required.
 
 ## 4. Shared building blocks (`@shared/query`)
 
-`@shared/query` re-exports `@shared/pagination` and adds the query VOs + Zod helpers.
-Import everything from `@shared/query`.
+Import from `@shared/query`, which also re-exports pagination:
 
-- **`Sort.from(requested, { allowed, fallback, tiebreaker })`** — keeps only whitelisted
-  fields, falls back to the default sort when empty, and **always appends the unique
-  tiebreaker** (`id`). This is what makes offset pagination deterministic — an
-  `ORDER BY name` with duplicate names would otherwise shuffle rows between pages.
-- **`TextSearch.from(raw)`** — trims and escapes SQL LIKE wildcards (`%`, `_`, `\`), so a
-  user-typed term is always a literal; returns `undefined` when there's nothing to search.
-- **`resolveFacets(requested, facetable)`** — de-dupes requested facets and drops anything
-  not facetable; empty means "compute none".
-- **`ListQuery<F>`** — the single VO a listing use case builds. Bundles the generic query
-  concerns (pagination, sort, search, requested facets) with the feature's strongly-typed
-  `filters` (opaque to this layer). `buildResult(items, total, facets?)` assembles the
-  `ListResult<T>`.
-- **Zod helpers** — `sortSchema(allowed)`, `searchSchema(minLength)`, `facetsSchema(facetable)`,
-  `multiValueParam` (single value / repeated param / comma-list → de-duped array).
+- `Sort.from(requested, { allowed, fallback, tiebreaker })`: retain whitelisted fields,
+  fall back when empty, **always append a unique tiebreaker** (`id`) for deterministic
+  offset pagination when other sort values repeat.
+- `TextSearch.from(raw)`: trim and escape LIKE `%`, `_` and backslash so search is literal;
+  return undefined for empty search.
+- `resolveFacets(requested, facetable)`: deduplicate, discard disallowed facets;
+  empty means compute none.
+- `ListQuery<F>`: bundle pagination, sort, search, requested facets and opaque typed
+  filters. `buildResult(items, total, facets?)` creates `ListResult<T>`.
+- Zod: `sortSchema(allowed)`, `searchSchema(minLength)`, `facetsSchema(facetable)`,
+  `multiValueParam` (single/repeated/comma-separated values → deduplicated array).
 
-**TypeORM translator** (`platform/.../typeorm/query/typeorm-list-query.ts`): `applySort`,
-`applyPagination`, `applyTextSearch`, `computeFacets`, and the `ColumnMap` type. It lives in
-`platform/` because it depends on `SelectQueryBuilder` — never import it from the domain.
+Platform `typeorm-list-query.ts` supplies `applySort`, `applyPagination`,
+`applyTextSearch`, `computeFacets`, `ColumnMap`; it depends on SelectQueryBuilder.
+Only outbound uses it, never domain/application.
 
 ## 5. File anatomy of a listing feature (`list-machines`)
 
@@ -116,8 +95,7 @@ export const listMachinesQuerySpec: ListQuerySpec = {
 };
 ```
 
-The spec carries **API field names only** — no column. Both the edge schema and the use
-case consume it, so the whitelist isn't duplicated.
+Declare API fields only, no columns. Edge schema and usecase share this whitelist.
 
 ### `domain/types.ts` — typed filters + input
 
@@ -134,8 +112,8 @@ export interface ListMachinesFilters {
 export type ListMachinesInputProps = ListQueryProps<ListMachinesFilters>;
 ```
 
-Like `PaginationInput`, `ListQueryProps` is a cross-cutting `@shared` contract, so using it
-in `domain/types` follows the same precedent as pagination.
+Like PaginationInput, ListQueryProps is a cross-cutting shared contract permitted in
+domain/types.
 
 ### `application/interfaces.ts` — ports
 
@@ -156,8 +134,8 @@ export interface ListMachinesRepositoryInterface {
 }
 ```
 
-`tenantId` stays a **separate, identity-derived argument** (a security concern, never part
-of the client's query). Everything else travels in the one `ListQuery`.
+Keep tenantId separate and identity-derived, never in client query; all other query
+concerns travel in ListQuery.
 
 ### `application/usecase.ts` — thin orchestration
 
@@ -187,12 +165,12 @@ export const listMachinesSchema = paginationSchema.merge(
 );
 ```
 
-An unknown sort field, an unknown facet, or a too-short `q` fail here → **400 at the edge**.
+Unknown sort/facet fields and too-short q fail at the edge with `400`.
 
 ### `inbound/http/http-handler.ts` — adapt input
 
-Build the typed `filters` object (omitting empty arrays with the `...(cond ? {x} : {})`
-pattern) and map `q` → `search`; hand the assembled `ListQueryProps` to the use case.
+Build typed filters, omitting empty arrays (`...(cond ? {x} : {})`); map q → search
+and pass assembled ListQueryProps to the usecase.
 
 ### `outbound/typeorm/*.repository.ts` — apply + column maps
 
@@ -224,66 +202,59 @@ const facets = query.hasFacets
   : undefined;
 ```
 
-**Tenant scope, soft-delete and structured filters stay written by hand** in the repository
-(visible and auditable); only the mechanical parts (sort, pagination, search, facet
-aggregation) are delegated to the translator. The tiebreaker column must exist in the sort
-column map, otherwise determinism is silently lost.
+Keep tenant scope, soft deletion and structured filters explicit/auditable in the
+repository; delegate only sort, pagination, search and facet aggregation. Include the
+tiebreaker in the sort column map or determinism is lost.
 
 ## 6. Facets — opt-in by design
 
-Facets are **opt-in per feature** (`facetable` in the spec) **and per request** (`?facets=`),
-because each facet is an extra `GROUP BY` query. `computeFacets` derives every facet from the
-same fully-filtered base query (tenant + filters + search already applied), so counts reflect
-the current result set (single-select semantics). Enable facets where they pay off (machine
-fleet, production orders, telemetry); skip them on low-cardinality, hierarchy-navigated lists
-like sites/areas/lines.
+Enable per feature (`facetable`) **and** request (`?facets=`): each adds a GROUP BY query.
+Compute each facet from the same fully filtered base (tenant + filters + search),
+reflecting current results with single-select semantics. Use where valuable (fleet,
+orders, telemetry); skip low-cardinality hierarchy navigation (sites/areas/lines).
 
 ## 7. Text search & indexing
 
-- Default strategy is `ILIKE '%term%'` across the feature's `SEARCH_COLUMNS`, always tenant-scoped.
-- `ILIKE` with a leading wildcard can't use a btree index. Back searchable columns with a
-  **GIN `pg_trgm`** index (requires `CREATE EXTENSION pg_trgm`, done in a migration).
-- Reserve full-text (`tsvector`/`tsquery` + GIN) for genuinely long text (descriptions, notes).
-- For the default sort, add a composite index `(tenant_id, <sort_col>, id)` so ordering +
-  tiebreaker + tenant scope are index-backed and offset pagination stays cheap.
+- Default: tenant-scoped `ILIKE '%term%'` across feature SEARCH_COLUMNS.
+- Leading wildcards cannot use btree; add GIN pg_trgm indexes on searchable columns
+  and `CREATE EXTENSION pg_trgm` in a migration.
+- Use full-text tsvector/tsquery + GIN only for genuinely long descriptions/notes.
+- Index default ordering with `(tenant_id, <sort_col>, id)` for tenant scope and
+  tiebreaker-backed offset pagination.
 
-See the reference migration `1750000000011-AddMachineQueryIndexes` and `references/platform.md`.
+See migration `1750000000011-AddMachineQueryIndexes` and `references/platform.md`.
 
-## 8. Testing (see `references/testing.md`)
+## 8. Testing
 
-- **`@shared/query` VOs**: pure unit tests (`Sort`, `TextSearch`, `resolveFacets`, `ListQuery`,
-  the Zod helpers).
-- **Use case**: unit test with a repository stub — assert the built `ListQuery` (pagination,
-  sort with tiebreaker, filters, resolved facets) and that facets surface into the result.
-- **Repository**: integration test (testcontainers) — cover filters, ordering (asc/desc),
-  case-insensitive search, facet buckets honoring active filters, and tenant isolation.
+Read [common testing rules](testing.md); use the current layer's guide for its SUT setup.
+
+- Shared VOs/Zod: pure unit tests for Sort, TextSearch, resolveFacets and ListQuery.
+- Usecase + repository stub: assert query pagination, sort/tiebreaker, filters, resolved
+  facets and facets in results.
+- Repository + testcontainers: filters, ascending/descending order, case-insensitive
+  search, filtered facet buckets and tenant isolation.
 
 ## 9. How to start (new listing feature)
 
-1. `application/query-spec.ts`: declare `sortable`, `defaultSort`, `tiebreaker`, optional
-   `facetable`, optional `searchMinLength`.
-2. `domain/types.ts`: `<Feat>Filters` (structured) + `<Feat>InputProps = ListQueryProps<<Feat>Filters>`.
-3. `application/interfaces.ts`: `ListResult<T>`, a repository-result type with optional
-   `facets`, and `findAllByTenant(tenantId, query: ListQuery<Filters>)`.
-4. `application/usecase.ts`: `ListQuery.from(input, spec)` → repo → `query.buildResult(...)`.
-5. `inbound/http/schema.ts`: `paginationSchema.merge(...)` composing `sortSchema`,
-   `searchSchema`, `facetsSchema` and the feature's filter fields.
-6. `inbound/http/http-handler.ts`: build typed `filters`, map `q`→`search`, assemble the input.
-7. `outbound/typeorm`: define `SORT_COLUMNS` (include the tiebreaker!), `SEARCH_COLUMNS`,
-   `FACET_COLUMNS`; keep tenant/soft-delete/filters explicit; delegate the rest to the translator.
-8. Add the supporting indexes in a migration (`pg_trgm` for search, composite for the default sort).
-9. Write the tests per layer.
+1. query-spec: sortable, defaultSort, tiebreaker, optional facetable/searchMinLength.
+2. domain/types: typed filters + `<Feat>InputProps = ListQueryProps<<Feat>Filters>`.
+3. application/interfaces: ListResult, repository result with optional facets,
+   `findAllByTenant(tenantId, query: ListQuery<Filters>)`.
+4. Usecase: `ListQuery.from(input, spec)` → repository → `query.buildResult(...)`.
+5. Edge schema: merge paginationSchema with sort/search/facets helpers and feature filters.
+6. Handler: typed filters, q → search, assembled input.
+7. Outbound: SORT_COLUMNS including tiebreaker, SEARCH_COLUMNS, FACET_COLUMNS; explicit
+   tenant/soft-delete/filters; delegate mechanics.
+8. Migrate pg_trgm search and default-sort composite indexes.
+9. Test each layer.
 
 ## 10. Common mistakes (what NOT to do)
 
-- ❌ Hardcoding `ORDER BY` in the repository. ✅ Client-controlled sort via `Sort` + `applySort`.
-- ❌ Sorting/filtering on a field the client passed without a whitelist. ✅ Validate against the
-  feature's `ListQuerySpec` (400 at the edge) — never trust an arbitrary column name.
-- ❌ Forgetting the unique tiebreaker (or leaving `id` out of `SORT_COLUMNS`). ✅ It's what keeps
-  offset pagination deterministic.
-- ❌ Re-implementing multi-value param parsing per feature. ✅ Reuse `multiValueParam`.
-- ❌ Building the wildcard pattern from raw user input. ✅ `TextSearch` escapes wildcards for you.
-- ❌ Computing facets on every request. ✅ Opt-in via `facetable` + `?facets=`.
-- ❌ Importing the TypeORM translator from the domain/application. ✅ It's `platform/`; only the
-  outbound adapter touches it.
-- ❌ Letting `tenantId` ride inside the client query. ✅ It's a separate, identity-derived argument.
+- Do not hard-code ORDER BY; use client Sort + applySort.
+- Never trust client column names; whitelist via ListQuerySpec and edge validation (`400`).
+- Always include unique tiebreaker and its SORT_COLUMNS mapping.
+- Reuse multiValueParam, not feature-specific parsing.
+- Never build LIKE patterns from raw input; TextSearch escapes wildcards.
+- No unconditional facets; feature + request opt-in.
+- No translator imports in domain/application; outbound owns its use.
+- Never accept tenantId in client query; pass it separately from identity.

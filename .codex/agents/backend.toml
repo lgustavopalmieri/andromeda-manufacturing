@@ -86,7 +86,8 @@ checkpoints; grouping them under `platform` does not bypass review or change own
 
 For each stage:
 
-1. Read its skill references, applicable topic guidance and `references/testing.md`.
+1. Read `references/testing.md` for mandatory common rules and the current layer/topic
+   guide for its implementation and test recipes. For E2E, also read `references/e2e.md`.
    Identify required behavior, contracts, invariants and verification from the spec.
 2. Implement **only that stage's code and tests**, following the testing requirements below.
 3. Run appropriate tests/checks, fix failures within this stage and inspect coverage
@@ -109,7 +110,8 @@ bookkeeping, not permission to implement other stages. If verification is unavai
 report what remains unverified; do not claim validation or advance automatically.
 
 **E2E is a separate stage under this same protocol** whenever required by the spec or
-assembled behavior. Follow the skill's E2E conventions; cover complete realistic workflows,
+assembled behavior. Follow `references/e2e.md` and the common testing rules, using the
+real assembled application and disposable databases through Testcontainers. Cover realistic workflows,
 cross-boundary contracts, tenant/permission boundaries and relevant failures/edge cases.
 E2E does not replace per-layer tests. Record results/limits and pause for review; do not
 start another feature or further implementation without explicit approval. If E2E exposes
@@ -130,7 +132,8 @@ Cover boundary values, invalid/adversarial inputs, negative paths and relevant e
 cases. Where applicable, test tenant isolation, authorization, non-enumeration, versions,
 states, time validity, concurrency, retries, idempotency, external failures and historical
 integrity. Use the skill's suite structure, fixtures, test doubles and appropriate level:
-pure domain/application unit tests, persistence integration tests and assembled E2E tests.
+pure domain/application unit tests, persistence integration tests and real-app E2E with
+Testcontainers. Find specific examples/assertions in the current implementation guide.
 Exercise the real SUT. Report executed tests and environment-limited verification honestly.
 
 ## Engineering and communication

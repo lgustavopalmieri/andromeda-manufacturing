@@ -1,28 +1,19 @@
 # The `wire` — the feature's composition root
 
-> Reference for the `modular-feature-architecture` skill. Reference example:
-> `src/modules/device/features/register/inbound/http/wire.ts`.
+Reference: `src/modules/device/features/register/inbound/http/wire.ts`.
 
 ## 1. Core concept
 
-The `wire` is the **only place that knows the concrete classes** and ties them
-together: it instantiates the concrete repository, injects it into the usecase,
-injects observability and the usecase into the handler, and hands the route a
-ready-to-use handler. It's the feature's **composition root** — the point where
-dependency injection happens "by hand", with no container.
-
-Every other layer talks through **interfaces**; the `wire` is where those
-interfaces finally meet their concrete implementations from `platform/` and
-`outbound/`.
+Wire is the feature's only concrete dependency assembly point: instantiate repository,
+inject it into usecase, then inject usecase/observability into handler. Other layers
+use interfaces; wire selects platform/outbound implementations. Use manual injection,
+not a container.
 
 ## 2. Role and when to use it
 
-Use the `wire` to: assemble the feature's dependency graph for a specific protocol.
-One `wire` per input adapter — `inbound/http/wire.ts` for HTTP; if `inbound/mqtt/`
-shows up, it will have its own `wire`, reusing the same usecase and repository.
-
-Don't put in the `wire`: any logic at all (no rules, validation, or translation).
-It only calls `new` and wires the pieces together.
+Create one wire per feature/input adapter (`inbound/http/wire.ts`, future
+`inbound/mqtt/wire.ts`), reusing usecase/repository. Only instantiate and connect;
+no rules, validation or translation.
 
 ## 3. Real example (`register`)
 
@@ -53,56 +44,33 @@ export class RegisterDeviceWire {
 }
 ```
 
-What this file does and why:
-
-- **It's the only one that imports from `platform/` and `outbound/` at the same
-  time.** It resolves `RegisterDeviceRepositoryInterface` with
-  `RegisterDeviceTypeormRepository` (built from `AppDataSource`'s
-  `Repository<DeviceOrmEntity>`) and `ObservabilityInterface` with
-  `PinoObservability`. The concrete choice lives here, outside the usecase and the
-  handler.
-- **`wire()` is private**; the internal assembly doesn't leak out. The public
-  entry point is `provideHandler()`.
-- **`provideHandler()` returns `handle` with `.bind(handler)`.** The `bind`
-  preserves `this` when Express calls the isolated route function — without it,
-  `this.usecase` would be `undefined` inside `handle`.
-- **It's static** because there's no state; it's a factory. The route calls
-  `RegisterDeviceWire.provideHandler()` (see `references/platform.md`).
-- **Authorization isn't wired here.** The usecase extends `AuthorizedUsecase` and
-  carries its own `allowedRoles`, so the wire just builds it — there's no
-  authorization wrapper to compose. Authentication lives at the edge
-  (`build-auth-middlewares`), not in the feature wire (see `references/auth.md`).
+- Only wire combines platform and outbound imports, selecting
+  `RegisterDeviceTypeormRepository` from `AppDataSource`'s `Repository<DeviceOrmEntity>`
+  and `PinoObservability` for their interfaces.
+- Keep static `wire()` private; expose static `provideHandler()` as the stateless factory.
+- Return `handler.handle.bind(handler)` to preserve `this.usecase` when Express invokes it.
+- No authorization wrapper: the usecase inherits `AuthorizedUsecase` and declares
+  `allowedRoles`. Edge `build-auth-middlewares` handles authentication
+  (`references/auth.md`), not feature wire.
 
 ## 4. Interfaces and testability
 
-The `wire` usually **has no unit test of its own**: it only calls `new`. What
-exercises the wire end-to-end is the **e2e test** (the real app, with a real
-database, see `references/testing.md`). The layers the wire assembles have already
-been tested in isolation with stubs/mocks — the wire only confirms the right
-concrete implementations were plugged in.
-
-Precisely because it concentrates every `new`, the wire is what keeps the other
-layers **free of instantiation** and, therefore, testable with test doubles.
+Wire normally needs no unit test: E2E with the real app/database verifies the assembled
+graph ([E2E guide](e2e.md), using Testcontainers and the [common rules](testing.md)). Test its layers separately with doubles. Keeping
+dependency construction here lets those layers remain independently testable.
 
 ## 5. How to start (new feature)
 
-1. Create `inbound/<protocol>/wire.ts` (only after domain/application/outbound/
-   handler already exist).
-2. A `<Feat>Wire` class with:
-   - a `private static wire()` that instantiates, in dependency-rule order,
-     repository → usecase → observability → handler;
-   - a `public static provideHandler()` that returns `handler.handle.bind(handler)`.
-3. Pull the infra dependencies from `platform/` (data-source, orm-entity, Pino).
-4. Register `provideHandler()` in the module's route under `platform/http/routes/`.
+1. After domain/application/outbound/handler exist, create `inbound/<protocol>/wire.ts`.
+2. Define `<Feat>Wire` with private static `wire()` assembling repository → usecase →
+   observability → handler, and public static `provideHandler()` returning the bound method.
+3. Get infrastructure from platform (data-source, ORM entity, Pino).
+4. Register `provideHandler()` under `platform/http/routes/`.
 
 ## 6. Common mistakes (what NOT to do)
 
-- ❌ Putting logic (validation, logging, transformation) in the wire. ✅ Only `new`
-  and wiring.
-- ❌ Scattering `new PinoObservability()`/`new ...Repository()` across other
-  layers. ✅ Every dependency `new` lives in the wire.
-- ❌ Forgetting `.bind(handler)` when handing the method to the route. ✅ Always
-  `bind`, or `this` gets lost.
-- ❌ Making the wire aware of `express`/`req`/`res`. ✅ It delivers a handler
-  function; the one who registers it on the route is `platform/http/routes/`.
-- ❌ One giant wire for several features. ✅ One wire per feature/adapter.
+- No validation, logging or transformation; only construction/wiring.
+- Do not scatter `new PinoObservability()`/`new ...Repository()` across other layers.
+- Always bind the handler method or `this` is lost.
+- Wire must not know Express/`req`/`res`; it returns a function and platform registers the route.
+- No giant multi-feature wire; use one per feature/adapter.

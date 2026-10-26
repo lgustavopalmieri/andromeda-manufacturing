@@ -1,31 +1,18 @@
 # `modules/@shared/` — cross-module contracts and utilities
 
-> Reference for the `modular-feature-architecture` skill. Reference path:
-> `src/modules/@shared/`.
+Reference: `src/modules/@shared/`.
 
 ## 1. Core concept
 
-`@shared` holds what is **genuinely common to more than one module/feature**:
-contracts (interfaces), base classes, and utilities that standardize the service's
-behavior, **without** carrying any specific module's business rules.
-
-Think of `@shared` as the "lingua franca" between modules: the HTTP response
-format, the observability contract, the generic repository error. It lives under
-`modules/` (close to the business logic) — and not under `platform/` — because it
-defines **contracts that the domain/feature use**, while `platform/` brings the
-**concrete implementations** of those contracts.
+Shared holds genuinely cross-feature/module contracts, bases and utilities without
+module-specific business rules. It belongs under modules because it defines contracts
+features consume; platform provides their concrete implementations.
 
 ## 2. Role and when to use it
 
-Only put something in `@shared` **when**:
-
-- it's used by **two or more** features/modules (or clearly will be), and
-- it's **business-agnostic** (it doesn't talk about `device`, `plant`, etc.), and
-- it's a **contract or utility**, not a rule.
-
-If it's used by a single feature, keep it in the feature. Duplicating once is
-cheaper than building the wrong shared abstraction. Promote it to `@shared` once a
-second real use case shows up.
+Use shared for business-agnostic contracts/utilities used by two or more features/modules
+(or clearly about to be). Keep single-feature needs local: duplicate once rather than
+create a premature abstraction; promote when a second real use demonstrates the pattern.
 
 ## 3. What exists today
 
@@ -44,8 +31,7 @@ second real use case shows up.
     └── testcontainers/               # shared container setup (e.g., setup-postgres)
 ```
 
-(`auth/` and `events/` also live here — see the anatomy in `SKILL.md`; the tree
-above lists the pieces this reference details.)
+Auth/events also live here; see `SKILL.md` for their anatomy.
 
 ### `http/http-response.ts` — the envelope base
 
@@ -65,12 +51,9 @@ export abstract class HttpResponse {
 }
 ```
 
-Standardizes the **response envelope** across the whole service: success is
-`{ error: false, data }`, failure is `{ error: true, message }`. Each feature
-extends this base in its own `http-response-mapper.ts` (e.g.,
-`RegisterDeviceHttpResponse`) and implements `mapError` with its own
-error-vocabulary → status mapping. The base guarantees consistency; the subclass
-brings the feature's mapping rules (see `references/inbound-http.md`).
+Standardize success `{ error: false, data }` and failure `{ error: true, message }`.
+Features extend HttpResponse in `http-response-mapper.ts` (`RegisterDeviceHttpResponse`)
+with their own error → status `mapError` (`references/inbound-http.md`).
 
 ### `observability/observability.ts` — the observability contract
 
@@ -84,14 +67,9 @@ export interface ObservabilityInterface {
 }
 ```
 
-The **contract** lives in `@shared`; the implementation (`PinoObservability`) lives
-in `platform/`. The handler depends only on the interface — that's why capturing an
-error doesn't couple the feature to Pino, and the test uses
-`makeObservabilityMock()`.
-
-`CompositeObservability` (also in `@shared`) implements the same interface and fans
-out to several targets (log, trace, metric), isolating each target's failure.
-Callers still only see `ObservabilityInterface`.
+Handlers depend on this contract and use `makeObservabilityMock` in tests; concrete
+`PinoObservability` stays in platform. Shared `CompositeObservability` implements the
+same interface, fans out to log/trace/metric targets and isolates each target's failure.
 
 ### `errors/repository.error.ts` — generic persistence failure
 
@@ -104,67 +82,85 @@ export class RepositoryError extends Error {
 }
 ```
 
-A **module-agnostic** error for "persistence failed for a technical reason". Any
-feature's `outbound/` throws this (with `{ cause }`) as its fallback, and every
-inbound layer maps it to a generic `500`. Because it's cross-cutting, it doesn't
-belong to any feature's `domain/` — hence living in `@shared`.
+A module-agnostic technical persistence failure: outbound fallback throws it with cause;
+inbound maps it to generic `500`. It belongs in shared, not a feature's domain.
 
 ### Shared mocks (`*.mock.ts`)
 
-`http-response.mock.ts` (`makeHttpResponseMock`) and `observability.mock.ts`
-(`makeObservabilityMock`) sit right next to the contracts they double. Since the
-contract is shared, its test double is too — any feature tests its
-mapper/handler with the same mock, without rewriting it.
+Keep `http-response.mock.ts`/`makeHttpResponseMock` and
+`observability.mock.ts`/`makeObservabilityMock` next to their contracts. Reuse them across
+feature mapper/handler tests instead of rewriting them.
 
 ### `tests/` — cross-module test infrastructure (the one allowed exception)
 
-Everything else in `@shared` is business-agnostic. The `tests/` subtree is the
-deliberate exception: it holds **test-only** code that _does_ name concrete modules.
+Unlike business-agnostic runtime shared code, this **test-only** subtree may name modules:
 
-- **`factories/<module>/`** — the data factories (`make<Thing>(overrides = {})`),
-  grouped by module (`factories/machine/machine.factory.ts`,
-  `factories/account/account.factory.ts`, ...). A factory names a concrete module
-  (`makeMachineEntity`), so it can't sit among the agnostic runtime contracts — but
-  it belongs in `@shared` because factories are reused **across modules**: an
-  `operation` integration test seeds an `account` and a `machine`, importing both
-  their factories. Centralizing them here keeps a test from reaching into another
-  module's internals for a fixture, and gives every module one predictable place to
-  find them. See `references/testing.md` for the factory pattern itself.
-- **`testcontainers/`** — shared container bootstrapping (e.g., `setup-postgres`)
-  reused by every `*.integration.test.ts`.
+- `factories/<module>/`: `make<Thing>(overrides = {})` data factories, grouped by module
+  (`machine/machine.factory.ts`, `account/account.factory.ts`). Cross-module tests can
+  seed account + machine without reaching into those modules' internals. Centralize
+  them here; see [Data factories](#data-factories) for the implementation pattern.
+- `testcontainers/`: reusable container setup (`setup-postgres`) for integration suites.
 
-This subtree ships **no production code** and is never imported by a runtime layer —
-only test files import from `@shared/tests/**`. That's what makes the module-specific
-naming acceptable here: the "business-agnostic" rule guards the runtime graph, and
-test fixtures are outside it.
+No production code belongs here. **Only tests may import `@shared/tests/**`**; runtime
+layers must never depend on it. This boundary permits module-specific fixture names.
 
 ## 4. Interfaces and testability
 
-`@shared` is, for the most part, **made of interfaces** — that's what underpins the
-whole service's testability. Consistent pattern: **interface + mock** together in
-`@shared`; **concrete implementation** in `platform/`. This lets any layer depend on
-the contract and be tested with a ready-made test double.
+Keep interface + mock together in shared and concrete implementation in platform,
+allowing layers to depend on contracts with reusable test doubles.
+
+Read [common testing rules](testing.md) for suite structure, fixtures and doubles.
+
+### Data factories
+
+```ts
+// @shared/tests/factories/device/device.factory.ts
+export const makeTelemetrySource = (overrides: Partial<TelemetrySource> = {}): TelemetrySource => ({
+  protocol: INGEST_PROTOCOL.MQTT,
+  address: "andromeda/plants/plant-01/devices/gateway-01/telemetry",
+  ...overrides,
+});
+
+export const makeDeviceEntity = (
+  overrides: Partial<DeviceEntityInterface> = {},
+): DeviceEntityInterface => ({
+  id: 1,
+  name: "Gateway 01",
+  type: DEVICE_TYPE.GATEWAY,
+  telemetry: makeTelemetrySource(),
+  status: DEVICE_STATUS.ACTIVE,
+  createdAt: new Date("2026-07-16T00:00:00.000Z"),
+  updatedAt: new Date("2026-07-16T00:00:00.000Z"),
+  ...overrides,
+});
+
+// @shared/tests/factories/device/register.factory.ts
+export const makeRegisterDeviceInput = (
+  overrides: Partial<RegisterDeviceInputProps> = {},
+): RegisterDeviceInputProps => {
+  const { name, type, telemetry } = makeDeviceEntity();
+  return { name, type, telemetry, ...overrides };
+};
+```
+
+Use valid defaults + overrides spread last (`make<Thing>(overrides = {})`); scenarios
+specify only what matters (`makeRegisterDeviceInput({ name: "   " })`). Group by module,
+not feature: fixtures serve register/find/update and cross-module integration needs.
+
 
 ## 5. How to start / when to promote something to `@shared`
 
-1. It's born inside the feature. Only consider `@shared` on the second real use.
-2. If it's a **contract**: create the `interface ...Interface` in `@shared` and its
-   `*.mock.ts` next to it; put the concrete implementation in `platform/`.
-3. If it's a **base/agnostic utility**: create the class/function in the right
-   sub-area (`errors/`, `http/`, ...), with no reference to any business module.
+1. Start in the feature; consider promotion on the second real use.
+2. For contracts, add `...Interface` + adjacent `*.mock.ts`; implement in platform.
+3. For agnostic bases/utilities, choose the appropriate shared area (`errors/`, `http/`)
+   without referencing business modules.
 
 ## 6. Common mistakes (what NOT to do)
 
-- ❌ Putting a specific module's **runtime** rule or type in `@shared` (e.g.,
-  something about `device`). ✅ That belongs to the module. The lone exception is
-  **test-only** data under `@shared/tests/factories/<module>/`, which is organized by
-  module on purpose and never touches the runtime graph.
-- ❌ Creating a shared abstraction on the first use. ✅ Wait for the pattern to
-  repeat.
-- ❌ Putting a concrete infra implementation (Pino, TypeORM) in `@shared`. ✅
-  Contract in `@shared`, concrete implementation in `platform/`.
-- ❌ Leaving the mock far from its contract. ✅ `*.mock.ts` next to the `*.ts` it
-  doubles.
-- ❌ Leaking `@shared` into the pure `domain/` unnecessarily. ✅ Only use a shared
-  contract where it genuinely applies (e.g., `RepositoryError` in the outbound
-  layer).
+- No module-specific runtime rules/types in shared; only test-only module factories
+  under `@shared/tests/factories/<module>/` are exempt.
+- Do not share abstractions on first use; wait for repetition.
+- No concrete Pino/TypeORM infrastructure; shared defines contracts, platform implements.
+- Keep mocks next to their contracts.
+- Do not leak shared into pure domain unnecessarily; use contracts only where they
+  genuinely apply (e.g. RepositoryError in outbound).

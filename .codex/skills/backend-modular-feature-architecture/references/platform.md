@@ -1,20 +1,12 @@
 # `platform/` layer — concrete infrastructure
 
-> Reference for the `modular-feature-architecture` skill. Reference path:
-> `src/platform/`. The stack (TypeORM/Postgres/Express/Pino) is the reference
-> project's — **swappable**; what matters is isolating all infra here.
+Reference: `src/platform/`. TypeORM/Postgres/Express/Pino are swappable reference choices.
 
 ## 1. Core concept
 
-`platform/` is the **concrete, business-agnostic infrastructure**: the HTTP server,
-the database data-source, the ORM mapping, the migrations, the logger. It's the
-technical implementation features consume through `wire`, but it **knows nothing
-about business rules**.
-
-Golden rule, inverted from the domain: if `domain/` is "business logic without a
-framework", `platform/` is "framework without business logic". The only bridge is
-the entity's **shape contract** (`DeviceEntityInterface`), which the ORM mapping
-references to know which columns exist — but still with no business logic.
+Platform is business-agnostic infrastructure: HTTP server, data-source, ORM mappings,
+migrations and logger, consumed through wire. No business rules; the ORM may reference
+the entity's pure shape contract (`DeviceEntityInterface`), not its behavior.
 
 ## 2. Structure
 
@@ -37,17 +29,12 @@ platform/
 
 ### Technology-specific adapters
 
-Keep capability contracts separate from provider implementations. For example,
-`platform/auth/` owns a provider-neutral `TokenVerifierInterface` and generic
-authentication errors, while a verifier that derives a Keycloak realm JWKS endpoint,
-uses `KEYCLOAK_*` configuration, or calls the Keycloak Admin API belongs in
-`platform/keycloak/`; its configuration belongs in `configs/keycloak.ts`.
-
-The package used does not decide this boundary: a `KeycloakJwtTokenVerifier` can use
-`jose` to verify the standard JWT/JWKS protocol without importing the Keycloak SDK.
-It is still a Keycloak adapter when its endpoint and configuration follow Keycloak
-conventions. If those conventions are removed, rename it as a generic OIDC/JWT
-verifier and place it in `platform/auth/` with `configs/auth.ts`.
+Separate capability contracts from providers. `platform/auth/` owns neutral
+`TokenVerifierInterface`/errors; Keycloak realm JWKS endpoints, `KEYCLOAK_*` config or
+Admin API calls belong in `platform/keycloak/`, configured by `configs/keycloak.ts`.
+Using `jose` instead of the Keycloak SDK does not make those conventions generic.
+Without provider-specific conventions, rename as a generic OIDC/JWT verifier and use
+`platform/auth/` + `configs/auth.ts`.
 
 ## 3. Database
 
@@ -81,17 +68,11 @@ export const initializeDatabase = async (
 };
 ```
 
-Decisions that matter:
-
-- **`createDataSource(connection)` is a factory**: it receives the connection as a
-  parameter. This lets the integration test create a data-source pointing at the
-  testcontainer's Postgres, while the app uses `AppDataSource` (built from
-  `configs/database.ts`). The same function serves both worlds.
-- **`synchronize: false` always.** The schema is managed by **migrations**, never by
-  auto-sync. Auto-sync in production destroys data.
-- **`initializeDatabase` decides whether to run migrations** via
-  `options.runMigrations`. At boot, `main.ts` passes `shouldRunMigrationsOnBoot`
-  (from `configs/env.ts`); in the integration test, it passes `true`.
+- `createDataSource(connection)` accepts parameters for both testcontainer connections
+  and app `AppDataSource` (configured by `configs/database.ts`).
+- Always `synchronize: false`; manage schema with migrations, never destructive auto-sync.
+- `initializeDatabase` uses `options.runMigrations`: main passes
+  `shouldRunMigrationsOnBoot` from `configs/env.ts`; integration tests pass `true`.
 
 ### `device.orm-entity.ts` — the mapping (EntitySchema, not decorators)
 
@@ -131,19 +112,11 @@ export const DeviceOrmEntity = new EntitySchema<DeviceEntityInterface>({
 });
 ```
 
-Why **`EntitySchema` and not a decorator-based class**:
-
-- It keeps the **business entity pure** (`entity/device.entity.ts` stays an
-  `interface` with no `@Entity`/`@Column`). The ORM references that contract
-  through `EntitySchema<DeviceEntityInterface>`, so TypeORM never invades the
-  domain.
-- The **camelCase → snake_case** mapping (`plantId`→`plant_id`) lives only here.
-- `telemetry` becomes **`jsonb`** — the domain's value-object is persisted as JSON
-  and round-trips (the integration test proves this).
-- `id` is `bigint` in the database with a **`transformer`** to expose `number` in
-  the application (bigint arrives as a string from the driver).
-- `createDate`/`updateDate`/`deleteDate` let the database manage timestamps and
-  the soft delete (`deleted_at`), consistent with `decommission`.
+Use `EntitySchema<DeviceEntityInterface>`, leaving the business interface free of
+`@Entity`/`@Column`. Only this mapping owns camelCase → snake_case (`plantId` → `plant_id`),
+telemetry JSONB, and the `bigint` → numeric ID transformer (the driver returns a string).
+`createDate`/`updateDate`/`deleteDate` manage timestamps and `deleted_at` soft deletion,
+consistent with decommissioning. Integration tests prove JSONB round-tripping.
 
 ### Database errors — `postgres-error.ts`
 
@@ -160,19 +133,17 @@ export class PostgresError {
 }
 ```
 
-Isolates reading the Postgres error code (including inside `driverError`) into an
-infra helper. `outbound/` uses `PostgresError.isUniqueViolation(error)` without
-knowing magic strings or the driver error's internal structure.
+This infrastructure helper reads codes, including nested `driverError`.
+Outbound calls `PostgresError.isUniqueViolation(error)` without driver internals/magic strings.
 
 ### Migrations — SQL-first
 
-Each migration is **3 files** under `migrations/`:
+Each migration has three sibling files:
 
-- `<timestamp>-<Name>.up.sql` — the up DDL (plain SQL);
-- `<timestamp>-<Name>.down.sql` — the rollback DDL;
-- `<timestamp>-<Name>.ts` — a thin wrapper that reads its sibling `.sql` via
-  `readMigrationSql` (which resolves the path through `import.meta.url`, working the
-  same way in `src/` and `dist/`).
+- `<timestamp>-<Name>.up.sql`: plain SQL DDL.
+- `<timestamp>-<Name>.down.sql`: rollback DDL.
+- `<timestamp>-<Name>.ts`: thin wrapper using `readMigrationSql` and `import.meta.url`
+  to read SQL in both `src/` and `dist/`.
 
 ```ts
 export class CreateDevices1752739200000 implements MigrationInterface {
@@ -189,24 +160,20 @@ export class CreateDevices1752739200000 implements MigrationInterface {
 }
 ```
 
-Why: the SQL is never locked to the ORM's syntax (you can swap runners without
-losing migrations), yet TypeORM still acts as the **applier** (ordering,
-transaction, the `migrations` table). Trade-off: you give up `migration:generate`
-(automatic diffing) — the SQL is hand-written. If the build (`tsc`) doesn't copy the
-`.sql` files to `dist/`, add a step that mirrors them. **Running migrations at boot
-vs. in a dedicated step** depends on the deployment topology: a single instance can
-migrate at boot (idempotent); with multiple instances, migrate in a single job
-**before** bringing up the instances, to avoid a race (the decision lives in
-`configs/env.ts`, e.g., `shouldRunMigrationsOnBoot`).
+Hand-written SQL remains runner-independent; TypeORM applies ordering, transactions
+and the migrations table. This gives up automatic `migration:generate` diffing.
+If `tsc` does not copy SQL into dist, add a mirroring build step.
+
+A single instance may run idempotent migrations at boot; multiple instances require
+one migration job **before** startup to avoid races. Configure that deployment decision
+in `configs/env.ts` (`shouldRunMigrationsOnBoot`).
 
 ## 4. HTTP
 
 ### `server.ts` — the generic server
 
-`HttpServer` receives `{ port, routes: { prefix, router }[] }`, creates an
-`express()`, applies `express.json()`, registers each `router` under its `prefix`,
-and exposes `start()`/`stop()`. It's **feature-agnostic**: it only mounts the
-routers it's given.
+`HttpServer({ port, routes: { prefix, router }[] })` creates Express, applies
+`express.json()`, mounts supplied routers and exposes `start()`/`stop()` without feature logic.
 
 ### `routes/` — where the wire meets the route
 
@@ -227,40 +194,39 @@ export const buildApiRoutes = (): { prefix: string; router: Router }[] => [
 ];
 ```
 
-This is the point where `platform/` touches the feature: the route calls the
-feature's wire `provideHandler()`. `buildApiRoutes()` aggregates the routers with
-their versioned prefixes (`/api/v1/...`), and `main.ts` hands that to `HttpServer`.
-When adding a new feature/route, register it here.
+Routes call feature `Wire.provideHandler()`. `buildApiRoutes()` aggregates versioned
+prefixes (`/api/v1/...`); main supplies them to HttpServer. Register new routes here.
 
 ## 5. Observability
 
-`pino-observability.ts` **implements** `@shared`'s `ObservabilityInterface` (the
-contract lives in `@shared`; the concrete implementation, here). It logs the error
-at `error` level with a serializer that preserves the `cause` chain. The `wire`
-injects `new PinoObservability()` into the handler, but the handler only knows the
-interface — you can swap Pino for another backend without touching the feature.
+Platform `pino-observability.ts` implements shared `ObservabilityInterface`, logging
+errors at error level with the cause chain preserved. Wire injects `PinoObservability`;
+handlers depend only on the interface so logger changes do not affect features.
+
+### Testing platform infrastructure
+
+Read [common testing rules](testing.md).
+
+- HttpServer: supertest + createServer, liveness response and stop resolution with/without start.
+- PinoObservability: integration-style unit test with real Pino writing to captured
+  Writable; assert emitted level 50, err.type/message, cause chain and context.
+  Exercise serializer + SUT together; do not mock Pino.
+
+For authentication infrastructure, use the [auth-specific tests](auth.md#5-testing).
 
 ## 6. How to start / when to touch it
 
-- New field/table → a new **migration** (`.up.sql` + `.down.sql` + wrapper) and an
-  `EntitySchema` update.
-- New feature with a route → register the wire in `routes/<module>.routes.ts` and in
-  `buildApiRoutes()`.
-- New infra backend (cache, queue, another logger) → implement the corresponding
-  `@shared` interface here.
+- New field/table: migration (up SQL + down SQL + wrapper) and EntitySchema update.
+- New feature route: register wire in `routes/<module>.routes.ts` and `buildApiRoutes()`.
+- New cache/queue/logger backend: implement the corresponding shared interface here.
 
 ## 7. Common mistakes (what NOT to do)
 
-- ❌ Putting business rules in `platform/`. ✅ It's infra only here; business logic
-  belongs to `domain/`.
-- ❌ Annotating the business entity with TypeORM decorators. ✅ Use `EntitySchema`
-  referencing the pure interface.
-- ❌ `synchronize: true`. ✅ Always migrations, `synchronize: false`.
-- ❌ Writing DDL inside the migration's `.ts` file. ✅ DDL in the `.sql` files; the
-  `.ts` only reads and applies them.
-- ❌ Instantiating a handler/usecase in the routes. ✅ The route only calls
-  `Wire.provideHandler()`.
-- ❌ Reading a raw `error.code` in the outbound layer. ✅ Use `PostgresError`.
-- ❌ Keeping `Keycloak...`, `Redis...`, or another named technology under a generic
-  capability folder. ✅ Keep the generic port in the capability folder and the
-  technology-bound adapter in `platform/<technology>/` with matching configuration.
+- No business rules; domain owns them.
+- No decorators on business entities; use EntitySchema over the pure interface.
+- Never `synchronize: true`; migrations from the start.
+- No DDL in migration TypeScript; read/apply sibling SQL.
+- Routes call wire, never instantiate handlers/usecases.
+- Use `PostgresError`, not raw `error.code`, in outbound.
+- Keep named technologies (`Keycloak...`, `Redis...`) in `platform/<technology>/`
+  with matching config; neutral ports stay in capability folders.

@@ -1,33 +1,19 @@
 # Authentication and authorization (cross-cutting concern)
 
-> Reference for the `modular-feature-architecture` skill. Like testing and events,
-> auth **crosses every layer**. Reference example: the protected route
-> `POST /api/v1/devices` (`register` feature). The token stack (JWT via `jose`) is
-> swappable — what matters is **where** each responsibility lives.
+Reference: protected `POST /api/v1/devices` (register). Auth crosses layers; JWT/jose is
+swappable, responsibility placement is not.
 
 ## 0. The core principle: separate authentication from authorization
 
-Two different questions, two different places:
+| Concern | Question | Owner |
+| --- | --- | --- |
+| Authentication | Who are you? | HTTP edge: `platform/http/middlewares/auth/`; Bearer tokens are protocol details |
+| Authorization | May you do this? | Each feature's application: AuthorizedUsecase + declared roles; protocol-neutral |
 
-| Concern            | Question           | Where it lives                                                                                                | Why there                                                                                                                                 |
-| ------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **Authentication** | _who are you?_     | **edge**: HTTP middleware in `platform/http/middlewares/auth/`                                                | the token is a detail of the **HTTP protocol** (the `Authorization: Bearer` header). It's the only part of auth that's protocol-specific. |
-| **Authorization**  | _can you do this?_ | **each feature's application layer**, via the `AuthorizedUsecase` base class + the roles the feature declares | it's an access rule **of the use case**; it stays reusable, per-feature, and ready to scale (granular / multi-tenant).                    |
-
-Consequences that must stay clear:
-
-1. **The middleware only authenticates.** It resolves the identity
-   (`{ userId, roles }`) and attaches it to the request. It **does not** decide
-   whether the operation is allowed.
-2. **Authorization is per-feature, in the application layer.** Each feature
-   declares **which roles** it requires and its usecase **extends** `AuthorizedUsecase`.
-   The identity **crosses the boundary** into the application — that's what lets it
-   evolve toward granular (per-resource/attribute) and multi-tenant authorization
-   **without** touching the edge.
-3. **Authorization is protocol-agnostic.** If `inbound/mqtt/` shows up tomorrow, it
-   will have **its own** authentication, but it reuses the same `AuthorizedUsecase`
-   base and the same feature roles. Because the gate lives **inside** the usecase,
-   every protocol that calls `execute` is covered by the same check.
+Middleware resolves/attaches identity (`userId`, roles); **never authorizes operations**.
+Each feature extends AuthorizedUsecase and declares roles. Identity crosses into
+application, enabling granular/resource/attribute and tenant policies without edge
+changes. New MQTT input has its own authentication but reuses this same execute gate.
 
 ## 1. The propagation: from the edge to the deepest layer
 
@@ -60,7 +46,7 @@ RegisterDeviceHandler.handle
 
 ### `@shared/auth/` — contracts, policy, and the base usecase
 
-The identity contract and the authentication _port_ (protocol-agnostic):
+Protocol-neutral identity and authentication port:
 
 ```ts
 // identity.ts
@@ -76,7 +62,7 @@ export interface TokenVerifierInterface {
 }
 ```
 
-The **access policy** is pure and static (easy to test, no dependencies):
+Pure static access policy, with no dependencies:
 
 ```ts
 // access-control.ts
@@ -91,7 +77,7 @@ export class AccessControl {
 }
 ```
 
-The **authorized port** and the **base usecase** are the pattern's core:
+Authorized port and template-method base:
 
 ```ts
 // @shared/auth/authorized-usecase.ts
@@ -116,16 +102,11 @@ export abstract class AuthorizedUsecase<TInput, TOutput> implements AuthorizedUs
 }
 ```
 
-`AuthorizedUsecase` is a **template method**. It owns `execute`, runs the role gate
-**first**, and only then calls the abstract `handle` — the feature's business step.
-A feature **cannot** run its logic without passing the gate, because the base owns
-`execute` and the feature only fills in `handle`: the check isn't a step you can
-forget to call, it's structural. Reuse comes from inheritance — every feature
-declares its own `allowedRoles` and implements `handle`; the gate is shared. The
-inner `handle` receives only the `input`; it knows **nothing** about identity or
-auth (until a resource-scoped rule genuinely needs it — see §6).
+Base-owned execute gates **before** abstract handle, so features cannot forget the
+check. Each declares allowedRoles and implements handle; handle receives input only,
+not identity/auth, until resource-scoped rules genuinely need it (§6).
 
-Auth errors (their own family, with a business message) and the mock:
+Auth errors have their own family/business messages; keep the mock alongside:
 
 ```ts
 // errors.ts
@@ -159,10 +140,8 @@ export const DEVICE_ROLES = {
 export type DeviceRole = (typeof DEVICE_ROLES)[keyof typeof DEVICE_ROLES];
 ```
 
-Roles live in the **entity** because they're stable module vocabulary (just like
-the status enums). They're **scoped to the resource** (`devices:*`), which already
-prepares for granular per-resource authorization in the future. Same const-object +
-derived-type pattern.
+Use const object + derived type with resource-scoped values (`devices:*`), like stable
+status vocabulary, ready for granular resource policies.
 
 ### `application/` — the feature declares its roles and extends the base
 
@@ -199,23 +178,15 @@ export class RegisterDeviceUsecase extends AuthorizedUsecase<
 }
 ```
 
-- `authorization.ts` is where the **feature declares what it requires**
-  (`devices:write` to register). It's a constant placed **right next to the
-  feature's application layer** — the operation's access policy lives close to the
-  operation.
-- `interfaces.ts` exposes **one** usecase port: the `AuthorizedUsecaseInterface`
-  (what `inbound` consumes). There's no separate "pure" port anymore.
-- `usecase.ts` **extends `AuthorizedUsecase`**, declares its `allowedRoles`, and puts
-  the business orchestration in `handle`. The inherited `execute` runs the role gate
-  before `handle`, so the roles the feature requires are covered by the **feature's
-  own unit test**, not only end-to-end.
+- authorization.ts: required roles near the operation (`devices:write` for register).
+- interfaces.ts: **one authorized port** consumed by inbound; no separate pure port.
+- usecase.ts: extends AuthorizedUsecase, sets allowedRoles, implements handle orchestration.
+  Feature unit tests cover this role binding, not only E2E.
 
 ### `platform/auth/` — provider-neutral port and errors
 
-`platform/auth/` contains only the generic token-verification port and authentication
-errors. Its provider implementation is selected by its actual integration boundary:
-an OIDC/JWT verifier with no provider-specific assumptions may live here, but a
-Keycloak adapter must live in `platform/keycloak/` with `configs/keycloak.ts`.
+Keep generic token-verification ports/errors here. Provider-neutral OIDC/JWT verifiers
+may live here; Keycloak-bound implementations use platform/keycloak + configs/keycloak.ts.
 
 ### `platform/keycloak/` — the Keycloak JWT verifier
 
@@ -236,14 +207,11 @@ export class KeycloakJwtTokenVerifier implements TokenVerifierInterface {
 }
 ```
 
-Translates a Keycloak access token into the `AuthenticatedIdentity` contract: it
-requires the `sub` claim and must not derive authorization from roles or scopes. A
-Keycloak verifier can use `jose` — it validates standard JWT/JWKS cryptography, while
-the Keycloak ownership comes from the realm issuer, `KEYCLOAK_*` configuration, and
-the default `.../protocol/openid-connect/certs` endpoint. Those conventions require
-`platform/keycloak/` and `configs/keycloak.ts`; importing the Keycloak Admin SDK is
-not required for token verification. A provider-neutral verifier instead uses
-`platform/auth/` and `configs/auth.ts` and must not carry a `Keycloak` name.
+Translate access tokens into the identity contract; require sub and **do not derive
+authorization from JWT roles/scopes**. jose provides JWT/JWKS crypto without needing
+Keycloak Admin SDK. Realm issuer, KEYCLOAK_* config and default
+`.../protocol/openid-connect/certs` endpoint make this Keycloak-owned. Generic verifiers
+use platform/auth + configs/auth.ts and must not retain a Keycloak name.
 
 ### `platform/http/middlewares/auth/` — authentication at the edge
 
@@ -295,10 +263,8 @@ export const buildAuthMiddlewares = (): AuthMiddlewares => {
 };
 ```
 
-The middleware mirrors the feature handler: it depends on **interfaces**
-(`TokenVerifierInterface`, `ObservabilityInterface`), captures observability, and
-delegates error mapping to an `HttpResponse`. `build-auth-middlewares.ts` is its
-composition root (the edge's equivalent of `wire`).
+Depend on TokenVerifierInterface/ObservabilityInterface, capture errors and map through
+HttpResponse. build-auth-middlewares.ts is this edge's composition root.
 
 ### `platform/http/routes/` — where authentication is applied
 
@@ -323,8 +289,8 @@ export const buildApiRoutes = () => {
 };
 ```
 
-Authentication is applied at the **module's router** level (`router.use`), not
-route by route; liveness stays outside it. `auth` is built once and injected.
+Build auth once and inject it. Apply router.use at module scope, not per route;
+leave liveness outside authentication.
 
 ### `inbound/http/` handler — receives the identity and passes it along
 
@@ -355,11 +321,9 @@ export class RegisterDeviceHandler {
 }
 ```
 
-The handler depends on the **authorized usecase port** and just **passes along** the
-identity the middleware set on `req.identity`. `resolveIdentity` is defense in
-depth: if the route weren't protected, the handler would still block with `401`.
-The handler is unchanged whether the usecase is a decorator or the base class — it
-only knows the `execute(input, identity)` port.
+Pass req.identity to the authorized `execute(input, identity)` port. resolveIdentity
+provides defense-in-depth 401 even if route protection is missing. Handler depends on
+that port regardless of whether the implementation is a decorator or base class.
 
 ### `wire` — no authorization step
 
@@ -368,11 +332,8 @@ const usecase = new RegisterDeviceUsecase(repository, eventPublisher);
 const handler = new RegisterDeviceHandler(usecase, observability);
 ```
 
-Authorization needs **no wiring**: it's baked into the usecase, which extends
-`AuthorizedUsecase` and declares its own `allowedRoles`. The wire just builds the
-usecase and hands it to the handler. (Authentication does **not** appear in the
-feature's wire either — it belongs to the edge, assembled in
-`build-auth-middlewares`.)
+Build usecase → handler, without authorization wrappers: gate/allowedRoles are in the
+usecase. Authentication is also absent here; edge build-auth-middlewares assembles it.
 
 ### `http-response-mapper` — maps auth errors to statuses
 
@@ -388,190 +349,94 @@ public mapError(error: unknown): void {
 }
 ```
 
-Since authorization happens **inside** the usecase, `InsufficientRolesError`
-bubbles up to the handler and is mapped here (`403`). The
-**specific → generic** order still holds; auth errors come first.
+InsufficientRolesError propagates from usecase to handler/mapper (`403`). Check auth
+before domain errors, and specific subtypes before generic families.
 
 ## 3. Status map (auth)
 
-| Situation                                         | Error                    | Status                |
-| ------------------------------------------------- | ------------------------ | --------------------- |
-| No token / non-Bearer header                      | `MissingTokenError`      | `401`                 |
-| Invalid/expired token, bad signature, missing sub | `InvalidTokenError`      | `401`                 |
-| Authenticated, but missing the required role      | `InsufficientRolesError` | `403`                 |
-| (others)                                          | domain / repository      | `409` / `422` / `500` |
+| Situation | Error | Status |
+| --- | --- | --- |
+| Missing token/non-Bearer header | MissingTokenError | `401` |
+| Invalid/expired token, bad signature, missing sub | InvalidTokenError | `401` |
+| Authenticated without required role | InsufficientRolesError | `403` |
+| Other domain/repository failures | Feature errors | `409` / `422` / `500` |
 
 ## 4. How to add auth to a new feature
 
-1. **Roles** (entity): make sure the required role exists in `<module>.roles.ts`.
-2. **application**: create `authorization.ts` with `<FEAT>_ALLOWED_ROLES` and expose
-   `Authorized<Feat>UsecaseInterface = AuthorizedUsecaseInterface<In, Out>` in
-   `interfaces.ts`. `usecase.ts` **extends `AuthorizedUsecase`**, sets
-   `allowedRoles = <FEAT>_ALLOWED_ROLES`, and implements `handle(input)`.
-3. **inbound handler**: depend on the **authorized** usecase port, call
-   `resolveIdentity(req)`, and pass the identity to `execute(input, identity)`.
-4. **wire**: just `new <Feat>Usecase(...)` → handler. There's **no** authorization
-   step to wire — the gate is in the usecase.
-5. **response-mapper**: map `MissingTokenError`/`InvalidTokenError` → 401 and
-   `InsufficientRolesError` → 403 (before the domain errors).
-6. **route**: make sure the module's router applies `auth.authenticate`.
-7. Authentication (the middleware) **already exists** and is reused — you **don't**
-   recreate it per feature.
+1. Ensure required role exists in entity/<module>.roles.ts.
+2. Declare application authorization.ts roles, authorized usecase port and base subclass:
+   allowedRoles + handle(input).
+3. Handler resolves identity and calls authorized execute(input, identity).
+4. Wire constructs usecase → handler; no separate gate.
+5. Mapper: token errors → 401, insufficient roles → 403, before domain errors.
+6. Ensure module router applies auth.authenticate.
+7. Reuse existing authentication middleware; do not recreate it per feature.
 
-## 5. Testing — unit, integration, and e2e
+## 5. Testing
 
-General pattern detail in `references/testing.md`. Per auth piece:
+Read [common testing rules](testing.md); these cases belong to the auth implementations above.
 
 ### Unit
 
-- **`AccessControl`** (`@shared`, pure): grants with a matching role present; grants
-  when `allowedRoles` is empty; denies with no overlap; denies with empty roles.
-  `sut` = the class itself.
-- **`AuthorizedUsecase`** (`@shared`): a small `StubAuthorizedUsecase` subclass with a
-  known `allowedRoles` and a `handle` that records its input; authorized → `handle`
-  runs with the input and its output is resolved; unauthorized (and empty roles) →
-  `rejects InsufficientRolesError` **and** `handle` did **not** run. This proves the
-  gate-before-business ordering generically, once.
-- **Feature usecase** (`application`): each feature's `usecase.test.ts` goes through
-  `execute(input, identity)` and covers its **own** role binding as a
-  `describe("when fails")` case (**not** a separate `authorization` describe) —
-  denies without the required role and asserts the repository/collaborators were
-  **not** touched, which proves the gate runs before the business step. This is the
-  per-feature role coverage that used to exist only in e2e.
-- **`KeycloakJwtTokenVerifier`** (`platform/keycloak`, unit with real crypto): generates a key pair
-  with `jose` in the test; a valid token → `AuthenticatedIdentityInterface` with
-  `providerSubjectId`, authentication instant, and optional authentication method;
-  roles and scopes are deliberately absent even when the JWT has them. Malformed,
-  wrong-signature, wrong-audience, expired, or missing-`sub` tokens yield
-  `InvalidTokenError`. It's a unit test (no external system), but uses real
-  cryptography.
-- **`AuthenticationMiddleware`** (`platform`): `express` + `supertest`, with
-  `makeTokenVerifierMock` (or a rejecting verifier) + an observability mock. Valid →
-  `200` + `req.identity` set + `verify` called with the token; no header /
-  non-Bearer → `401`; verifier rejects → `401`; and `observability.capture` is
-  called.
-- **`AuthHttpResponse`** (`platform`): `makeHttpResponseMock` — `401` for token
-  errors, `500` for unknown ones.
-- **Feature handler** (`inbound`): the test app injects the identity through a short
-  middleware (`req.identity = identity`); `UsecaseStub implements
-AuthorizedRegisterDeviceUsecaseInterface` (`execute` receives input **and**
-  identity). Covers `201`, `401` when there **is no** identity (`identity: null` →
-  `resolveIdentity` throws), and the `422/409/500` mapping + `capture`.
+- AccessControl (static SUT): matching role grants; empty allowedRoles grants;
+  no overlap or empty user roles denies.
+- AuthorizedUsecase: stub subclass with known roles and input-recording handle;
+  authorized resolves handle output/input, unauthorized/empty roles rejects
+  InsufficientRolesError **without calling handle**, proving ordering.
+- Feature usecase: follow [application tests](application.md#basic-usecase), including
+  its own role binding and denial before any collaborator is called.
+- KeycloakJwtTokenVerifier: **real crypto** with jose-generated keys, no external service.
+  Valid token yields AuthenticatedIdentityInterface with providerSubjectId, authentication
+  instant and optional authentication method; roles/scopes remain absent even if in JWT.
+  Malformed, wrong signature/audience, expired or missing-sub tokens → InvalidTokenError.
+- AuthenticationMiddleware: Express + supertest, makeTokenVerifierMock/rejecting verifier
+  and observability mock. Valid → 200, identity attached, verify(token) called; missing/
+  non-Bearer header or rejected verification → 401; errors captured.
+- AuthHttpResponse + makeHttpResponseMock: token errors 401, unknown errors 500.
+- Feature handler: follow [handler tests](inbound-http.md#handler), using the authorized
+  usecase port and the shared identity factory.
 
 ### Integration
 
-- There's no auth repository; auth's "integration" happens at the **e2e** level
-  (real app + real JWT). `KeycloakJwtTokenVerifier` already exercises real cryptography in
-  its unit test.
+No auth repository: integration happens in real-app/real-JWT E2E; verifier unit tests
+already exercise real cryptography.
 
 ### E2E — `test/e2e/device/register.e2e.test.ts`
 
-Exercises the **entire** propagation: middleware (authn) → route → handler →
-usecase (authz gate via `AuthorizedUsecase`) → domain → outbound → real Postgres.
+Follow [E2E assembly and lifecycle](e2e.md): real application, Testcontainers and real
+JWT verification, without injected identities or mocked auth gates. Exercise middleware
+→ route → handler → usecase authorization → domain → outbound → real Postgres.
 
-The support code (`test/e2e/app.support.ts`) assembles the real environment:
-
-```ts
-export const startE2EApp = async (): Promise<E2EContext> => {
-  const container = await new PostgreSqlContainer("postgres:16-alpine").start();
-  const { publicKey, privateKey } = await generateKeyPair("RS256", { extractable: true });
-
-  process.env.DATABASE_HOST = container.getHost(); // ...remaining DB vars
-  process.env.AUTH_JWT_PUBLIC_KEY = await exportSPKI(publicKey);
-  process.env.AUTH_JWT_ALGORITHMS = "RS256";
-
-  // DYNAMIC import only AFTER setting env, so configs/* read the correct values
-  const { AppDataSource, initializeDatabase } =
-    await import("platform/database/postgres/data-source.js");
-  const { HttpServer } = await import("platform/http/server.js");
-  const { buildApiRoutes } = await import("platform/http/routes/api-routes.js");
-
-  await initializeDatabase(AppDataSource, { runMigrations: true });
-  const app = new HttpServer({ port: 0, routes: buildApiRoutes() }).createServer();
-
-  const issueToken = (roles = [], userId = "user-e2e") =>
-    new SignJWT({ roles })
-      .setProtectedHeader({ alg: "RS256" })
-      .setSubject(userId)
-      .setExpirationTime("5m")
-      .sign(privateKey); // signs with the private key
-
-  const teardown = async () => {
-    await AppDataSource.destroy();
-    await container.stop();
-  };
-  return { app, dataSource: AppDataSource, container, issueToken, teardown };
-};
-```
-
-Crucial e2e points:
-
-- **Real keys**: the test generates an RS256 pair, publishes the public one to
-  `AUTH_JWT_PUBLIC_KEY`, and signs tokens with the private one via
-  `issueToken(roles)`. The service validates for real — nothing is mocked.
-- **Dynamic import after setting env**: `configs/*` reads `process.env` at import
-  time; that's why the modules are imported **after** the variables are set
-  (otherwise they'd pick up the wrong config). An essential e2e pattern.
-- **`createServer()` with no `listen`**: `supertest` runs the app in memory
-  (`port: 0`).
-- **Covered cases (register)**: `201` with `devices:write` (+ persistence checked in
-  the database); `401` with no token; `401` malformed token; `403` with
-  `devices:read` (authenticated, missing the write role); `422` for an unsupported
-  type (domain rule, already authorized).
-- **Parallel e2e (get-one)**: `test/e2e/device/get-one.e2e.test.ts` seeds a device
-  through the repository and covers `200` with `devices:read`, `401` with no token,
-  `403` with a non-read token (proving the `devices:read` binding), and `404` for a
-  missing id. Each feature carries its own role-mapping e2e.
-
-Execution: `npm run test:e2e` (config `vitest.e2e.config.ts`:
-`include **/*.e2e.test.ts`, same aliases, 120s/180s timeouts; the unit config
-**excludes** `*.e2e.test.ts`).
+- Generate real RS256 keys; set AUTH_JWT_PUBLIC_KEY and sign with the private key via
+  issueToken(roles) for the reference verifier. Match the actual verifier's issuer,
+  audience, algorithm and key/JWKS configuration; do not bypass verification.
+- Register: devices:write → 201 + DB persistence; no/malformed token → 401;
+  devices:read → 403; authorized unsupported type → 422.
+- get-one (`test/e2e/device/get-one.e2e.test.ts`): seed through the repository;
+  devices:read → 200; no token → 401; non-read token → 403; missing ID → 404.
+  Every feature retains its own E2E role-binding coverage.
 
 ## 6. Future: granular and multi-tenant authorization (additive)
 
-The design already leaves the door open — the **identity crosses the boundary**
-into the application (`execute(input, identity)`). To evolve:
+Identity + input already cross the authorized port; evolve additively without breaking CRUD:
 
-- **Granular by resource/attribute**: swap/extend the policy in `AccessControl`
-  (or a `PolicyInterface`) to consider the resource and the `input`'s attributes;
-  the `AuthorizedUsecaseInterface` signature already delivers `identity` + `input`.
-  When the business step itself needs the identity (e.g., checking tenant ownership
-  on the **loaded** resource), widen the base's `handle(input)` to
-  `handle(input, identity)` — a one-line change to `AuthorizedUsecase`, then each
-  feature that needs it reads the identity in `handle`.
-- **Multi-tenant**: add `tenantId` to `AuthenticatedIdentity` (the `TokenVerifier`
-  extracts it from the token) and have the policy/usecase validate ownership
-  (`identity.tenantId === resource.tenantId`). The edge doesn't change.
-- **New protocol**: a new `inbound/<proto>/` brings its own authentication (another
-  verifier/middleware), but **reuses** the same `AuthorizedUsecase` gate + the
-  feature's roles — the check is in the usecase, so it covers every protocol.
-
-None of this breaks the current CRUD: these are additions of policy and identity
-fields.
+- Resource/attribute policy: extend AccessControl or PolicyInterface using resource/input.
+  When ownership of a loaded resource needs identity in the business step, widen base
+  handle(input) to handle(input, identity), then consume it only in features needing it.
+- Tenant isolation: extend AuthenticatedIdentity with token-derived tenantId and validate
+  identity.tenantId === resource.tenantId in policy/usecase; no edge changes.
+- New protocol: own verifier/middleware, same AuthorizedUsecase gate and feature roles.
 
 ## 7. Common mistakes (what NOT to do)
 
-- ❌ Doing **authorization in the middleware** (checking roles at the edge). ✅ The
-  middleware only authenticates; authorization is per-feature, in the application
-  (the usecase extends `AuthorizedUsecase`).
-- ❌ Passing the identity into the **domain** or into `handle`. ✅ The base's
-  `execute` uses the identity for the gate; `handle` receives only `input` (until a
-  resource-scoped rule genuinely needs it — §6).
-- ❌ Re-implementing the role check inside `handle` (or forgetting to call it). ✅
-  The gate is inherited from `AuthorizedUsecase.execute`; the feature only fills in
-  `handle`, so it can't be skipped.
-- ❌ Calling the JWT SDK/lib directly from the middleware or the application. ✅
-  Behind `TokenVerifierInterface`; a Keycloak-bound implementation
-  (`KeycloakJwtTokenVerifier`) lives in `platform/keycloak/`.
-- ❌ Leaking token details to the client (the internal reason for the failure). ✅
-  A generic auth `401`; `500` for the unexpected.
-- ❌ Confusing `401` (not authenticated) with `403` (authenticated, no permission).
-  ✅ Missing/invalid token → `401`; insufficient role → `403`.
-- ❌ Protecting routes one by one and missing one. ✅
-  `router.use(auth.authenticate)` at the module's router level; and the handler
-  still has `resolveIdentity` as a defense.
-- ❌ In e2e, importing the modules **before** setting the env vars. ✅ Dynamic
-  import after configuring `process.env` (otherwise `configs/*` reads the wrong
-  values).
-- ❌ Loose role strings scattered around. ✅ `DEVICE_ROLES` (const object) in the
-  entity.
+- No role checks in middleware; it authenticates, application authorizes.
+- Do not pass identity into domain or handle unless the §6 resource-scoped extension
+  genuinely requires it. Base execute owns the gate.
+- Do not duplicate or omit checks in handle; inherit execute.
+- No JWT SDK calls in middleware/application; use TokenVerifierInterface and place
+  Keycloak-bound implementation in platform/keycloak.
+- Never leak token failure reasons: generic auth 401, unknown 500.
+- Distinguish missing/invalid identity (401) from insufficient permission (403).
+- Protect module router once, retaining handler resolveIdentity as defense in depth.
+- Set E2E environment before imports.
+- No scattered role strings; use entity DEVICE_ROLES const catalog.

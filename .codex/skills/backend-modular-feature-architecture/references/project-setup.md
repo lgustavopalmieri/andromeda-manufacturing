@@ -1,27 +1,19 @@
 # Setting up a brand-new microservice
 
-> Reference for the `modular-feature-architecture` skill. Use this when **starting
-> a new project**. The examples come from the reference project; adapt the names
-> and the stack to your own service. After this setup, follow Workflow B in
-> `SKILL.md` for the first feature.
+Use for new services; adapt reference names/stack, then follow `SKILL.md` Workflow B
+for the first feature.
 
 ## 1. Core concept
 
-Before any business module, a service in this architecture needs a **skeleton**
-that guarantees ESM + strict TypeScript + path aliases + the three test levels, and
-a handful of **agnostic base pieces** in `platform/` and `@shared/` that every
-feature will reuse (HTTP envelope, observability contract, repository error,
-data-source, HTTP server). Once this is assembled once, new features only add
-folders.
+Before business modules, establish ESM, strict TypeScript, aliases, three test levels
+and business-agnostic platform/shared foundations: HTTP envelope, observability,
+repository error, data-source and HTTP server. Later features add folders.
 
 ## 2. Prerequisites and dependencies
 
-- **Node.js 22+** (for ESM `nodenext` and recent features).
-- The reference project's typical runtime: an HTTP framework (Express), an ORM
-  (TypeORM), a database driver (pg), and a logger (Pino). **All swappable** — the
-  architecture isolates them in `platform/`/`outbound/`.
-- Dev: `typescript`, `tsx` (dev/CLI runner), `vitest`, `supertest`,
-  `@testcontainers/<engine>`, and the `@types/*` packages.
+- Node.js 22+ for ESM nodenext and recent features.
+- Swappable runtime choices: Express, TypeORM, pg and Pino, isolated in platform/outbound.
+- Development: TypeScript, tsx, Vitest, supertest, `@testcontainers/<engine>`, `@types/*`.
 
 ```bash
 npm i express pg pino typeorm
@@ -31,8 +23,7 @@ npm i -D typescript tsx vitest supertest @testcontainers/postgresql \
 
 ## 3. `package.json` (ESM + scripts)
 
-The critical point is **`"type": "module"`**. The scripts standardize the three
-test levels.
+Require `"type": "module"`; standardize scripts for the three test levels.
 
 ```jsonc
 {
@@ -81,20 +72,16 @@ test levels.
 }
 ```
 
-Why these flags matter:
-
-- **`nodenext`** requires the **`.js`** extension on relative/aliased imports (even
-  in `.ts` files). It's the rule that trips up beginners the most.
-- **`strict` + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`** push the
-  code toward the domain's standard: optionals **omitted** instead of `undefined`,
-  checked index access.
-- **`paths`** enable the `modules/`, `platform/`, `configs/`, `@shared/` aliases.
+The reference's nodenext mode requires `.js` on relative/aliased imports even in `.ts`.
+For this repository's tsup/Bundler mode, use the extensionless convention in `SKILL.md` §8.
+Strict + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes` enforce checked index
+access and omitted optionals rather than `undefined`. Configure `modules/`, `platform/`,
+`configs/` and `@shared/` paths.
 
 ## 5. Test configs (unit / integration / e2e)
 
-Three files, each with the **same aliases** (the runner needs to resolve them; the
-`tsconfig` alone isn't enough). The unit one **excludes** integration and e2e to
-stay fast and not require Docker.
+Repeat the same aliases in all three configs; tsconfig paths alone are insufficient.
+Unit tests exclude integration/E2E to stay fast and independent of Docker.
 
 ```ts
 // vitest.config.ts  (unit)
@@ -134,8 +121,8 @@ export default defineConfig({
 });
 ```
 
-`vitest.e2e.config.ts` is the same as the integration one, swapping `include` for
-`**/*.e2e.test.ts`. Details for each level are in `references/testing.md`.
+For `vitest.e2e.config.ts`, reuse integration config with `include: **/*.e2e.test.ts`.
+See `references/testing.md` for each level.
 
 ## 6. Initial folder skeleton
 
@@ -154,28 +141,21 @@ src/
         └── observability/   # observability.ts (+ .mock.ts, composite)
 ```
 
-Still **no business module** — that comes in Workflow B.
+No business module yet; add it with Workflow B.
 
 ## 7. Base pieces to create first
 
-These are business-agnostic and underpin every feature. Each has detail in its own
-reference file:
-
-1. **`@shared/http/http-response.ts`** — the abstract envelope base
-   (`{ error:false, data }` / `{ error:true, message }`). → `references/shared.md`
-2. **`@shared/observability/observability.ts`** — `ObservabilityInterface` (the
-   contract) + `*.mock.ts`. → `references/shared.md`
-3. **`@shared/errors/repository.error.ts`** — the generic `RepositoryError`.
-   → `references/shared.md`
-4. **`platform/observability/<logger>.ts`** — the interface's concrete
-   implementation. → `references/platform.md`
-5. **`platform/database/<engine>/data-source.ts`** — `createDataSource(connection)`
-   (factory) + `initializeDatabase(ds, { runMigrations })` + `AppDataSource`.
-   → `references/platform.md`
-6. **`platform/http/server.ts`** — a generic `HttpServer` that receives
-   `{ port, routes }` and starts the web framework. → `references/platform.md`
-7. **`configs/`** — `env.ts` (reads `process.env`, derives flags), `database.ts`
-   (credentials), `api-versions.ts` (versioned prefixes).
+1. `@shared/http/http-response.ts`: abstract `{ error:false, data }` /
+   `{ error:true, message }` envelope (`references/shared.md`).
+2. `@shared/observability/observability.ts`: `ObservabilityInterface` + `*.mock.ts`
+   (`references/shared.md`).
+3. `@shared/errors/repository.error.ts`: generic failure (`references/shared.md`).
+4. `platform/observability/<logger>.ts`: concrete contract implementation (`references/platform.md`).
+5. `platform/database/<engine>/data-source.ts`: `createDataSource(connection)`,
+   `initializeDatabase(ds, { runMigrations })`, `AppDataSource` (`references/platform.md`).
+6. `platform/http/server.ts`: generic `HttpServer({ port, routes })` (`references/platform.md`).
+7. Configs: `env.ts` reads process.env/derives flags; `database.ts` supplies credentials;
+   `api-versions.ts` supplies versioned prefixes.
 
 ### `main.ts` — the bootstrap
 
@@ -200,31 +180,23 @@ bootstrap().catch((error) => {
 });
 ```
 
-`main.ts` is the only place that **connects infra and routes**: it initializes the
-database (deciding whether to run migrations based on the topology — see
-`references/platform.md`), assembles the server with the aggregated routes, and
-starts it. Routes call the features' `wire`s.
+Only main connects infrastructure to aggregated routes: initialize database with
+migration behavior based on topology (`references/platform.md`), assemble/start server.
+Routes call feature wires.
 
 ## 8. Recommended bootstrap order
 
-1. `package.json` + `tsconfig.json` + test configs.
-2. Folder skeleton (section 6).
-3. Base pieces (section 7), in this order: `@shared/` → `platform/` → `configs/` →
-   `main.ts` (with a liveness route to validate the boot).
-4. First module + first feature (Workflow B in `SKILL.md`).
-5. Run `npm run test` (should pass empty/liveness) and start `npm run dev`.
+1. Package + tsconfig + test configs.
+2. Folder skeleton (§6).
+3. Base pieces (§7): shared → platform → configs → main, with liveness to verify boot.
+4. First module/feature (`SKILL.md` Workflow B).
+5. Run `npm run test` (empty/liveness) and `npm run dev`.
 
 ## 9. Common mistakes (what NOT to do)
 
-- ❌ Forgetting `"type": "module"` or adding `.js` extensions to imports. ✅ With
-  `moduleResolution: "Bundler"` + tsup, imports have no extension.
-- ❌ Defining aliases only in `tsconfig` and not in the test runner's config. ✅
-  Both need the aliases.
-- ❌ Starting by creating a business module before the base pieces. ✅ Base first;
-  features after.
-- ❌ Hard-coding a credential/secret. ✅ Everything through `process.env` in
-  `configs/`.
-- ❌ `synchronize: true` on the ORM "to move fast". ✅ Migrations from the start
-  (`synchronize: false`).
-- ❌ A single `vitest.config`, mixing levels. ✅ Three configs; unit excludes
-  integration/e2e.
+- Do not omit `"type": "module"` or add `.js` imports under tsup/Bundler.
+- Define aliases in TypeScript **and** the test runner.
+- Build foundations before business modules.
+- Never hard-code credentials/secrets; read process.env through configs.
+- Never ORM auto-sync; `synchronize: false` and migrations from the start.
+- Do not mix test levels in one config; unit excludes integration/E2E.

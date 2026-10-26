@@ -1,31 +1,18 @@
 # `entity/` layer — the module's contract
 
-> Reference for the `modular-feature-architecture` skill. Go back to `SKILL.md` for
-> the overall map. Reference example: `src/modules/device/entity/`.
+Reference: `src/modules/device/entity/`. See `SKILL.md` for the architecture map.
 
 ## 1. Core concept
 
-`entity/` is the module's **data contract**: the canonical shape of the business
-entity, expressed as **pure TypeScript types**. It is the innermost point of the
-architecture — the base the dependency rule points toward.
-
-It is not a class with behavior, not the database table, not the API DTO. It's the
-**source of truth for the shape** of the data, from which every other layer derives:
-
-- `domain/` validates against it;
-- `application/` derives its input/output types from it;
-- `outbound/` (ORM) **maps** it to columns;
-- `inbound/` serializes it to JSON.
+`entity/` defines the canonical business data shape in pure TypeScript types: not
+behavior classes, database tables or API DTOs. Domain validates it; application derives
+I/O types; outbound maps it to columns; inbound serializes it.
 
 ## 2. Role and when to use it
 
-Only touch `entity/` when the module's **data shape** changes: a new field, a new
-type, a new enum. If the change is purely behavioral (a rule), it belongs in
-`domain/`, not here.
-
-When an entity is born, it should be **simple enough** for the current CRUD and
-**designed to grow** additively (optional fields, enums that gain values) without
-breaking whoever already consumes the contract.
+Change entity only for shape changes (fields, types, enums); rules belong in domain.
+Start with the current CRUD needs and grow additively through optional fields and enum
+values without breaking consumers.
 
 ## 3. File structure (`device` example)
 
@@ -58,11 +45,9 @@ export const DEVICE_TYPE = {
 export type DeviceType = (typeof DEVICE_TYPE)[keyof typeof DEVICE_TYPE];
 ```
 
-Why this and not a native `enum`: the `as const` object produces real string values
-(good for persisting and serializing), without the runtime pitfalls of TS's `enum`,
-and the derived `type` gives you static checking. **Growth is additive**:
-`INGEST_PROTOCOL` can gain `MODBUS_TCP` in the future without touching anyone
-already using `MQTT`.
+Use `as const` + derived type for real serializable/persistable strings and static
+checking, avoiding native enum runtime pitfalls. Growth is additive: adding
+`INGEST_PROTOCOL.MODBUS_TCP` must not affect existing `MQTT` consumers.
 
 ### `device.interfaces.ts` — sub-objects of the contract
 
@@ -75,10 +60,8 @@ export interface TelemetrySource {
 }
 ```
 
-`TelemetrySource` is a small value-object: **where and how** the device's data is
-published. It isolates the `{ protocol, address }` pair so it can evolve (become a
-list of channels, gain a `direction: "read" | "command"`) without bloating the root
-entity.
+`TelemetrySource` isolates where/how data is published (`protocol`, `address`) so it
+can grow into channels or gain `direction: "read" | "command"` without bloating the root.
 
 ### `device.entity.ts` — the entity
 
@@ -102,10 +85,9 @@ export interface DeviceEntityInterface {
 }
 ```
 
-Note: `id` is a `number` (mapped to `bigint` in Postgres); future identity fields
-(`plantId`) already exist as **optional**, preparing for multi-tenancy without
-breaking the current contract. Timestamps are part of the contract because the infra
-generates them and returns them on every entity read.
+The reference maps numeric `id` to Postgres `bigint`; optional future identity fields
+such as `plantId` preserve consumers. Include infra-generated timestamps in the contract:
+they return on entity reads.
 
 ### `device.roles.ts` — the module's role catalog (authorization)
 
@@ -119,50 +101,37 @@ export const DEVICE_ROLES = {
 export type DeviceRole = (typeof DEVICE_ROLES)[keyof typeof DEVICE_ROLES];
 ```
 
-The module's **role catalog** lives in `entity/` because it's **stable module
-vocabulary** — exactly like the enums in `device.types.ts`. Same pattern: const
-object + derived type, values **scoped to the resource** (`devices:*`), which
-already prepares for granular per-resource authorization in the future.
-
-Watch the split of responsibilities (detail in `references/auth.md`):
-
-- the **catalog** (which roles exist) → here, in `entity/`;
-- the **roles required by each feature** → in the feature's
-  `application/authorization.ts` (e.g., `REGISTER_DEVICE_ALLOWED_ROLES = [DEVICE_ROLES.WRITE]`);
-- the **check** → inherited from the `AuthorizedUsecase` base class (`@shared/auth`)
-  that the feature's usecase extends.
-
-The feature's `domain/` **has no knowledge** of roles.
+Roles are stable module vocabulary, like enums: const object + derived type with
+resource-scoped values (`devices:*`), ready for granular resource authorization.
+Responsibility split (`references/auth.md`): catalog here; required feature roles in
+`application/authorization.ts` (`REGISTER_DEVICE_ALLOWED_ROLES = [DEVICE_ROLES.WRITE]`);
+checks inherited from `@shared/auth/AuthorizedUsecase`. Domain knows nothing about roles.
 
 ## 4. Interfaces and testability
 
-`entity/` has no test of its own — it's just types, checked by the compiler. But it
-is what **makes the other layers testable**: because it's a pure contract, the test
-factory (`@shared/tests/factories/device/device.factory.ts`) can build a complete
-`DeviceEntityInterface` without touching a database or a framework. It's the "fake data" that feeds tests
-across every layer.
+Follow the [common test taxonomy](testing.md#1-test-taxonomy); this pure type layer
+is checked by the compiler, not a runtime suite.
+
+The compiler tests this type-only layer; do not add runtime tests. Its pure contract
+lets `@shared/tests/factories/device/device.factory.ts` build complete
+`DeviceEntityInterface` fixtures for every layer without databases/frameworks.
 
 ## 5. How to start (new module/feature)
 
 1. Create `modules/<module>/entity/`.
-2. Start with the enums in `<module>.types.ts` (const object + type).
-3. Extract value-objects into `<module>.interfaces.ts` once a sub-object earns its
-   own identity.
-4. Assemble `<module>.entity.ts` referencing those types. Include timestamps and the
-   tenant hook (`plantId?`/`tenantId?`) even if optional.
-5. **Don't** add methods here. Behavior belongs to `domain/`.
+2. Define const enums + types in `<module>.types.ts`.
+3. Extract meaningful sub-objects into `<module>.interfaces.ts`.
+4. Assemble `<module>.entity.ts`, including timestamps and tenant hooks
+   (`plantId?`/`tenantId?`), even if optional.
+5. Keep methods and behavior in domain.
 
 ## 6. Common mistakes (what NOT to do)
 
-- ❌ Importing `typeorm`/`express` or annotating decorators (`@Entity`, `@Column`) on
-  the entity. ✅ The entity is pure; the ORM mapping lives in
-  `platform/database/postgres/typeorm/entities/` (see `references/platform.md`).
-- ❌ Using a native `enum`. ✅ Const object + derived type.
-- ❌ Putting validation/rules ("name cannot be empty") on the entity. ✅ That belongs
-  to `domain/`.
-- ❌ Creating the feature's input/output types here. ✅ They derive from the entity,
-  but live in the feature's `domain/types.ts` (see `references/domain.md`).
-- ❌ Setting an optional field to explicit `undefined`. With
-  `exactOptionalPropertyTypes`, optional fields are **omitted** from the object.
-- ❌ Retroactively making a field required. ✅ Grow with optionals and a data
-  migration when it's time to promote a field to required.
+- No `typeorm`/`express`, `@Entity` or `@Column`; ORM mappings belong in
+  `platform/database/postgres/typeorm/entities/` (`references/platform.md`).
+- No native enums or entity validation; use const + type and domain rules.
+- Feature input/output types belong in `domain/types.ts`, derived from entity
+  (`references/domain.md`).
+- With `exactOptionalPropertyTypes`, omit absent fields; never set explicit `undefined`.
+- Do not retroactively require a field: grow with optionals, then migrate data before
+  promoting it to required.

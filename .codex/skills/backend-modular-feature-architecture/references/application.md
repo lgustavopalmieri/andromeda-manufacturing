@@ -1,29 +1,18 @@
 # `application/` layer — orchestration and ports
 
-> Reference for the `modular-feature-architecture` skill. Reference example:
-> `src/modules/device/features/register/application/`.
+Reference: `src/modules/device/features/register/application/`.
 
 ## 1. Core concept
 
-`application/` is the **use case**: it orchestrates the feature's flow by calling
-`domain/` (to apply the rules) and an **abstract repository** (to persist/read),
-without knowing who implements that repository or which protocol the call arrived
-through. It also enforces the feature's **authorization** by extending the shared
-`AuthorizedUsecase` base (role gate before the business step — see
-`references/auth.md`).
-
-It's also where the feature's **interfaces (ports)** live. In hexagonal terms: the
-application defines the _ports_; `inbound/` and `outbound/` are the _adapters_.
+Application orchestrates domain → abstract repository → entity without knowing concrete
+persistence or input protocols. It owns driving/driven ports and per-feature authorization:
+extend `@shared/auth/AuthorizedUsecase` to run the role gate before business steps
+(`references/auth.md`). Inbound/outbound implement or consume these ports.
 
 ## 2. Role and when to use it
 
-Use `application/` to: coordinate the use case's steps (validate through the domain
-→ persist through the repository → return the entity), **declare which roles the
-feature requires**, and **declare the contracts** the feature needs from the outer
-edge (repository) and offers inward (usecase).
-
-Don't put here: business rules (that's `domain/`), concrete database access (that's
-`outbound/`), reading `req`/writing `res` (that's `inbound/`).
+Coordinate the usecase, declare required roles and inward/outward contracts. Keep rules
+in domain, concrete persistence in outbound, and `req`/`res` in inbound.
 
 ## 3. File structure (`register` example)
 
@@ -54,20 +43,12 @@ export interface RegisterDeviceRepositoryInterface {
 }
 ```
 
-This file is the heart of the service's testability. Two interfaces, two
-directions:
+- Driving `AuthorizedRegisterDeviceUsecaseInterface`: exposes `execute(input, identity)`;
+  inbound depends on this port, not the concrete class.
+- Driven `RegisterDeviceRepositoryInterface`: accepts domain `OutputProps`, returns
+  full `DeviceEntityInterface` including generated IDs/timestamps; implemented by outbound.
 
-- **`AuthorizedRegisterDeviceUsecaseInterface`** (driving port): what the feature
-  **offers** to whoever triggers it — `execute(input, identity)`. `inbound/` depends
-  on this, not on the concrete class.
-- **`RegisterDeviceRepositoryInterface`** (driven port): what the feature **requires**
-  from a repository. It receives the domain's `OutputProps` and returns the full
-  `DeviceEntityInterface` (with the `id` and timestamps the infra generates).
-  `outbound/` implements this.
-
-Notice the interface speaks the **domain's language** (`RegisterDeviceOutputProps`,
-`DeviceEntityInterface`) — it leaks no `Repository` from TypeORM nor any infra
-detail.
+Ports speak domain/entity types, never TypeORM `Repository` or infrastructure details.
 
 ### `usecase.ts` — the orchestration
 
@@ -97,25 +78,17 @@ export class RegisterDeviceUsecase extends AuthorizedUsecase<
 }
 ```
 
-The usecase is **thin by design**: the business step lives in `handle`, which
-applies the domain (`DeviceRegister.create`, which throws if invalid) and persists
-(`repository.save`). No rule lives here. The dependency comes in through the
-**constructor** as an **interface** — classic DIP. The role gate isn't written here:
-it's inherited from `AuthorizedUsecase.execute`, which runs **before** `handle`. If
-the identity lacks the role, `handle` never runs; if the domain rule throws, `save`
-is never called; the error bubbles up for the inbound layer to handle.
+Keep `handle` thin: call domain, then repository. Inject interfaces through the constructor;
+inherit `execute` for authorization. Denied identity must never reach `handle`; domain
+failure must never reach `save`. Let errors propagate to inbound.
 
-> The real `register` usecase also receives an `EventPublisherInterface` and
-> publishes a `DeviceRegisteredEvent` inside `handle` — see `references/events.md`.
-> Extra collaborators (events, transactions) live **inside** `handle`, within the
-> authorization gate.
+The real register usecase also publishes `DeviceRegisteredEvent` through
+`EventPublisherInterface` (`references/events.md`). Events, transactions and other
+collaborators run **inside `handle`**, behind the authorization gate.
 
 ### `authorization.ts` — authorization lives here (see `references/auth.md`)
 
-**Authorization is a responsibility of the application layer.** This is where each
-feature declares **which roles it requires**; the check itself is inherited from a
-reusable base class (`AuthorizedUsecase`, from `@shared/auth`) that the feature's
-usecase extends.
+Declare required roles here; inherit their check rather than duplicating it.
 
 ```ts
 // authorization.ts — the feature declares what it requires
@@ -128,69 +101,190 @@ export type AuthorizedRegisterDeviceUsecaseInterface = AuthorizedUsecaseInterfac
 >;
 ```
 
-Why it lives in the application and not in the middleware/edge:
-
-- **Authentication** (who you are) is resolved at the **edge** (HTTP middleware in
-  `platform`), because the token is a protocol detail.
-- **Authorization** (whether you can do this) is **the feature's**, in the
-  application: it stays reusable, with **per-feature roles**, and ready to scale
-  (granular / multi-tenant) — the identity crosses the boundary inward through
-  `AuthorizedUsecaseInterface`.
-- `usecase.ts` **extends `AuthorizedUsecase`**: the base's `execute` runs the role
-  gate, then calls the feature's `handle(input)`. Because the gate lives in the
-  usecase, the feature's roles are covered by the **feature's own unit test**, not
-  only at the e2e level.
-
-The full flow (edge → base usecase → handle), the errors (`401`/`403`), and the
-tests are in **`references/auth.md`**.
+Authentication resolves identity at the platform edge; authorization belongs to the
+feature so every protocol shares its role gate. Identity crosses through the authorized
+usecase interface. Cover role checks in feature unit tests, not only E2E; see
+`references/auth.md` for the full flow and `401`/`403` errors.
 
 ## 4. Interfaces and testability
 
-The application is the clearest example of **testing through interfaces**. Tests go
-through `execute(input, identity)`:
+Read [common testing rules](testing.md) before writing this layer's tests.
 
-- Because the usecase receives `RegisterDeviceRepositoryInterface` through the
-  constructor, the test injects a **stub** (`class RegisterDeviceRepositoryStub
-implements ...`) and checks three key behaviors: (a) that the data handed to `save`
-  is the one **normalized by the domain** (`vi.spyOn(repository, "save")`); (b) that
-  a domain error **aborts** before `save` runs
-  (`expect(saveSpy).not.toHaveBeenCalled()`); and (c) the **role gate** — an identity
-  without the required role rejects with `InsufficientRolesError` and `save` is
-  **never** called (proving the gate runs before the business step).
-- No database, no HTTP is started. It's a pure unit test. See
-  `references/testing.md`.
+### Basic usecase
 
-That's the reason the interfaces exist: they're the **substitution point** that
-swaps the real Postgres for an in-memory stub in the test.
+Inject an interface-implementing repository stub, observe collaboration with vi.spyOn
+and invoke execute(input, identity), importing makeIdentity rather than recreating it.
+
+```ts
+class RegisterDeviceRepositoryStub implements RegisterDeviceRepositoryInterface {
+  savedDevice: DeviceEntityInterface = makeDeviceEntity();
+  save = async (_d: RegisterDeviceOutputProps): Promise<DeviceEntityInterface> => this.savedDevice;
+}
+
+// makeRegisterDeviceInput and makeIdentity are imported from @shared/tests/factories/*;
+// the suite never redeclares the input or the identity.
+
+const makeSut = (overrides: Partial<RegisterDeviceRepositoryStub> = {}): MakeSutInterface => {
+  const repository = Object.assign(new RegisterDeviceRepositoryStub(), overrides);
+  const eventPublisher = makeEventPublisherMock();
+  return { sut: new RegisterDeviceUsecase(repository, eventPublisher), repository, eventPublisher };
+};
+
+describe("RegisterDeviceUsecase", () => {
+  describe("when the request is authorized and valid", () => {
+    it("should hand the repository the device normalized by the domain", async () => {
+      const { sut, repository } = makeSut();
+      const saveSpy = vi.spyOn(repository, "save");
+      await sut.execute(
+        makeRegisterDeviceInput({ name: "  Gateway 02  " }),
+        makeIdentity({ roles: [DEVICE_ROLES.WRITE] }),
+      );
+      expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({ name: "Gateway 02" }));
+    });
+
+    it("should publish a DeviceRegisteredEvent with the persisted device as payload", async () => {
+      const persisted = makeDeviceEntity({ id: 3, name: "Gateway 03" });
+      const { sut, eventPublisher } = makeSut({ savedDevice: persisted });
+
+      await sut.execute(
+        makeRegisterDeviceInput({ name: "Gateway 03" }),
+        makeIdentity({ roles: [DEVICE_ROLES.WRITE] }),
+      );
+
+      expect(eventPublisher.publish).toHaveBeenCalledTimes(1);
+      expect(eventPublisher.publish).toHaveBeenCalledWith(expect.any(DeviceRegisteredEvent));
+      expect(eventPublisher.publish).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "device.registered", payload: persisted }),
+      );
+    });
+  });
+
+  describe("when authorization or validation fails", () => {
+    it("should throw InsufficientRolesError and not touch the repository without the role", async () => {
+      const { sut, repository, eventPublisher } = makeSut();
+      const saveSpy = vi.spyOn(repository, "save");
+      await expect(
+        sut.execute(makeRegisterDeviceInput(), makeIdentity({ roles: [DEVICE_ROLES.READ] })),
+      ).rejects.toBeInstanceOf(InsufficientRolesError);
+      expect(saveSpy).not.toHaveBeenCalled();
+      expect(eventPublisher.publish).not.toHaveBeenCalled();
+    });
+
+    it("should propagate the domain error and not call the repository when input is invalid", async () => {
+      const { sut, repository, eventPublisher } = makeSut();
+      const saveSpy = vi.spyOn(repository, "save");
+      await expect(
+        sut.execute(
+          makeRegisterDeviceInput({ name: "   " }),
+          makeIdentity({ roles: [DEVICE_ROLES.WRITE] }),
+        ),
+      ).rejects.toThrow(DeviceNameRequiredError);
+      expect(saveSpy).not.toHaveBeenCalled();
+      expect(eventPublisher.publish).not.toHaveBeenCalled();
+    });
+  });
+});
+```
+
+Assert denied roles touch no repository or other collaborator; domain runs before persistence and errors abort
+save; mocked repository rejection propagates; event publishing never runs on failure.
+Role denial belongs under when fails beside domain/repository cases, not a separate
+authorization describe. `Object.assign(new Stub(), overrides)` varies savedDevice/behavior.
+
+Use the [event assertion rules](events.md#6-testing-the-concern) for published events.
+
+### Multi-step usecase
+
+Flow: validate owner → uniqueness → Keycloak provisioning → single account/owner
+transaction → publish; compensate realm/user provisioning if transaction fails.
+makeSut takes an options object, exposing **all** collaborators including repositories
+inside the transaction callback:
+
+```ts
+describe("CreateAccountUsecase", () => {
+  const makeSut = (options: MakeSutOptions = {}): MakeSutInterface => {
+    const accountRepo = options.accountRepo ?? makeAccountRepo();
+    const userRepo = options.userRepo ?? makeUserRepo();
+    const identityProvider = options.identityProvider ?? makeIdentityProvider();
+    const eventPublisher = options.eventPublisher ?? makeEventPublisherMock(); // @shared mock
+    const ctxAccountManager = options.ctxAccountManager ?? makeAccountRepo();
+    const ctxUserManager = options.ctxUserManager ?? makeUserRepo();
+
+    // the transaction mock runs the work with the ctx repos we can spy on
+    const transaction: CreateAccountTransactionInterface = options.transaction ?? {
+      run: vi.fn(async (work: (ctx: TransactionalContext) => Promise<unknown>) =>
+        work({ accountManager: ctxAccountManager, userManager: ctxUserManager }),
+      ) as CreateAccountTransactionInterface["run"],
+    };
+
+    const sut = new CreateAccountUsecase(
+      accountRepo,
+      userRepo,
+      identityProvider,
+      eventPublisher,
+      transaction,
+    );
+    return {
+      sut,
+      accountRepo,
+      userRepo,
+      identityProvider,
+      eventPublisher,
+      transaction,
+      ctxAccountManager,
+      ctxUserManager,
+    };
+  };
+
+  // Each nested `describe("when …")` uses this factory for its scenario.
+});
+```
+
+Cover these additional cases:
+
+- Provider before transaction (`["identity", "transaction"]`); publish after commit with persisted IDs.
+- Normalization across boundaries: ACME-CORP → acme-corp in both IdP and transactional save.
+- Transaction failure calls deleteAccountWithOwner(provisionedId, slug), then rethrows
+  the **original** error even if compensation also throws.
+- No publication on uniqueness, IdP or transaction failure; assert separately in each it.
+- Invalid owner email fails before **any** interaction, including existsBySlug;
+  validateOwner must run first.
+
+### Public endpoint
+
+With `<FEAT>_ALLOWED_ROLES = []`, AccessControl accepts any identity. Instead of a
+role-denial case, add a when success test with **empty identity roles** to lock this
+contract against accidental future restrictions:
+
+```ts
+describe("CreateAccountUsecase", () => {
+  describe("when the endpoint is public and the identity has no roles", () => {
+    it("should allow the account to be created", async () => {
+      const { sut, identityProvider } = makeSut();
+      await expect(
+        sut.execute(makeCreateAccountInput(), makeIdentity({ roles: [] })),
+      ).resolves.toBeDefined();
+      expect(identityProvider.createAccountWithOwner).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+```
 
 ## 5. How to start (new feature)
 
-1. Create `features/<feat>/application/authorization.ts` with `<FEAT>_ALLOWED_ROLES`
-   and `interfaces.ts` with:
-   - `Authorized<Feat>UsecaseInterface = AuthorizedUsecaseInterface<In, Out>` (the
-     `execute(input, identity)` the inbound layer will call);
-   - `<Feat>RepositoryInterface` (the `save`/`findById`/`update`... the outbound
-     layer will implement), always speaking in domain/entity types.
-2. Create `usecase.ts`: a class `extends AuthorizedUsecase<In, Out>`, declaring
-   `allowedRoles = <FEAT>_ALLOWED_ROLES` and receiving its dependencies as
-   **interfaces** through the constructor (call `super()` first).
-3. Put the orchestration in `handle(input)`: call the domain first, then the
-   repository(ies). Keep it thin: no rule, no business try/catch (let the error
-   bubble up). The inherited `execute` runs the role gate before `handle`.
+1. Create `authorization.ts` with `<FEAT>_ALLOWED_ROLES`; declare
+   `Authorized<Feat>UsecaseInterface = AuthorizedUsecaseInterface<In, Out>` and a
+   domain/entity-only `<Feat>RepositoryInterface` (`save`/`findById`/`update` as needed).
+2. In `usecase.ts`, extend `AuthorizedUsecase<In, Out>`, declare `allowedRoles`, inject
+   interfaces and call `super()` first.
+3. Implement thin `handle(input)` orchestration: domain then repositories, without
+   business rules or business try/catch. Inherited `execute` gates it first.
 
 ## 6. Common mistakes (what NOT to do)
 
-- ❌ Injecting the concrete class (`RegisterDeviceTypeormRepository`) into the
-  usecase. ✅ Inject the **interface**; the concrete implementation is only
-  provided in `wire`.
-- ❌ Putting validation/rules in `handle`. ✅ The rule belongs to `domain/`; the
-  usecase only orchestrates.
-- ❌ Re-implementing the role check inside `handle` (or forgetting it). ✅ It's
-  inherited from `AuthorizedUsecase.execute`; the feature only fills in `handle`.
-- ❌ The repository interface exposing infra types (`Repository<...>`,
-  `QueryRunner`). ✅ It speaks domain (`RegisterDeviceOutputProps`,
-  `DeviceEntityInterface`).
-- ❌ Catching and "swallowing" a domain error here. ✅ Let it bubble up; the
-  inbound layer translates it into an HTTP status.
-- ❌ Having the usecase build its own dependencies (`new ...` in the constructor).
-  ✅ Injection comes from outside (wire).
+- Inject ports, never concrete repositories; `wire` selects implementations.
+- No rules/validation in `handle`; use domain.
+- Do not duplicate/omit the role gate; inherit `AuthorizedUsecase.execute`.
+- No infrastructure types (`Repository`, `QueryRunner`) in ports; use domain/entity types.
+- Do not swallow domain errors; inbound maps them to HTTP.
+- Do not instantiate dependencies in the usecase; inject them from wire.
