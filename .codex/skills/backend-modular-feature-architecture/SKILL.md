@@ -43,6 +43,13 @@ The same dependency rules, layer roles and conventions apply.
 Use for new services, business modules and features; any layer or code-placement
 question; and unit, integration or E2E tests. Load the applicable guide from §5.
 
+For architecture, ADRs and epic-derived implementation specs, also read
+[backend-architecture-specification](../backend-architecture-specification/SKILL.md).
+That skill governs one source feature per spec and its approval/decision lifecycle;
+this skill governs the entity code, dependency rules, implementation steps and tests
+planned in that spec. Planning must consult the relevant layer/topic references,
+including entity and events when applicable, rather than defer them until coding.
+
 ## 2. Philosophy in one sentence
 
 **Feature-slicing** by use case + **Clean/Hexagonal** inward dependencies + **DDD-lite**

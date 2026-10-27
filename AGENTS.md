@@ -32,6 +32,8 @@ This repository contains the platform implementation and its product documentati
   industrial integrations, and telemetry processing.
 - **`product/`** — product vision, feature briefs, requirements, user stories, and
   acceptance criteria.
+- **`architecture/`** — backend architecture context, feature implementation specs,
+  and architecture decision records, created as engineering work is requested.
 
 This file provides project context and agent routing. Technology choices, architecture,
 implementation patterns, commands, and detailed workflows belong in the responsible
@@ -48,9 +50,12 @@ epics, feature definitions, technical specs, and other project documentation.
 Route work to the agent whose scope matches the target of the change. An agent is only
 **safe to act within its assigned scope**.
 
-- **Backend agent** — responsible for implementation and tests under
-  `apps/andromeda-backend`, including business rules, data management, access control,
-  industrial integrations, telemetry processing, and the Rule Engine.
+- **Backend agent** — also acts as the backend architect; responsible for implementation
+  and tests under `apps/andromeda-backend`, including business rules, data management, access control,
+  industrial integrations, telemetry processing, and the Rule Engine. Owns technical
+  documents in `architecture/`. May read `product/` and update delivery tracking for
+  the selected epic feature and the epic's aggregate delivery status, with evidence;
+  this exception does not permit changes to product definitions or business approval.
 - **Product Owner agent** — for product artifacts (feature briefs, user stories,
   requirements, acceptance criteria) in `product/`. It does **not** write production
   code; use it to scope and clarify requirements before backend implementation.
@@ -58,8 +63,12 @@ Route work to the agent whose scope matches the target of the change. An agent i
 Routing guidance:
 
 - If the task targets `apps/andromeda-backend`, delegate to the **backend agent**.
+- For backend architecture, implementation specs, and architecture decision records
+  in `architecture/`, delegate to the same **backend agent**. Its detailed instructions
+  govern the one-feature spec and approval workflow.
 - When requirements are ambiguous or the domain scope is unclear, start with the
-  **Product Owner agent** to produce a scoped spec before implementing.
+  **Product Owner agent** to produce a scoped product feature definition before
+  technical specification or implementation.
 - The backend agent should not modify shared root config or infrastructure without
   an explicit request.
 - Project-wide documentation and routing changes may be handled directly by the
