@@ -1,6 +1,6 @@
 ---
 name: backend-architecture-specification
-description: Create backend architecture context, one epic-feature Spec-Driven Development implementation spec at a time, and an ADR after spec approval. Use for engineering planning and decision records in architecture/, with modular-layer plans, entity contract code, technical risk analysis and delivery tracking. Does not define product requirements or authorize implementation.
+description: Guide Architect-owned backend architecture, one-feature SDD specs with entity code, technical risks and complementary test scenarios, and ADRs after approval. Also guides Backend consumption of approved specs and execution tracking. Use for technical documents in architecture/; does not define product requirements or authorize implementation.
 ---
 
 # Backend Architecture and Spec-Driven Development
@@ -9,22 +9,47 @@ Use this skill with [backend-modular-feature-architecture](../backend-modular-fe
 That skill remains authoritative for dependency direction, module/use-case boundaries,
 entity purity, ports/adapters, layer ownership and verification. Read its relevant
 references while designing the spec, not only during implementation. Follow the
-Backend agent's stage review protocol.
+Backend agent's stage review protocol during implementation.
+
+## Role ownership and context loading
+
+The **Architect agent** owns architecture context, entity design, spec authoring and
+ADRs. It uses the references for the artifact being designed and all modular topics
+needed by that feature. It does not write production code or implementation tests.
+Requirements and epics pointed out for the assignment are read-only inputs for
+Architect: it never creates/edits epics, requirements or their status/tracking.
+Its outputs are technical documents, with specs in `architecture/specs/` and ADRs
+in `architecture/adrs/`.
+The **Backend agent** consumes the approved spec/ADR and owns code, tests, step status,
+execution evidence and discovered findings. It reads this entrypoint and only the
+approved feature and current layer's relevant sources; it need not load all authoring
+guides or repeat epic-wide design analysis.
+
+Backend returns material design gaps to Architect with reproducible evidence. Architect
+revises the same canonical spec, obtains approval when the change is substantive and
+updates/supersedes the ADR as appropriate. Routine implementation choices and added
+tests within approved behavior stay with Backend. Neither role silently takes over
+the other's substantive work.
 
 ## Product sources and working boundary
 
 Requirements live in `product/requirements/`. Delivery epics live in
 `product/epics/NN-epic-name/`: `00-epic.md` explains the integrated delivery and each
 linked numbered feature file contains its stories, rules and acceptance criteria.
-Read the entire selected epic, its referenced requirements and existing technical
-artifacts before choosing the current feature. Inspect the actual repository;
+Architect reads the assigned epic overview, selected feature file and pointed/referenced
+requirements, using adjacent files only when dependencies require them. These are
+product inputs, not technical outputs. Backend reads the overview,
+selected feature, applicable requirements and approved spec/ADR, loading adjacent
+context only when a dependency requires it. Inspect the actual repository;
 reference examples and installed dependencies do not prove a capability exists.
 
 Honor the user's selected feature. Otherwise state the first dependency-ready feature
 chosen from the epic's order. **One source feature file, one canonical spec, one
-approval checkpoint.** Context links to other features do not include their delivery
-in the current spec. Do not use the overview as the sole source, combine feature files,
-create per-layer specs or draft a batch of specs. Revise an existing canonical spec
+approval checkpoint.** The spec covers that source file in full: every story, rule
+and acceptance criterion. Never merge feature files, cover only a fraction of one,
+or write a spec with no source feature file. Context links do not include another
+feature's delivery. Do not use requirements or the overview as substitutes, create
+per-operation/per-layer/per-phase specs or draft a batch of specs. Revise the canonical spec
 instead of creating a competing one for the same source feature.
 
 A product capability may contain several use-case operations. Keep their planning
@@ -44,49 +69,54 @@ making any temporary business simulations explicit.
 | Artifact | Purpose | Guide |
 | --- | --- | --- |
 | Architecture context | Shared problem, boundaries, proposed technical direction and constraints. | [Architecture context](references/architecture-context.md) |
-| Implementation spec | Executable SDD plan for exactly one epic feature file. | [Implementation specs](references/implementation-specs.md) |
-| ADR | Durable record of the decisions in an explicitly approved spec revision. | [Architecture decision records](references/architecture-decisions.md) |
+| Implementation spec | SDD plan for exactly one complete epic feature file, in `architecture/specs/`. | [Implementation specs](references/implementation-specs.md) |
+| ADR | Decisions in an approved spec revision, in `architecture/adrs/`. | [Architecture decision records](references/architecture-decisions.md) |
 
-Use the established directory mapped to the epic. When none exists, choose the next
-available two-digit topic prefix under `architecture/` and a kebab-case epic name;
-record the product epic's actual path so independently numbered directories remain
-traceable. Do not create empty architecture folders or placeholder documents.
+Use these output locations directly. Keep product sources under `product/` read-only
+for Architect. Do not create an enclosing directory per epic, empty folders or
+placeholder documents. Additional technical context may live under `architecture/`
+when needed for the requested design.
 
 ```text
-architecture/NN-epic-name/
-  00-architecture.md
+architecture/
+  00-context-name.md
   specs/
-    01-feature-name.md
+    EP-00-F01-feature-name.md
   adrs/
-    01-decision-name.md
+    0001-decision-name.md
 ```
 
-Mirror the source feature's numeric prefix/name in its spec filename where possible.
-Number ADRs consecutively within the topic. Preserve existing paths and identifiers.
+Include the source feature ID in the spec filename to distinguish different epics.
+Number ADRs consecutively across `architecture/adrs/`. Preserve existing identifiers;
+if legacy documents use different locations, report the discrepancy rather than
+moving them without an explicit assignment.
 Keep a spec cohesive in one file; there is no artificial line limit. Architecture
 context can summarize several dependencies but cannot contain a batch of feature specs.
 
 ## Approval and execution lifecycle
 
-1. Understand the epic and inspect current code, decisions and technical constraints.
-   Create/update architecture context only as needed to explain the selected scope.
-2. Read [implementation-specs.md](references/implementation-specs.md) and the relevant
-   modular architecture references. Complete one feature's spec, including entity
-   code when applicable, risk-driven choices and ordered implementation/verification steps.
-3. Mark its approval state `Awaiting approval`, record the exact revision and pending
-   questions, link it in the source feature's delivery evidence, and **stop/end the
-   turn for explicit user approval**. Do not create an ADR, code or another spec.
-4. When that revision is explicitly approved, record the approval evidence and create
-   the corresponding ADR using [architecture-decisions.md](references/architecture-decisions.md).
-   That approval authorizes this record; no separate permission request is needed.
+1. Architect understands the epic and inspects current code, decisions and technical
+   constraints. It creates/updates architecture context only as needed for the scope.
+2. Architect reads [implementation-specs.md](references/implementation-specs.md) and
+   the relevant modular references. It completes one feature's spec, including entity
+   code where needed, risk-driven choices, complementary technical test cases and
+   ordered implementation/verification steps.
+3. Architect marks the spec `Awaiting approval` in `architecture/specs/`, records
+   the revision, pending questions and source feature link inside that spec, and
+   **stops/ends the turn for explicit user approval**. It creates no ADR, code or
+   another spec while approval is pending.
+4. After explicit revision approval, Architect records the approval and creates the
+   corresponding ADR in `architecture/adrs/` using [architecture-decisions.md](references/architecture-decisions.md).
+   That approval authorizes this record without another permission request. Architect
+   adds the compact Backend handoff to the approved spec; it does not implement it.
    An accepted ADR records a decision, not proof of implementation.
-5. Follow existing authorization to implement only the next permitted layer/area.
-   Maintain the selected spec's steps and epic delivery status as work advances.
+5. Backend follows existing authorization to implement only the next permitted
+   layer/area. It maintains the selected spec's steps and epic delivery status.
    Spec approval does not authorize all stages, another feature or another spec.
-6. At each stage review, record actual results/limits and stop under the Backend
-   agent's protocol. Do not progress to another feature after completing this one
-   without the required user direction. Substantive spec/decision changes return
-   to approval; supersede the ADR when an approved decision changes.
+6. At each stage review, Backend records actual results/limits and stops under its
+   protocol. It does not progress to another feature without the required user
+   direction. Material design findings return to Architect for the same spec's
+   revision/approval and, when needed, a superseding ADR.
 
 Approval is tied to the source feature and spec revision. Silence, time, passing
 checks or approval of a different artifact are not substitutes. Reuse existing
@@ -101,8 +131,12 @@ affected modules, dependencies, remaining work, checks run and evidence/limits.
 Approval cannot mark code implemented, and document validation cannot mark business
 acceptance validated.
 
-The Backend agent may update only the selected feature's delivery row/evidence and
-the overview's aggregate delivery row/evidence in `product/epics/`. It may add a compact
+Architect owns the spec's design/approval fields; Backend owns implementation steps,
+test execution, evidence and findings. Architect maintains planning/handoff evidence
+exclusively in technical documents; it has no write permission in `product/`.
+Backend maintains execution evidence during implementation. Backend alone may update
+the selected feature's delivery row/evidence and the overview's aggregate delivery
+row/evidence in `product/epics/`. It may add a compact
 engineering progress table with spec/ADR links if the existing tracking table cannot
 express the current stage; keep business text, product definition and business-validation
 states under Product Owner ownership. Do not edit another feature's status or source

@@ -1,12 +1,17 @@
 # One-Feature Spec-Driven Development
 
-The spec is the reviewable technical contract for implementing **one numbered feature
-file from an epic**. It explains the problem, proposed design, risks, complete entity
-contracts where needed, steps and observable completion evidence. Read
+The spec is the reviewable technical contract for implementing **exactly one complete
+numbered feature file from an epic**. It covers every story, rule and acceptance
+criterion in that file, never multiple files, a fraction of one file or no source file.
+Save it in **`architecture/specs/`**, with the source feature ID in its filename.
+Requirements and epics are Architect's read-only inputs, never its deliverables.
+The spec explains the problem, proposed design, risks, complete entity
+contracts where needed, steps and observable completion evidence. Architect owns
+this design; Backend implements the approved version and records its execution. Read
 [the modular architecture skill](../../backend-modular-feature-architecture/SKILL.md)
 and relevant references before designing those steps. A task list alone is not SDD.
 
-Keep one canonical spec file for the selected product feature. Its operations may
+Keep one canonical spec for the entire selected product feature file. Its operations may
 need separate modular use-case slices, each with its own layer plan, but cannot include
 a second product feature. Contextual dependencies are read-only scope references.
 If another feature must be delivered first, record that dependency and obtain a
@@ -49,7 +54,9 @@ types needed to understand the contract; a field list, database schema, ellipsis
 instruction to define it later is insufficient. For changes, show the complete proposed
 result and explain the changes and compatibility impact.
 
-Follow [entity.md](../../backend-modular-feature-architecture/references/entity.md):
+Before writing entity code, read
+[entity.md](../../backend-modular-feature-architecture/references/entity.md) and consult
+its examples whenever needed. Follow its pattern completely:
 pure shape contracts, sibling-only imports, named interfaces and const-derived types,
 without frameworks, ORM decorators, I/O or business methods. Explain identity, tenant
 ownership, optionality/nullability, version/history fields and lifecycle meaning.
@@ -107,6 +114,39 @@ Do not invent throughput, latency or availability commitments. Record confirmed 
 or explicitly proposed experiment parameters and what result will resolve uncertainty.
 Material unknowns that prevent a viable design must be resolved before seeking approval.
 
+## Complementary technical test cases
+
+The epic's acceptance criteria establish business outcomes; they are not the entire
+verification plan. Architect must identify additional implementation and behavior
+cases needed to prove the selected technical contracts and mitigate its risks. These
+cases remain inside this feature's one spec and do not invent new product requirements.
+
+Read [testing.md](../../backend-modular-feature-architecture/references/testing.md)
+and each affected layer's testing section while planning cases. Use
+[e2e.md](../../backend-modular-feature-architecture/references/e2e.md) for assembled
+contracts. Cover applicable rollback/atomicity, stale writes, concurrent attempts,
+duplicate requests/events, idempotent retries, ordering, recovery, repository mappings,
+database constraints, tenant/query filtering, error translation and adapter failures.
+For relevant hot paths or query/index risks, specify a suitable experiment with its
+dataset/load assumptions and observable success evidence. Do not invent production
+targets or brittle assertions about an incidental query plan.
+
+Give each case a stable local ID, such as `TC01`, and identify:
+
+| Case information | Required detail |
+| --- | --- |
+| Scope and rationale | Operation plus source acceptance criterion or explicit technical risk/contract. |
+| Verification level | Compiler check, unit, integration, E2E or justified performance/recovery experiment. |
+| Starting conditions | Relevant fixture, prior state, dependency behavior and concurrent/duplicate stimulus. |
+| Observable expectation | Actual behavior or invariant to prove, including prohibited partial effects or disclosure. |
+| Delivery mapping | Implementation step/layer responsible, dependencies and later execution evidence. |
+
+Pure entity contracts use compiler validation, not artificial runtime tests. Verify
+public behavior and boundary contracts; avoid cases that merely mirror private code.
+Where no extra technical case is needed, explain why the existing planned verification
+already covers the risk. Backend may add meaningful cases within approved behavior
+as implementation reveals them; a material design change returns to Architect.
+
 ## Ordered implementation and verification plan
 
 Use numbered checklist steps inside this same spec, ordered by actual dependencies
@@ -119,7 +159,7 @@ Every step states:
 - The operation, layer/area and intended source/test paths.
 - Entry dependencies and the relevant modular skill reference(s).
 - Behavior/contracts and source acceptance/risk items addressed.
-- Required verification and observable completion evidence.
+- Required verification, technical case IDs and observable completion evidence.
 - Status, evidence, remaining limitations and the next review checkpoint.
 
 For entity steps, reference the complete entity code already in this spec and plan
@@ -144,11 +184,18 @@ instructions in a submitted spec:
 4. Domain boundaries and complete new/changed entity code.
 5. Layer flow, contracts, data/consistency and proposed decisions.
 6. Technical risk assessment and validation experiments.
-7. Ordered implementation/verification checklist and review checkpoints.
-8. Done conditions, dependencies, limits and unresolved decisions.
-9. Approval history and, only after approval, the associated ADR link.
+7. Business acceptance and complementary technical test-case catalog.
+8. Ordered implementation/verification checklist and review checkpoints.
+9. Done conditions, dependencies, limits and unresolved decisions.
+10. Approval history and, only after approval, the associated ADR link and Backend handoff.
 
-Complete this one spec, update its source feature's delivery evidence, mark
+The handoff names the source feature/spec revision/ADR, modules and entity contracts,
+operation/layer sequence, test-case/step mapping, dependency readiness, critical risks
+and known limits. Keep it in the same approved spec instead of a competing handoff
+spec or duplicating its design across agents.
+
+Complete this one spec, record its own planning evidence and source links, mark
 `Awaiting approval` and **stop/end the turn**. Do not create an ADR, a second spec or
 implementation code before approval. Follow the main skill's execution/status protocol
-after approval and ADR recording.
+after approval and Architect-owned ADR recording; Backend then follows the approved
+handoff and records its implementation/test evidence.

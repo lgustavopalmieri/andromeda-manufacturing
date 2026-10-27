@@ -75,8 +75,9 @@ product/
   confirmed decisions, proposals, and questions. Do not invent numbers or commitments.
 - Focus on product and business rules. Do not define code, APIs, schemas, libraries,
   architecture, components, or implementation tasks.
-- Backend and frontend agents will produce their own technical specs from the defined
-  epics and features. The Product Owner provides the business behavior.
+- The Architect agent produces backend technical specs and test scenarios from the
+  defined epic features; Backend implements the approved specs and verifies their
+  behavior. Frontend owns its technical planning. The Product Owner provides business behavior.
 - When relevant, consider differences across machines, plants, countries, languages,
   units, and shifts, as well as industrial operational exceptions.
 - Preserve organization isolation, granular permissions, versioning of configurable

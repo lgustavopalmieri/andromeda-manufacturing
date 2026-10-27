@@ -1,9 +1,12 @@
 # Architecture Context for an Epic
 
-Create or update `architecture/NN-epic-name/00-architecture.md` when shared context is
-needed for engineering work. Read the epic overview and feature definitions first.
+Architect creates or updates a technical context document such as
+`architecture/00-context-name.md` when needed for the assigned design. Read the
+pointed requirements, epic overview and selected feature file as read-only sources.
+Do not create, edit or deliver a product epic, including its tracking information.
 Keep this document at the architectural level; detailed tasks belong in the one
-selected feature spec. An architecture request alone does not authorize a batch of specs.
+selected feature spec in `architecture/specs/`. An architecture request alone does
+not authorize a batch of specs or a spec without exactly one complete source feature.
 
 ## Required content
 
@@ -27,6 +30,9 @@ selected feature spec. An architecture request alone does not authorize a batch 
    traffic/cardinality, dependency failures, authorization freshness, data growth,
    observability and failure recovery as relevant. Link the selected spec's concrete
    risks and experiments rather than claim unmeasured scale or invent service targets.
+   Connect database choices to queries, indexes/uniqueness, tenant filters, transaction
+   isolation, contention, migration and recovery. Link complementary technical tests
+   as well as product acceptance; Backend supplies their later execution evidence.
 7. **Delivery map.** Link product feature → canonical spec → approved ADR → current
    implementation evidence. List unresolved prerequisites and the next bounded scope;
    this map does not authorize drafting later specs or starting their implementation.

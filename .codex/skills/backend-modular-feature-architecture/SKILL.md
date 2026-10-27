@@ -49,6 +49,8 @@ That skill governs one source feature per spec and its approval/decision lifecyc
 this skill governs the entity code, dependency rules, implementation steps and tests
 planned in that spec. Planning must consult the relevant layer/topic references,
 including entity and events when applicable, rather than defer them until coding.
+Architect owns that design and its complementary technical test scenarios; Backend
+implements/verifies the approved plan and returns material design gaps to Architect.
 
 ## 2. Philosophy in one sentence
 

@@ -50,12 +50,19 @@ epics, feature definitions, technical specs, and other project documentation.
 Route work to the agent whose scope matches the target of the change. An agent is only
 **safe to act within its assigned scope**.
 
-- **Backend agent** — also acts as the backend architect; responsible for implementation
-  and tests under `apps/andromeda-backend`, including business rules, data management, access control,
-  industrial integrations, telemetry processing, and the Rule Engine. Owns technical
-  documents in `architecture/`. May read `product/` and update delivery tracking for
-  the selected epic feature and the epic's aggregate delivery status, with evidence;
-  this exception does not permit changes to product definitions or business approval.
+- **Architect agent** — responsible for backend architecture, technical risk analysis,
+  entity modeling, SDD specs in `architecture/specs/`, complementary technical test
+  scenarios and ADRs in `architecture/adrs/`. Each spec covers exactly one complete
+  epic feature file. Reads assigned requirements/epics and implementation evidence;
+  `product/` is read-only for Architect. It does not deliver/edit epics, product
+  tracking, production code or implementation tests.
+- **Backend agent** — responsible for implementation and tests under
+  `apps/andromeda-backend`, including business rules, data management, access control,
+  industrial integrations, telemetry processing and the Rule Engine. Consumes the
+  Architect's approved spec/ADR. May update that spec's execution/test evidence and
+  delivery tracking for the selected epic feature and aggregate epic status. Material
+  design changes return to Architect; product definitions and business approval stay
+  outside Backend's scope.
 - **Product Owner agent** — for product artifacts (feature briefs, user stories,
   requirements, acceptance criteria) in `product/`. It does **not** write production
   code; use it to scope and clarify requirements before backend implementation.
@@ -64,8 +71,10 @@ Routing guidance:
 
 - If the task targets `apps/andromeda-backend`, delegate to the **backend agent**.
 - For backend architecture, implementation specs, and architecture decision records
-  in `architecture/`, delegate to the same **backend agent**. Its detailed instructions
-  govern the one-feature spec and approval workflow.
+  in `architecture/`, delegate to the **architect agent**. It creates one spec from
+  one epic feature file, stops for approval and records the ADR after approval.
+- When implementation lacks an approved spec/ADR or exposes a material design gap,
+  route the design work to **Architect** before the affected implementation proceeds.
 - When requirements are ambiguous or the domain scope is unclear, start with the
   **Product Owner agent** to produce a scoped product feature definition before
   technical specification or implementation.

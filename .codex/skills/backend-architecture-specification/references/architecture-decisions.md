@@ -1,12 +1,15 @@
 # Architecture Decision Record After Spec Approval
 
-An ADR records the chosen technical decisions of an explicitly approved feature spec.
+Architect records the chosen technical decisions of an explicitly approved feature
+spec in its ADR. Backend consumes that record and reports implementation conformance.
 The spec contains proposals and alternatives before approval; do not create the ADR
 file or label a decision accepted while that spec is awaiting approval.
 
-After approval, create one corresponding ADR under the topic's `adrs/` directory,
-using the next available numeric prefix. Link the exact source feature and approved
-spec revision, then link the ADR from the spec and architecture context if one exists.
+After approval, create the corresponding ADR directly in **`architecture/adrs/`**,
+using the next available numeric prefix across that directory. Link the exact source
+feature file and approved spec in `architecture/specs/`, identifying its revision.
+Link the ADR from that spec and technical context if one exists. Product documents
+remain read-only for Architect.
 Recording this ADR is part of the approved workflow and needs no additional permission.
 Do not use that action to create another feature's spec or begin unauthorized code.
 
@@ -26,7 +29,8 @@ Do not use that action to create another feature's spec or begin unauthorized co
 - **Consequences:** benefits, technical/operational costs, residual risks, migrations,
   compatibility, observability and any explicit modular-skill deviations approved.
 - **Conformance and follow-up:** how the selected spec's steps/checks will verify the
-  decision, what remains unimplemented and the assumptions that may trigger revision.
+  decision, including complementary technical case IDs, what remains unimplemented
+  and the assumptions that may trigger revision.
 - **Relationships:** prior decisions reused, or a superseded ADR when applicable.
 
 The ADR must faithfully record the approved spec; it cannot introduce an unreviewed
