@@ -1,6 +1,6 @@
 # SPEC-EP-00-F01 — Design
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01/M0-02/M0-03 reviews accepted; next task not started · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–04 reviews accepted; next task not started · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → Design (this document) → [Tasks](EP-00-F01-govern-scoped-access.tasks.md).
 
@@ -10,7 +10,7 @@ The main path is simple: **trusted identity context → OpenFGA decision → pro
 
 The user explicitly approved revision 6's M0 technical design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) records the accepted M0 decisions. The approval session did not authorize implementation. The user subsequently requested the first task's implementation in a new context on the same date. M0-01 configuration is implemented and reorganized at the user's request into separate database/runtime configuration folders and schema/error/interface/loader files, with a configuration-only `main.ts`. Its behavior is unchanged: 33 unit tests, strict typecheck, build and two built-entrypoint smoke scenarios passed; user review was accepted on 2026-10-30, America/Sao_Paulo. Future F01 milestones and G01–G04 require their own reviewed designs. The [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0) and [execution evidence](EP-00-F01-govern-scoped-access.tasks.md#execution-evidence) record the current stage and limits; approved design contracts remain unchanged.
 
-**Current execution — 2026-10-30:** M0-02 is implemented, compiler-validated and accepted by the user's instruction to continue to task 3. Authorized M0-03 adds `RepositoryError` and `RepositoryUnavailableError` with native optional `ErrorOptions` and no infrastructure imports. Strict compilation and a focused temporary runtime check passed; user shared errors review was accepted on 2026-10-30, America/Sao_Paulo. Driver classification and HTTP mappings are not implemented in this stage; the approved design contracts are unchanged and M0-04 has not started.
+**Current execution — 2026-10-30:** M0-01–03 are implemented, technically validated and accepted. Explicitly authorized M0-04 adds the pure structured observability event/capture port and a separate reusable typed Vitest mock. Strict typecheck and temporary contract/mock compiler checks passed; user observability review was accepted on 2026-10-30, America/Sao_Paulo. No concrete logger, redaction, application event producer or approved design contract changed in this stage; M0-05 has not started.
 
 ## One request, from identity to authorization to business data
 

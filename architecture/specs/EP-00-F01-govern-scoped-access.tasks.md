@@ -1,12 +1,12 @@
 # SPEC-EP-00-F01 — Tasks
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01/M0-02/M0-03 reviews accepted; next task not started · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–04 reviews accepted; next task not started · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → [Design](EP-00-F01-govern-scoped-access.design.md) → Tasks (this document).
 
 ## Approved M0 handoff
 
-The user approved revision 6's M0 design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. That approval session covered approval/ADR only. The user subsequently explicitly requested implementation of the first backend F01 task in a new context on the same date. Under the [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0), M0-01 and M0-02 are implemented, technically validated and accepted. The user's instruction to continue to task 3 accepted M0-02 and authorized M0-03, not the later M3 milestone. M0-03 repository failure categories are now implemented, technically validated and accepted on 2026-10-30, America/Sao_Paulo. M0-04 and later tasks have not started.
+The user approved revision 6's M0 design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. That approval session covered approval/ADR only. The user subsequently explicitly started implementation in a new context. Under the [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0), M0-01–03 are implemented, technically validated and accepted. The user's later explicit instruction authorized M0-04: the observability port/mock are now implemented, compiler-validated and accepted on 2026-10-30, America/Sao_Paulo. M0-05 and later tasks have not started.
 
 ## Start here
 
@@ -67,10 +67,11 @@ Task trace fields refer to [M0 requirements](EP-00-F01-govern-scoped-access.requ
   - **Verify:** TC-M0-02 compiler. **Trace:** M0-R01/R06; R04/R06. **Review:** shared errors.
   - **Execution — 2026-10-30:** validated for this shared-errors stage; user review accepted on 2026-10-30, America/Sao_Paulo. Added `modules/@shared/errors/repository.error.ts`: `RepositoryError extends Error` accepts `(message: string, options?: ErrorOptions)`; `RepositoryUnavailableError extends RepositoryError` inherits that constructor and supplies its distinct name. Causes remain native internal diagnostics; no driver classification or HTTP status mapping was added. `npm run typecheck`: exit 0. A temporary runtime check confirmed distinct categories, unavailable-error inheritance and original cause identity without copying technical details into the supplied message or enumerable fields. No persistent test suite or later task was added.
 
-- [ ] **M0-04 — Define the observability port**
+- [x] **M0-04 — Define the observability port**
   - **Area / paths:** `modules/@shared/observability/observability.ts and observability.mock.ts`. **Depends on:** none.
   - **Deliver:** Define structured event/capture operations and the test double; no concrete logger dependency.
   - **Verify:** TC-M0-02 compiler. **Trace:** M0-R07; R06. **Review:** shared observability.
+  - **Execution — 2026-10-30:** validated for this contract/mock stage; user review accepted on 2026-10-30, America/Sao_Paulo. Added `modules/@shared/observability/observability.ts` with `ObservabilityContextInterface` readonly unknown-valued entries and `ObservabilityInterface.event(name, context?)` / `.capture(error, context?)`, both synchronous void operations. Added test-only `observability.mock.ts` exporting `makeObservabilityMock(): Mocked<ObservabilityInterface>` with fresh independent typed `vi.fn` methods. `npm run typecheck`: exit 0. Temporary compiler checks confirmed contract/mock compatibility and eight rejected misuse cases; removing suppression directives produced exactly eight diagnostics. Temporary files were removed. No logger, runtime logging, sanitization or later task was added.
 
 - [ ] **M0-05 — Implement the structured logger adapter**
   - **Area / paths:** `platform/observability/logger.ts; logger.test.ts`. **Depends on:** M0-01, M0-04.
@@ -279,7 +280,7 @@ Task trace fields refer to [M0 requirements](EP-00-F01-govern-scoped-access.requ
 
 ## M0 technical case catalog
 
-Cases are planned except for the applicable TC-M0-01 configuration checks executed at M0-01 and TC-M0-02 shared HTTP/repository-error compiler checks executed at M0-02/M0-03, recorded below. TC-M0-01 provider binding/timeout checks remain pending M0-26a; TC-M0-02 remains pending for its other owning tasks, and all other cases remain unexecuted. Use real provider/SQL integration where stated; unit faults exercise the actual boundary implementation. Each fixture variation is isolated and versioned. No case assumes a runtime lifecycle API exists.
+Cases are planned except for the applicable TC-M0-01 configuration checks executed at M0-01 and TC-M0-02 shared HTTP/repository-error/observability compiler checks executed at M0-02–04, recorded below. TC-M0-01 provider binding/timeout checks remain pending M0-26a; TC-M0-02 remains pending for its other owning tasks, and all other cases remain unexecuted. Use real provider/SQL integration where stated; unit faults exercise the actual boundary implementation. Each fixture variation is isolated and versioned. No case assumes a runtime lifecycle API exists.
 
 | Case | Level / owner | Starting condition and stimulus | Observable expectation |
 | --- | --- | --- | --- |
@@ -365,7 +366,7 @@ Scope clarification on 2026-10-30: approval and ADR recording only in this sessi
 
 | Milestone | Implementation | Execution evidence | Next checkpoint |
 | --- | --- | --- | --- |
-| M0 | in progress; M0-01/M0-02 accepted, M0-03 repository failure categories technically validated with user review accepted on 2026-10-30, America/Sao_Paulo | 2026-10-30: M0-01/M0-02 retain their earlier evidence; M0-03 adds `src/modules/@shared/errors/repository.error.ts`, passing strict typecheck and a focused temporary category/cause runtime check. | Explicit instruction to start M0-04; M0-03 review is accepted and M0-04 remains not started. |
+| M0 | in progress; M0-01–03 accepted, M0-04 observability port/mock compiler-validated with user review accepted on 2026-10-30, America/Sao_Paulo | 2026-10-30: M0-01–03 retain their earlier evidence; M0-04 adds `src/modules/@shared/observability/observability.ts` and `observability.mock.ts`, passing strict typecheck and temporary positive/negative compiler checks. | Explicit instruction to start M0-05; M0-04 review is accepted and M0-05 remains not started. |
 | M1–M7 | not started; design required | None; original product criteria retained. | Complete the relevant future design task and resolve its gates. |
 
 ### M0-01 configuration evidence — 2026-10-30
@@ -410,8 +411,26 @@ The user's instruction to proceed to task 3 accepted M0-02 and authorized only M
 | Focused temporary runtime check | `node --input-type=module` imported the actual TypeScript module and confirmed generic errors are not unavailable errors, unavailable errors inherit the generic category, names/messages are correct and both retain the original `cause`. With a supplied safe message, technical cause text was absent from `String(error)`/JSON output. The cause uses native non-enumerable `ErrorOptions` storage, not a new serialization mechanism. No temporary fixture remained. |
 | Test scope | The final change retains no redundant runtime suite for the trivial native-Error constructors. The required compiler check and focused temporary check above are the stage evidence. No coverage percentage is claimed. |
 | Limits | Classes preserve the supplied message and cause; they do not sanitize arbitrary caller messages, identify driver failures or assign HTTP statuses. Later adapters must explicitly recognize connection/outage failures and select the unavailable category; unknown failures remain generic. Safe generic500/business-unavailable503 mapping and actual storage interruption remain later verification. No database, mapper, logger or authorization implementation was added. |
-| Stage gate | M0-03 implemented and technically validated; user shared errors review accepted on 2026-10-30, America/Sao_Paulo. M0-04 remains not started and requires an explicit start instruction. M0/F01 remain in progress. |
+| Stage gate | M0-03 implemented and technically validated; user shared errors review accepted on 2026-10-30, America/Sao_Paulo. At that checkpoint, M0-04 had not started and required a separate explicit start instruction; its later authorized execution is recorded below. M0/F01 remain in progress. |
 
 ### M0-03 review acceptance — 2026-10-30
 
-The user explicitly approved M0-03 on 2026-10-30, America/Sao_Paulo. Its implementation, technical verification and shared errors review are complete. M0-04 remains not started and requires an explicit start instruction; M0/F01 remain in progress. This acceptance update changes execution metadata only. Runtime checks were not rerun; `git diff --check` passed.
+The user explicitly approved M0-03 on 2026-10-30, America/Sao_Paulo. Its implementation, technical verification and shared errors review are complete. At that checkpoint, M0-04 had not started and required an explicit start instruction; its later authorized execution is recorded below. M0/F01 remain in progress. This acceptance update changed execution metadata only. Runtime checks were not rerun; `git diff --check` passed.
+
+### M0-04 observability contract/mock evidence — 2026-10-30
+
+The user explicitly authorized task 04 after accepting M0-03. Only `src/modules/@shared/observability/observability.ts` and `observability.mock.ts` were added to the backend; configuration, main, earlier shared contracts, skills and approved design contracts are unchanged.
+
+| Check / case | Actual result and limits |
+| --- | --- |
+| TC-M0-02 · observability only | Dependency-free `ObservabilityContextInterface` has readonly string-indexed unknown values. `ObservabilityInterface` declares `event(name: string, context?: ObservabilityContextInterface): void` and `capture(error: unknown, context?: ObservabilityContextInterface): void`. No business-specific event fields, levels, logger or framework types enter this port. |
+| Reusable mock contract | Test-only `makeObservabilityMock()` returns `Mocked<ObservabilityInterface>` with independent typed `vi.fn` methods per factory call. Callers can inspect calls, clear mocks and configure behavior using standard Vitest controls. Vitest is imported only by `.mock.ts`, never by the runtime interface. Default mocks have no logging effect and return undefined. |
+| Strict compilation | `npm run typecheck` from `apps/andromeda-backend`: exit 0 under the existing strict, exact optional-property and indexed-access settings. |
+| Positive compiler checks | Temporary checks extending the backend tsconfig compiled mock-to-port assignment, structured/omitted contexts, unknown capture values, void event results and typed mock implementation/call/reset controls. Temporary rootDir/ambient-type adjustments did not change repository tooling. |
+| Negative compiler checks | Eight cases covered invalid event names/context, omitted capture argument, invalid capture context, readonly context mutation, unsafe unknown-value assignment and matching mock argument constraints. Expected rejections compiled with `@ts-expect-error`; removing those directives produced exactly eight diagnostics. No valid case was suppressed; temporary files were removed. |
+| Limits | No redundant runtime suite for interfaces or native Vitest mock behavior was added, and no runtime coverage percentage is claimed. Concrete logging, safe categorization/redaction and actual event emission remain later tasks. This contract/mock does not validate event contents, implement audit history or claim TC-M0-03 execution. TC-M0-02 for its remaining owning tasks is still pending. |
+| Stage gate | M0-04 implemented and compiler-validated; user observability review accepted on 2026-10-30, America/Sao_Paulo. M0-05 remains not started and requires an explicit start instruction. M0/F01 remain in progress. |
+
+### M0-04 review acceptance — 2026-10-30
+
+The user explicitly approved M0-04 on 2026-10-30, America/Sao_Paulo. Its implementation, compiler verification and observability review are complete. M0-05 remains not started and requires an explicit start instruction; M0/F01 remain in progress. This acceptance update changes execution metadata only. Runtime checks were not rerun; `git diff --check` passed.
