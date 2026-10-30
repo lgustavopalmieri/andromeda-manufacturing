@@ -1,12 +1,12 @@
 # SPEC-EP-00-F01 — Tasks
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01 configuration review accepted; next task not started · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-02 shared HTTP review pending; M0-01 review accepted · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → [Design](EP-00-F01-govern-scoped-access.design.md) → Tasks (this document).
 
 ## Approved M0 handoff
 
-The user approved revision 6's M0 design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. That approval session covered approval/ADR only. The user subsequently explicitly requested implementation of the first backend F01 task in a new context on the same date. Under the [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0), M0-01 configuration is now implemented and technically validated, with user review accepted on 2026-10-30, America/Sao_Paulo. No subsequent task is started or authorized by these results.
+The user approved revision 6's M0 design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. That approval session covered approval/ADR only. The user subsequently explicitly requested implementation of the first backend F01 task in a new context on the same date. Under the [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0), M0-01 configuration is implemented and technically validated, with user review accepted on 2026-10-30, America/Sao_Paulo. The user's later separate instruction explicitly started M0-02; its pure HTTP envelope is now implemented and compiler-validated, awaiting review. M0-03 and later tasks have not started.
 
 ## Start here
 
@@ -53,12 +53,13 @@ Task trace fields refer to [M0 requirements](EP-00-F01-govern-scoped-access.requ
   - **Area / paths:** `configs/database/{schema,interface}.ts; configs/runtimeconfig/{schema,error,interface,load-runtime-config,load-runtime-config.test}.ts; configuration-only main.ts` (organization revision explicitly requested by the user on 2026-10-30). **Depends on:** none.
   - **Deliver:** Read only required HTTP/database/validation settings; reject incomplete or invalid values without exposing secrets. OpenFGA configuration is added in M0-26a.
   - **Verify:** TC-M0-01. **Trace:** M0-R01/R05; R01. **Review:** configuration.
-  - **Execution — 2026-10-30:** validated for this configuration stage; user review accepted on 2026-10-30, America/Sao_Paulo. Configuration now lives in the separate folders/files above, preserving the original declarations and loader body after the user's organization revision. `main.ts` only calls `loadRuntimeConfig()`. HTTP and database ports are required decimal integers in 1–65535; database host/user/password/name are required and nonblank. Flags accept only literal `true`/`false`; validation defaults false, migrations true, SSL/logging false, and HTTP binds to `127.0.0.1`. Configuration errors contain field paths without input values or causes; intentional password whitespace is preserved. No Keycloak/AWS/provider settings are required. `npm run test -- src/configs/runtimeconfig/load-runtime-config.test.ts`: 1 suite, 33 passing tests; `npm run typecheck` and `npm run build`: exit 0; built-entrypoint smoke passed for valid and invalid configuration. TC-M0-01 provider binding/timeout coverage remains M0-26a. No subsequent task started.
+  - **Execution — 2026-10-30:** validated for this configuration stage; user review accepted on 2026-10-30, America/Sao_Paulo. Configuration now lives in the separate folders/files above, preserving the original declarations and loader body after the user's organization revision. `main.ts` only calls `loadRuntimeConfig()`. HTTP and database ports are required decimal integers in 1–65535; database host/user/password/name are required and nonblank. Flags accept only literal `true`/`false`; validation defaults false, migrations true, SSL/logging false, and HTTP binds to `127.0.0.1`. Configuration errors contain field paths without input values or causes; intentional password whitespace is preserved. No Keycloak/AWS/provider settings are required. `npm run test -- src/configs/runtimeconfig/load-runtime-config.test.ts`: 1 suite, 33 passing tests; `npm run typecheck` and `npm run build`: exit 0; built-entrypoint smoke passed for valid and invalid configuration. TC-M0-01 provider binding/timeout coverage remains M0-26a. At that checkpoint, no subsequent task had started.
 
-- [ ] **M0-02 — Define the shared HTTP response contract**
+- [x] **M0-02 — Define the shared HTTP response contract**
   - **Area / paths:** `modules/@shared/http/http-response.ts`. **Depends on:** none.
   - **Deliver:** Define the common success/error envelope used by later HTTP mappers.
   - **Verify:** TC-M0-02 compiler. **Trace:** M0-R06; R06. **Review:** shared HTTP.
+  - **Execution — 2026-10-30:** validated for this pure-contract stage; user review pending. Added `modules/@shared/http/http-response.ts`: `HttpSuccessResponseInterface<Data>` is `{ error: false; data: Data }`, `HttpErrorResponseInterface` is `{ error: true; message: string }`, and `HttpResponseInterface<Data>` is their discriminated union. No imports, framework dependency, runtime behavior or mapper was added. `npm run typecheck`: exit 0. Temporary strict compiler checks accepted valid envelopes/null payloads and narrowing, while 10 invalid cases were rejected; removing all suppression directives produced exactly 10 diagnostics. Fixtures were removed. TC-M0-02 remains pending for all other owning tasks; no M0-03 work started.
 
 - [ ] **M0-03 — Define the shared repository failure category**
   - **Area / paths:** `modules/@shared/errors/repository.error.ts`. **Depends on:** none.
@@ -277,7 +278,7 @@ Task trace fields refer to [M0 requirements](EP-00-F01-govern-scoped-access.requ
 
 ## M0 technical case catalog
 
-Cases are planned except for the applicable TC-M0-01 configuration checks executed at M0-01, recorded below. TC-M0-01 provider binding/timeout checks remain pending M0-26a; all other cases remain unexecuted. Use real provider/SQL integration where stated; unit faults exercise the actual boundary implementation. Each fixture variation is isolated and versioned. No case assumes a runtime lifecycle API exists.
+Cases are planned except for the applicable TC-M0-01 configuration checks executed at M0-01 and TC-M0-02 shared HTTP compiler checks executed at M0-02, recorded below. TC-M0-01 provider binding/timeout checks remain pending M0-26a; TC-M0-02 remains pending for its other owning tasks, and all other cases remain unexecuted. Use real provider/SQL integration where stated; unit faults exercise the actual boundary implementation. Each fixture variation is isolated and versioned. No case assumes a runtime lifecycle API exists.
 
 | Case | Level / owner | Starting condition and stimulus | Observable expectation |
 | --- | --- | --- | --- |
@@ -363,7 +364,7 @@ Scope clarification on 2026-10-30: approval and ADR recording only in this sessi
 
 | Milestone | Implementation | Execution evidence | Next checkpoint |
 | --- | --- | --- | --- |
-| M0 | in progress; M0-01 configuration technically validated, user review accepted on 2026-10-30, America/Sao_Paulo | 2026-10-30: separated `src/configs/database/` and `src/configs/runtimeconfig/`, plus configuration-only `src/main.ts`; 33 passing unit tests, strict typecheck/build exit 0 and two successful built-entrypoint smoke scenarios. | Explicit instruction to start M0-02 shared HTTP contract; M0-01 review is accepted and no subsequent task has started. |
+| M0 | in progress; M0-01 accepted, M0-02 shared HTTP contract compiler-validated with user review pending | 2026-10-30: M0-01 retains its 33 unit tests/typecheck/build/smoke evidence; M0-02 adds `src/modules/@shared/http/http-response.ts`, passing strict typecheck and temporary positive/negative compiler checks. | User M0-02 shared HTTP review; explicit approval to continue is required before M0-03. |
 | M1–M7 | not started; design required | None; original product criteria retained. | Complete the relevant future design task and resolve its gates. |
 
 ### M0-01 configuration evidence — 2026-10-30
@@ -378,8 +379,21 @@ The user explicitly started the first implementation task in a new context, then
 | Configuration build / entrypoint smoke | `npm run build`: exit 0, tsup 8.5.1 produced `dist/main.js` and sourcemap. Invoking `node dist/main.js` with only the six required synthetic HTTP/database settings exits 0 with empty stdout/stderr; replacing `PORT` with a synthetic invalid value exits nonzero with `Invalid runtime configuration: http.port.` and no invalid value/password disclosure. These two smoke scenarios exercise the configuration-only entrypoint, not an assembled service. |
 | Coverage | No configured/installed Vitest coverage provider was available; no coverage percentage is claimed. Both boolean values/defaults and each custom invalid-input branch have behavioral assertions. |
 | Remaining verification | Provider binding/timeout is M0-26a. M0-10 still owns full service bootstrap/shutdown; the configuration-only `main.ts` does not complete it. No assembled service start, SQL/FGA integration, E2E, capacity or business acceptance is claimed. |
-| Stage gate | Configuration code/checks complete; user explicitly accepted the M0-01 review on 2026-10-30, America/Sao_Paulo. M0-02 is dependency-ready but has not been started or authorized; it requires an explicit start instruction. M0/F01 remain in progress. |
+| Stage gate | Configuration code/checks complete; user explicitly accepted the M0-01 review on 2026-10-30, America/Sao_Paulo. At that checkpoint, M0-02 was dependency-ready but not started or authorized; its later explicit start is recorded below. M0/F01 remain in progress. |
 
 ### M0-01 review acceptance — 2026-10-30
 
-The user explicitly approved the delivered configuration revision and asked whether it was task 1. This is **M0-01 — Validate runtime configuration**, whose implementation and review are now complete. The approval is recorded in the America/Sao_Paulo timezone and applies to M0-01 only; M0-02 remains not started and requires a separate explicit start instruction. M0 and F01 remain in progress, with all later verification and design limits unchanged. This update changes execution metadata only; no code, design contracts, ADR or skills changed, and runtime checks were not rerun. `git diff --check` passed.
+The user explicitly approved the delivered configuration revision and asked whether it was task 1. This is **M0-01 — Validate runtime configuration**, whose implementation and review are now complete. The approval is recorded in the America/Sao_Paulo timezone and applies to M0-01 only. At that checkpoint, M0-02 was not started and required a separate explicit start instruction; that later instruction is recorded below. M0 and F01 remain in progress, with all later verification and design limits unchanged. This update changes execution metadata only; no code, design contracts, ADR or skills changed, and runtime checks were not rerun. `git diff --check` passed.
+
+### M0-02 shared HTTP contract evidence — 2026-10-30
+
+The user separately explicitly authorized task 02 after accepting M0-01. Only `src/modules/@shared/http/http-response.ts` was added to the backend; configuration, main and skills are unchanged in this stage. The reference guide's abstract Express response class illustrates the envelope but introduces adapter behavior. M0-02/TC-M0-02 explicitly require a pure compiler-verified contract, so this stage defines interfaces and a discriminated union only; actual HTTP serialization and safe error mapping remain later adapter stages.
+
+| Check / case | Actual result and limits |
+| --- | --- |
+| TC-M0-02 · shared HTTP only | Exported `HttpSuccessResponseInterface<Data>`, `HttpErrorResponseInterface` and `HttpResponseInterface<Data>` have exactly the planned success/error envelope fields and no imports or runtime implementation. |
+| Strict compilation | `npm run typecheck` from `apps/andromeda-backend`: exit 0 under the existing strict, exact optional-property and indexed-access settings. |
+| Positive compiler checks | A temporary configuration extending the backend tsconfig compiled valid success/failure envelopes, a generic null payload and both branches narrowed by `error`. `rootDir` and ambient types were adjusted only in that temporary configuration; no repository tooling changed. |
+| Negative compiler checks | Ten cases cover success/failure field access after narrowing, missing payload/message/discriminant, invalid discriminant/payload/message types and mixed fresh-literal envelopes. Expected rejections compiled with `@ts-expect-error`; a second pass without those directives produced exactly 10 diagnostics. No valid case was suppressed. Temporary files were removed after verification. |
+| Limits | This type-only contract has no runtime paths or meaningful runtime coverage percentage; no artificial unit suite or service build was needed. TC-M0-02 for other owning tasks remains pending. No serialization, authorization, error sanitization, SQL/FGA integration or assembled HTTP behavior is claimed. |
+| Stage gate | M0-02 implemented and compiler-validated; user shared HTTP review pending. M0-03 remains not started and requires explicit approval to continue. M0/F01 remain in progress. |
