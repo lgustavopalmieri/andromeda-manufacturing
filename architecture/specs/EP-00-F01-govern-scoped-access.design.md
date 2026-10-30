@@ -1,6 +1,6 @@
 # SPEC-EP-00-F01 — Design
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–09 technically validated and accepted; M0-10 not started · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–10 technically validated and accepted; M0-11 not started · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → Design (this document) → [Tasks](EP-00-F01-govern-scoped-access.tasks.md).
 
@@ -10,7 +10,7 @@ The main path is simple: **trusted identity context → OpenFGA decision → pro
 
 The user explicitly approved revision 6's M0 technical design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) records the accepted M0 decisions. The approval session did not authorize implementation. The user subsequently requested the first task's implementation in a new context on the same date. M0-01 configuration is implemented and reorganized at the user's request into separate database/runtime configuration folders and schema/error/interface/loader files, with a configuration-only `main.ts`. Its behavior is unchanged: 33 unit tests, strict typecheck, build and two built-entrypoint smoke scenarios passed; user review was accepted on 2026-10-30, America/Sao_Paulo. Future F01 milestones and G01–G04 require their own reviewed designs. The [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0) and [execution evidence](EP-00-F01-govern-scoped-access.tasks.md#execution-evidence) record the current stage and limits; approved design contracts remain unchanged.
 
-**Current execution — 2026-10-30:** M0-01–09 are technically validated and accepted. The user explicitly authorized M0-09, which adds generic transactional migration support, external SQL reading, co-located integration verification and app-local tsup packaging. Six cases passed with real PostgreSQL and native Node execution of both bundled main and standalone wrappers; strict typecheck/build passed, with no test-owned containers remaining. User migration support review was accepted on 2026-10-30, America/Sao_Paulo. No approved business/entity contract changed; M0-10 bootstrap and M0-16 business schema have not started.
+**Current execution — 2026-10-30:** M0-01–09 are technically validated and accepted. The user explicitly authorized M0-10, which composes the accepted database/migration/HTTP support, injected routes and runtime migration flag. Startup completes database initialization/migrations before listening; failure cleans attempted resources and retains internal causes. Shutdown drains HTTP before closing the database; the user-requested `platform/graceful-shutdown/` extraction handles SIGINT/SIGTERM through generic callbacks composed in main, with safe output unchanged. Twenty M0-10 unit cases and ten real PostgreSQL/HTTP/native Node cases have passing evidence; the revised full unit suite passed 109 tests, the affected six native-entrypoint cases passed again and strict typecheck/build passed. User bootstrap support review was accepted on 2026-10-30, America/Sao_Paulo. No approved design contract changed; M0-11 and later tasks have not started.
 
 ## One request, from identity to authorization to business data
 
