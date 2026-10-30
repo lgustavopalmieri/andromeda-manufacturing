@@ -3,7 +3,7 @@ import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import type { AddressInfo } from "node:net";
 import { promisify } from "node:util";
 import { Client } from "pg";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { setupPostgres } from "@shared/tests/testcontainers/setup-postgres";
 import type { PostgresTestSetupInterface } from "@shared/tests/testcontainers/setup-postgres";
 import { HttpServer } from "platform/http/server";
@@ -83,6 +83,10 @@ beforeAll(async () => {
   await inspector.connect();
 });
 
+beforeEach(async () => {
+  await inspector.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public");
+});
+
 afterEach(async () => {
   for (const child of children) {
     if (child.sut.exitCode === null && child.sut.signalCode === null) child.sut.kill("SIGKILL");
@@ -106,6 +110,8 @@ describe("main", () => {
       });
       const health = await fetch(`http://127.0.0.1:${port}/health`);
       const body: unknown = await health.json();
+      const migrations = await inspector.query("SELECT name FROM migrations");
+      const businessTables = await inspector.query("SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> 'migrations' ORDER BY tablename");
       const validation = await fetch(`http://127.0.0.1:${port}/api/v1/authorization/validate-good-report`, {
         method: "POST",
       });
@@ -116,6 +122,14 @@ describe("main", () => {
       const sessions = await inspector.query("SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()");
 
       expect(health.status).toBe(200);
+      expect(migrations.rows).toEqual([{
+        name: "Foundation1793318400000",
+      }]);
+      expect(businessTables.rows.map((row: {
+        tablename: string;
+      }) => row.tablename)).toEqual([
+        "actors", "locations", "machines", "tenant_memberships", "tenants",
+      ]);
       expect(body).toEqual({
         error: false,
         data: {
@@ -137,7 +151,6 @@ describe("main", () => {
 
   describe("when boot migrations are disabled", () => {
     it("should connect and serve health without creating a migration ledger", async () => {
-      await inspector.query("DROP TABLE IF EXISTS migrations");
       const { sut, exited, output, port } = await makeSut({
         RUN_MIGRATIONS_ON_BOOT: "false",
       });
@@ -148,11 +161,15 @@ describe("main", () => {
       const health = await fetch(`http://127.0.0.1:${port}/health`);
       await health.arrayBuffer();
       const ledger = await inspector.query("SELECT to_regclass('migrations') AS name");
+      const business = await inspector.query("SELECT to_regclass('tenants') AS name");
       sut.kill("SIGTERM");
       const result = await exited;
 
       expect(health.status).toBe(200);
       expect(ledger.rows).toEqual([{
+        name: null,
+      }]);
+      expect(business.rows).toEqual([{
         name: null,
       }]);
       expect(result).toEqual({

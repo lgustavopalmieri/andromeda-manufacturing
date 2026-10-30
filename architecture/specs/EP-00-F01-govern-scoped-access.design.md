@@ -1,6 +1,6 @@
 # SPEC-EP-00-F01 — Design
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–15 technically validated and accepted; M0-16 not started · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–15 technically validated and accepted; M0-16 technically validated, retained SQL schema review pending · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → Design (this document) → [Tasks](EP-00-F01-govern-scoped-access.tasks.md).
 
@@ -10,7 +10,7 @@ The main path is simple: **trusted identity context → OpenFGA decision → pro
 
 The user explicitly approved revision 6's M0 technical design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) records the accepted M0 decisions. The approval session did not authorize implementation. The user subsequently requested the first task's implementation in a new context on the same date. M0-01 configuration is implemented and reorganized at the user's request into separate database/runtime configuration folders and schema/error/interface/loader files, with a configuration-only `main.ts`. Its behavior is unchanged: 33 unit tests, strict typecheck, build and two built-entrypoint smoke scenarios passed; user review was accepted on 2026-10-30, America/Sao_Paulo. Future F01 milestones and G01–G04 require their own reviewed designs. The [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0) and [execution evidence](EP-00-F01-govern-scoped-access.tasks.md#execution-evidence) record the current stage and limits; approved design contracts remain unchanged.
 
-**Current execution — 2026-10-30:** M0-01–15 are implemented, technically validated and accepted. The user explicitly requested implementation of M0-13–15 together; complete membership, location and machine contracts are now implemented with the approved shapes/catalogs/derived types/notes and ESLint layout. Membership directory status remains a business projection; location keeps required tenant ownership and optional parent; machine keeps stable identity and required `locationId`. Semantic AST and note comparisons passed for all five retained entity contracts; root lint and strict app typecheck passed for complete TC-M0-06 compiler scope. The user accepted the grouped M0-13–15 entity review on 2026-10-30, America/Sao_Paulo, requesting only the approval status update. No approved design contract changed; M0-16 and later tasks have not started. M0/F01 remain in progress.
+**Current execution — 2026-10-30:** M0-01–15 remain technically validated and accepted. M0-16 retains its five-table SQL-first schema and narrow datasource registration. Following the user's index review, the four referencing-side indexes specified below are now implemented alongside the nine primary/unique indexes. A real catalog audit and corrected 53-case schema suite verify 20 relational constraints, 17 required columns, all 13 ordered index definitions and their full/nonunique or unique B-tree validity/readiness, plus down/reapply restoration. Root lint, strict app typecheck and actual build/native-wrapper execution passed; earlier 50 affected regression cases remain historical. Retained SQL schema review is pending. No entity, constraint, transaction or authorization contract changed; M0-17 onward has not started. M0/F01 remain in progress.
 
 ## One request, from identity to authorization to business data
 
@@ -163,6 +163,37 @@ TC-M0-03 retains its existing expectations. Shared unit checks verify payload pr
 Keep the five SQL contracts/mappings and same-tenant foreign keys from the previous proposal. `Machine.locationId` remains required; parent/location relationships and original machine identity are ordinary business data. Actor/membership directory status fields may be stored for business views, but the authorization adapter neither reads nor trusts them. Future lifecycle features must define any projection update/recovery explicitly; no automatic SQL/FGA synchronization is implied.
 
 Use string primary IDs, unique `(tenantId,actorId)` membership, unique `(tenantId,id)` resource keys and composite same-tenant location/machine foreign keys. Reused `(tenantId,code)` values stay distinct across A/B. Root location parent and optional actor owner map SQL null to omitted TypeScript fields. Fixed seed validation checks plant→area→line kinds/cycles. Migrations are versioned/transactional with `synchronize:false` and packaged SQL assets; no public hierarchy editor is delivered.
+
+### M0-16 constraint and index coverage
+
+The retained schema uses five primary keys, four tenant-scoped unique constraints, seven foreign keys, four catalog checks and required non-null fields. The location and machine foreign keys include the tenant; nullable owner/root-parent references retain their approved optionality. Indexes support these existing relationships without changing the records the schema accepts or adding hierarchy/lifecycle rules.
+
+PostgreSQL creates unique B-tree indexes for primary keys and unique constraints. The foundation therefore already has nine indexes:
+
+| Table | Constraint-backed index keys |
+| --- | --- |
+| `tenants` | `(id)` |
+| `actors` | `(id)` |
+| `tenant_memberships` | `(tenant_id, actor_id)` |
+| `locations` | `(id)`, `(tenant_id, id)`, `(tenant_id, code)` |
+| `machines` | `(id)`, `(tenant_id, id)`, `(tenant_id, code)` |
+
+The protected business read planned in M0-25 uses `machines(tenant_id, id)`, which already has a unique index. Tenant-leading indexes also cover tenant-scoped lookups and the child side of tenant foreign keys. Keep the resource `(tenant_id, id)` unique constraints even though `id` is globally unique: they are the explicit referenced keys for composite same-tenant foreign keys.
+
+Foreign keys do not create indexes on their referencing columns. Complete M0-16 with these four ordinary, nonunique B-tree indexes, in the listed column order:
+
+| Index name | Table / keys | Existing relationship or access supported |
+| --- | --- | --- |
+| `actors_owner_actor_id_idx` | `actors(owner_actor_id)` | Locate identities referring to an owner when checking owner-key updates/deletes. |
+| `tenant_memberships_actor_id_idx` | `tenant_memberships(actor_id)` | Locate a global actor's memberships and check actor-key updates/deletes; the tenant-first primary key does not provide this leading key. |
+| `locations_tenant_parent_location_id_idx` | `locations(tenant_id, parent_location_id)` | Find a tenant's children for a parent and check composite parent-key updates/deletes. |
+| `machines_tenant_location_id_idx` | `machines(tenant_id, location_id)` | Find a tenant's machines at a location and check composite location-key updates/deletes. |
+
+Use full indexes, with no partial predicate or included columns, in the existing transactional foundation migration. Do not duplicate primary/unique indexes or add standalone `tenant_id` indexes where existing leading keys already cover the lookup. No current M0 SQL authorization query justifies a status/kind index; additional filtering, sorting or covering indexes belong to the operation that introduces a measured access pattern.
+
+This is a physical completion of the already approved M0-16 relationships, not a change to entity contracts, constraints, transaction boundaries or authorization. TC-M0-08 verifies the resulting index catalog, including ordered columns, uniqueness, B-tree method and validity, alongside the retained data-integrity cases and down/reapply behavior. A tiny fixture may legitimately use a sequential scan, so this check does not force a query plan or claim a latency/throughput target. Later workload tuning must use representative cardinalities and `ANALYZE`/`EXPLAIN` evidence.
+
+Basis: PostgreSQL 16 documents [constraint-created indexes and referencing-side foreign-key indexes](https://www.postgresql.org/docs/16/ddl-constraints.html), [leading columns in multicolumn B-tree indexes](https://www.postgresql.org/docs/16/indexes-multicolumn.html), and [representative data when examining index usage](https://www.postgresql.org/docs/16/indexes-examine.html). This clarification was recorded during M0-16 review on 2026-10-30, America/Sao_Paulo; implementation and runtime evidence remain Backend-owned.
 
 The baseline has exactly tenants `ta`/`tb`, minimal plant/area/line records, A machines `m1a`/`m2a` and B machine `m1b`. Actor IDs are `u-operator`, `u-owner`, `u-none`, `u-disabled`, `u-dual`, `u-outsider`, `u-b-operator`. All are globally enabled initially; `u-disabled` is the inactive **A membership** fixture, not a globally disabled actor. Active graph memberships are A operator/owner/none/dual and B operator/dual. SQL business-directory memberships mirror that initial fixture; u-disabled has a suspended A directory row and no active graph member edge, OUTSIDER has no membership. No actor label grants an operation.
 
