@@ -24,9 +24,13 @@ export class HttpServer {
   constructor(private readonly options: HttpServerOptionsInterface) {
     const app = express();
     app.get("/health", (_req, res) => {
-      const response: HttpSuccessResponseInterface<{ status: "ok" }> = {
+      const response: HttpSuccessResponseInterface<{
+        status: "ok";
+      }> = {
         error: false,
-        data: { status: "ok" },
+        data: {
+          status: "ok",
+        },
       };
       res.json(response);
     });

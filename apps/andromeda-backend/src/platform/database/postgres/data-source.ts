@@ -10,9 +10,13 @@ const CONNECTION_UNAVAILABLE_CODES = new Set([
 const mapPostgresConnectionFailure = (error: unknown, message: string): RepositoryError => {
   if (typeof error === "object" && error !== null && "code" in error
     && typeof error.code === "string" && CONNECTION_UNAVAILABLE_CODES.has(error.code)) {
-    return new RepositoryUnavailableError("Database unavailable.", { cause: error });
+    return new RepositoryUnavailableError("Database unavailable.", {
+      cause: error,
+    });
   }
-  return new RepositoryError(message, { cause: error });
+  return new RepositoryError(message, {
+    cause: error,
+  });
 };
 
 export const createDataSource = (connection: DatabaseConfigInterface): DataSource => new DataSource({

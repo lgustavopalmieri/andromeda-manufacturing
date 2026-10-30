@@ -27,7 +27,10 @@ export const selectLogContextFields = (
   const resource = readContextFieldWithoutInvokingGetters(context, "resource");
   const kind = readContextFieldWithoutInvokingGetters(resource, "kind");
   const id = readContextFieldWithoutInvokingGetters(resource, "id");
-  if (isValidLogMetadataValue(kind) && isValidLogMetadataValue(id)) selected.resource = { kind, id };
+  if (isValidLogMetadataValue(kind) && isValidLogMetadataValue(id)) selected.resource = {
+    kind,
+    id,
+  };
 
   return selected;
 };

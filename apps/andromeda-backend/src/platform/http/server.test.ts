@@ -7,7 +7,10 @@ import { HttpServer } from "./server";
 
 interface MakeSutOptionsInterface {
   port?: number;
-  routes?: readonly { prefix: string; router: Router }[];
+  routes?: readonly {
+    prefix: string;
+    router: Router;
+  }[];
 }
 
 interface MakeSutInterface {
@@ -23,7 +26,9 @@ const makeSut = (options: MakeSutOptionsInterface = {}): MakeSutInterface => {
     routes: options.routes ?? [],
   });
   servers.add(sut);
-  return { sut };
+  return {
+    sut,
+  };
 };
 
 afterEach(async () => {
@@ -39,42 +44,80 @@ describe("HttpServer", () => {
       await sut.start();
       const response = await request(sut.server).get("/health");
 
-      expect(sut.server.address()).toMatchObject({ address: "127.0.0.1", family: "IPv4" });
+      expect(sut.server.address()).toMatchObject({
+        address: "127.0.0.1",
+        family: "IPv4",
+      });
       expect(response.status).toBe(200);
       expect(response.headers["content-type"]).toContain("application/json");
-      expect(response.body).toEqual({ error: false, data: { status: "ok" } });
+      expect(response.body).toEqual({
+        error: false,
+        data: {
+          status: "ok",
+        },
+      });
     });
 
     it("should mount each supplied router at its prefix and parse JSON bodies", async () => {
       const first = express.Router();
-      first.post("/echo", (req, res) => res.json({ received: req.body }));
+      first.post("/echo", (req, res) => res.json({
+        received: req.body,
+      }));
       const second = express.Router();
       second.get("/ping", (_req, res) => res.status(204).end());
-      const { sut } = makeSut({ routes: [
-        { prefix: "/first", router: first },
-        { prefix: "/second", router: second },
-      ] });
+      const { sut } = makeSut({
+        routes: [
+          {
+            prefix: "/first",
+            router: first,
+          },
+          {
+            prefix: "/second",
+            router: second,
+          },
+        ],
+      });
 
       await sut.start();
-      const response = await request(sut.server).post("/first/echo").send({ value: 42 });
+      const response = await request(sut.server).post("/first/echo").send({
+        value: 42,
+      });
       const secondResponse = await request(sut.server).get("/second/ping");
 
       expect(response.status).toBe(200);
-      expect(response.body).toEqual({ received: { value: 42 } });
+      expect(response.body).toEqual({
+        received: {
+          value: 42,
+        },
+      });
       expect(secondResponse.status).toBe(204);
-      expect((await request(sut.server).post("/echo").send({ value: 42 })).status).toBe(404);
+      expect((await request(sut.server).post("/echo").send({
+        value: 42,
+      })).status).toBe(404);
     });
 
     it("should keep health independent from an injected fallback router", async () => {
       const router = express.Router();
-      router.use((_req, res) => res.json({ privateData: "synthetic-business-data" }));
-      const { sut } = makeSut({ routes: [{ prefix: "/", router }] });
+      router.use((_req, res) => res.json({
+        privateData: "synthetic-business-data",
+      }));
+      const { sut } = makeSut({
+        routes: [{
+          prefix: "/",
+          router,
+        }],
+      });
 
       await sut.start();
       const response = await request(sut.server).get("/health");
 
       expect(response.status).toBe(200);
-      expect(response.body).toEqual({ error: false, data: { status: "ok" } });
+      expect(response.body).toEqual({
+        error: false,
+        data: {
+          status: "ok",
+        },
+      });
     });
 
     it("should leave the protected validation route absent unless explicitly injected", async () => {
@@ -82,7 +125,9 @@ describe("HttpServer", () => {
 
       await sut.start();
       const response = await request(sut.server).post("/api/v1/authorization/validate-good-report")
-        .send({ machineId: "synthetic-machine" });
+        .send({
+          machineId: "synthetic-machine",
+        });
 
       expect(response.status).toBe(404);
     });
@@ -120,7 +165,9 @@ describe("HttpServer", () => {
 
       expect(sut.server.listening).toBe(false);
       expect(sut.server.address()).toBeNull();
-      const { sut: replacement } = makeSut({ port: address.port });
+      const { sut: replacement } = makeSut({
+        port: address.port,
+      });
       await replacement.start();
       expect(replacement.server.address()).toEqual(address);
     });
@@ -142,10 +189,17 @@ describe("HttpServer", () => {
       const requestStarted = new Promise<void>((resolve) => { notifyRequestStarted = resolve; });
       const router = express.Router();
       router.get("/slow", (_req, res) => {
-        finishResponse = () => res.json({ completed: true });
+        finishResponse = () => res.json({
+          completed: true,
+        });
         notifyRequestStarted();
       });
-      const { sut } = makeSut({ routes: [{ prefix: "/", router }] });
+      const { sut } = makeSut({
+        routes: [{
+          prefix: "/",
+          router,
+        }],
+      });
       await sut.start();
       const responsePromise = request(sut.server).get("/slow").then((response) => response);
       await requestStarted;
@@ -160,7 +214,9 @@ describe("HttpServer", () => {
 
       expect(stoppedBeforeResponse).toBe(false);
       expect(response.status).toBe(200);
-      expect(response.body).toEqual({ completed: true });
+      expect(response.body).toEqual({
+        completed: true,
+      });
       expect(sut.server.listening).toBe(false);
     });
 
@@ -180,13 +236,18 @@ describe("HttpServer", () => {
       const { sut: occupyingServer } = makeSut();
       await occupyingServer.start();
       const address = occupyingServer.server.address() as AddressInfo;
-      const { sut } = makeSut({ port: address.port });
+      const { sut } = makeSut({
+        port: address.port,
+      });
 
       const failure = await sut.start().catch((error: unknown) => error);
       await sut.stop();
 
       expect(failure).toBeInstanceOf(Error);
-      expect(failure).toMatchObject({ code: "EADDRINUSE", message: expect.stringContaining("EADDRINUSE") });
+      expect(failure).toMatchObject({
+        code: "EADDRINUSE",
+        message: expect.stringContaining("EADDRINUSE"),
+      });
       expect(sut.server.listening).toBe(false);
       expect((await request(occupyingServer.server).get("/health")).status).toBe(200);
       await occupyingServer.stop();
@@ -198,7 +259,9 @@ describe("HttpServer", () => {
 
   describe("when the listener rejects its arguments synchronously", () => {
     it("should reject startup and remove temporary lifecycle listeners", async () => {
-      const { sut } = makeSut({ port: -1 });
+      const { sut } = makeSut({
+        port: -1,
+      });
       const errorListeners = sut.server.listenerCount("error");
       const listeningListeners = sut.server.listenerCount("listening");
 
@@ -207,7 +270,8 @@ describe("HttpServer", () => {
 
       expect(failure).toBeInstanceOf(RangeError);
       expect(failure).toMatchObject({
-        code: "ERR_SOCKET_BAD_PORT", message: expect.stringContaining("Received type number (-1)"),
+        code: "ERR_SOCKET_BAD_PORT",
+        message: expect.stringContaining("Received type number (-1)"),
       });
       expect(sut.server.listening).toBe(false);
       expect(sut.server.listenerCount("error")).toBe(errorListeners);

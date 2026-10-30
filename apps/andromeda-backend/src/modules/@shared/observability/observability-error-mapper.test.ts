@@ -6,7 +6,9 @@ interface MakeSutInterface {
   sut: typeof mapErrorToLogCategory;
 }
 
-const makeSut = (): MakeSutInterface => ({ sut: mapErrorToLogCategory });
+const makeSut = (): MakeSutInterface => ({
+  sut: mapErrorToLogCategory,
+});
 
 describe("mapErrorToLogCategory", () => {
   describe("when mapping a layer-classified error", () => {

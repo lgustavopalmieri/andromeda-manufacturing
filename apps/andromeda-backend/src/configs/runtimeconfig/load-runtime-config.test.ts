@@ -39,7 +39,10 @@ describe("loadRuntimeConfig", () => {
       const { sut } = makeSut();
 
       expect(sut()).toEqual({
-        http: { host: "127.0.0.1", port: 3000 },
+        http: {
+          host: "127.0.0.1",
+          port: 3000,
+        },
         database: {
           host: "localhost",
           port: 5432,
@@ -55,20 +58,31 @@ describe("loadRuntimeConfig", () => {
     });
 
     it.each(["1", "65535"])("should accept the port boundary %s", (port) => {
-      const { sut } = makeSut({ environment: { PORT: port, DATABASE_PORT: port } });
+      const { sut } = makeSut({
+        environment: {
+          PORT: port,
+          DATABASE_PORT: port,
+        },
+      });
 
       expect(sut().http.port).toBe(Number(port));
       expect(sut().database.port).toBe(Number(port));
     });
 
     it("should preserve the exact password including intentional whitespace", () => {
-      const { sut } = makeSut({ environment: { DATABASE_PASSWORD: " fixture-password " } });
+      const { sut } = makeSut({
+        environment: {
+          DATABASE_PASSWORD: " fixture-password ",
+        },
+      });
 
       expect(sut().database.password).toBe(" fixture-password ");
     });
 
     it("should read the current process environment when no source is supplied", () => {
-      const { sut, environment } = makeSut({ useProcessEnvironment: true });
+      const { sut, environment } = makeSut({
+        useProcessEnvironment: true,
+      });
       for (const [key, value] of Object.entries(environment)) vi.stubEnv(key, value);
       for (const key of ["DATABASE_SSL", "DATABASE_LOGGING", "RUN_MIGRATIONS_ON_BOOT", "ENABLE_AUTHORIZATION_VALIDATION"]) {
         vi.stubEnv(key, undefined);
@@ -80,13 +94,15 @@ describe("loadRuntimeConfig", () => {
     });
 
     it("should ignore unrelated provider settings and client identity assertions", () => {
-      const { sut } = makeSut({ environment: {
-        KEYCLOAK_BASE_URL: "invalid",
-        AWS_REGION: "",
-        OPENFGA_API_URL: "invalid",
-        ACTOR_ID: "untrusted-actor",
-        TENANT_ID: "untrusted-tenant",
-      } });
+      const { sut } = makeSut({
+        environment: {
+          KEYCLOAK_BASE_URL: "invalid",
+          AWS_REGION: "",
+          OPENFGA_API_URL: "invalid",
+          ACTOR_ID: "untrusted-actor",
+          TENANT_ID: "untrusted-tenant",
+        },
+      });
 
       expect(Object.keys(sut())).toEqual([
         "http", "database", "runMigrationsOnBoot", "enableAuthorizationValidation",
@@ -95,7 +111,9 @@ describe("loadRuntimeConfig", () => {
 
     it("should leave its environment source unchanged", () => {
       const { sut, environment } = makeSut();
-      const original = { ...environment };
+      const original = {
+        ...environment,
+      };
 
       sut();
 
@@ -105,19 +123,26 @@ describe("loadRuntimeConfig", () => {
 
   describe("when an explicit boolean setting is supplied", () => {
     it.each(["true", "false"])("should parse the literal %s without truthiness coercion", (value) => {
-      const { sut } = makeSut({ environment: {
-        DATABASE_SSL: value,
-        DATABASE_LOGGING: value,
-        RUN_MIGRATIONS_ON_BOOT: value,
-        ENABLE_AUTHORIZATION_VALIDATION: value,
-      } });
+      const { sut } = makeSut({
+        environment: {
+          DATABASE_SSL: value,
+          DATABASE_LOGGING: value,
+          RUN_MIGRATIONS_ON_BOOT: value,
+          ENABLE_AUTHORIZATION_VALIDATION: value,
+        },
+      });
       const expected = value === "true";
 
       expect(sut()).toMatchObject({
-        database: { ssl: expected, logging: expected },
+        database: {
+          ssl: expected,
+          logging: expected,
+        },
         runMigrationsOnBoot: expected,
         enableAuthorizationValidation: expected,
-        http: { host: "127.0.0.1" },
+        http: {
+          host: "127.0.0.1",
+        },
       });
     });
   });
@@ -132,7 +157,11 @@ describe("loadRuntimeConfig", () => {
       ["DATABASE_NAME", "database.database"],
     ])("should reject incomplete %s safely", (key, field) => {
       for (const value of [undefined, "", "   "]) {
-        const { sut } = makeSut({ environment: { [key]: value } });
+        const { sut } = makeSut({
+          environment: {
+            [key]: value,
+          },
+        });
 
         expect(sut).toThrow(RuntimeConfigurationError);
         expect(sut).toThrow(`Invalid runtime configuration: ${field}.`);
@@ -144,7 +173,12 @@ describe("loadRuntimeConfig", () => {
     it.each(["0", "65536", "-1", "1.5", "1e3", "0x10", "3000suffix", "NaN", "Infinity", " 3000 "])(
       "should reject %s for both services",
       (value) => {
-        const { sut } = makeSut({ environment: { PORT: value, DATABASE_PORT: value } });
+        const { sut } = makeSut({
+          environment: {
+            PORT: value,
+            DATABASE_PORT: value,
+          },
+        });
 
         expect(sut).toThrow(RuntimeConfigurationError);
         expect(sut).toThrow("Invalid runtime configuration: http.port, database.port.");
@@ -154,12 +188,14 @@ describe("loadRuntimeConfig", () => {
 
   describe("when a boolean has an invalid value", () => {
     it.each(["", "TRUE", "FALSE", "1", "0", "yes", "false "])("should reject the nonliteral %s", (value) => {
-      const { sut } = makeSut({ environment: {
-        DATABASE_SSL: value,
-        DATABASE_LOGGING: value,
-        RUN_MIGRATIONS_ON_BOOT: value,
-        ENABLE_AUTHORIZATION_VALIDATION: value,
-      } });
+      const { sut } = makeSut({
+        environment: {
+          DATABASE_SSL: value,
+          DATABASE_LOGGING: value,
+          RUN_MIGRATIONS_ON_BOOT: value,
+          ENABLE_AUTHORIZATION_VALIDATION: value,
+        },
+      });
 
       expect(sut).toThrow(RuntimeConfigurationError);
       expect(sut).toThrow(
@@ -171,7 +207,12 @@ describe("loadRuntimeConfig", () => {
   describe("when configuration contains sensitive invalid values", () => {
     it("should report field names without retaining input values or validation causes", () => {
       const secret = "postgres://fixture-user:synthetic-secret@localhost/database";
-      const { sut } = makeSut({ environment: { PORT: secret, DATABASE_HOST: secret } });
+      const { sut } = makeSut({
+        environment: {
+          PORT: secret,
+          DATABASE_HOST: secret,
+        },
+      });
 
       try {
         sut();

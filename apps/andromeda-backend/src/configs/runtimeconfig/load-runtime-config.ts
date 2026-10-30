@@ -6,7 +6,9 @@ export const loadRuntimeConfig = (
   environment: NodeJS.ProcessEnv = process.env,
 ): RuntimeConfigInterface => {
   const result = runtimeConfigSchema.safeParse({
-    http: { port: environment.PORT },
+    http: {
+      port: environment.PORT,
+    },
     database: {
       host: environment.DATABASE_HOST,
       port: environment.DATABASE_PORT,
@@ -26,6 +28,9 @@ export const loadRuntimeConfig = (
 
   return {
     ...result.data,
-    http: { host: "127.0.0.1", port: result.data.http.port },
+    http: {
+      host: "127.0.0.1",
+      port: result.data.http.port,
+    },
   };
 };

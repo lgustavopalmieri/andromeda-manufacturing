@@ -33,7 +33,11 @@ const makeSut = (options: MakeSutOptions = {}): MakeSutInterface => {
     },
   });
 
-  return { sut: new PinoObservability(destination), records, chunks };
+  return {
+    sut: new PinoObservability(destination),
+    records,
+    chunks,
+  };
 };
 
 describe("PinoObservability", () => {
@@ -49,7 +53,10 @@ describe("PinoObservability", () => {
         actorId: "u-operator",
         tenantId: "ta",
         action: "quantities:good:report",
-        resource: { kind: "machine", id: "m1a" },
+        resource: {
+          kind: "machine",
+          id: "m1a",
+        },
         result,
         reasonCategory,
         occurredAt: "2026-10-30T16:00:00.000Z",
@@ -73,20 +80,30 @@ describe("PinoObservability", () => {
       const { sut, records } = makeSut();
 
       sut.event("authorization.check", {
-        invocationId: "invocation-2", result: "allowed", reasonCategory: "policy_allow",
+        invocationId: "invocation-2",
+        result: "allowed",
+        reasonCategory: "policy_allow",
       });
       sut.event("validation.completed", {
-        invocationId: "invocation-2", outcome,
+        invocationId: "invocation-2",
+        outcome,
       });
 
       expect(records).toHaveLength(2);
       expect(records[0]).toMatchObject({
         event: "authorization.check",
-        context: { invocationId: "invocation-2", result: "allowed", reasonCategory: "policy_allow" },
+        context: {
+          invocationId: "invocation-2",
+          result: "allowed",
+          reasonCategory: "policy_allow",
+        },
       });
       expect(records[1]).toMatchObject({
         event: "validation.completed",
-        context: { invocationId: "invocation-2", outcome },
+        context: {
+          invocationId: "invocation-2",
+          outcome,
+        },
       });
     });
 
@@ -95,7 +112,11 @@ describe("PinoObservability", () => {
 
       sut.event("service.ready");
 
-      expect(records[0]).toMatchObject({ event: "service.ready", context: {}, level: 30 });
+      expect(records[0]).toMatchObject({
+        event: "service.ready",
+        context: {},
+        level: 30,
+      });
     });
   });
 
@@ -103,12 +124,21 @@ describe("PinoObservability", () => {
     it("should omit raw exception details and its entire cause chain", () => {
       const { sut, records, chunks } = makeSut();
       const cause = new Error("synthetic-sql-password", {
-        cause: { query: "synthetic-sql-query", token: "synthetic-provider-token" },
+        cause: {
+          query: "synthetic-sql-query",
+          token: "synthetic-provider-token",
+        },
       });
-      const error = new RepositoryUnavailableError("synthetic-driver-message", { cause });
+      const error = new RepositoryUnavailableError("synthetic-driver-message", {
+        cause,
+      });
       error.stack = "synthetic-sensitive-stack";
-      const toJSON = vi.fn(() => ({ secret: "synthetic-serializer-secret" }));
-      Object.assign(error, { toJSON });
+      const toJSON = vi.fn(() => ({
+        secret: "synthetic-serializer-secret",
+      }));
+      Object.assign(error, {
+        toJSON,
+      });
 
       sut.capture(error);
 
@@ -133,17 +163,32 @@ describe("PinoObservability", () => {
         tenantId: "ta",
         password: "synthetic-password",
         authorization: "Bearer synthetic-token",
-        headers: { cookie: "synthetic-cookie" },
-        providerResponse: { storeId: "synthetic-provider-store" },
+        headers: {
+          cookie: "synthetic-cookie",
+        },
+        providerResponse: {
+          storeId: "synthetic-provider-store",
+        },
         sql: "synthetic-query",
         foreignTenantName: "synthetic-foreign-tenant",
         resource: {
-          kind: "machine", id: "m1a", name: "synthetic-machine-name",
-          tenantId: "synthetic-foreign-owner", branding: { logo: "synthetic-logo" },
+          kind: "machine",
+          id: "m1a",
+          name: "synthetic-machine-name",
+          tenantId: "synthetic-foreign-owner",
+          branding: {
+            logo: "synthetic-logo",
+          },
         },
       });
 
-      expect(records[0]?.context).toEqual({ tenantId: "ta", resource: { kind: "machine", id: "m1a" } });
+      expect(records[0]?.context).toEqual({
+        tenantId: "ta",
+        resource: {
+          kind: "machine",
+          id: "m1a",
+        },
+      });
       expect(chunks.join("")).not.toContain("synthetic-");
     });
 
@@ -151,12 +196,20 @@ describe("PinoObservability", () => {
       const { sut, records } = makeSut();
 
       sut.capture(new Error("private"), {
-        event: "spoofed.event", level: 10, time: "spoofed-time", errorCategory: "spoofed-category",
+        event: "spoofed.event",
+        level: 10,
+        time: "spoofed-time",
+        errorCategory: "spoofed-category",
         result: "denied",
       });
 
       expect(records[0]).toMatchObject({
-        event: "error.captured", level: 50, errorCategory: "unexpected_error", context: { result: "denied" },
+        event: "error.captured",
+        level: 50,
+        errorCategory: "unexpected_error",
+        context: {
+          result: "denied",
+        },
       });
       expect(Number.isNaN(Date.parse(records[0]!.time))).toBe(false);
     });

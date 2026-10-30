@@ -11,7 +11,10 @@ export class PinoObservability implements ObservabilityInterface {
   private readonly logger: Logger;
 
   constructor(destination?: DestinationStream) {
-    this.logger = pino({ base: null, timestamp: pino.stdTimeFunctions.isoTime }, destination);
+    this.logger = pino({
+      base: null,
+      timestamp: pino.stdTimeFunctions.isoTime,
+    }, destination);
   }
 
   event(name: string, context?: ObservabilityContextInterface): void {

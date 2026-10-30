@@ -23,7 +23,12 @@ const makeSut = (overrides: Partial<BootstrapOptionsInterface> = {}): MakeSutInt
   const database = new DatabaseStub();
   const http = new HttpStub();
   return {
-    sut: () => bootstrap({ database, http, runMigrationsOnBoot: true, ...overrides }),
+    sut: () => bootstrap({
+      database,
+      http,
+      runMigrationsOnBoot: true,
+      ...overrides,
+    }),
     database,
     http,
   };
@@ -48,7 +53,9 @@ describe("bootstrap", () => {
     });
 
     it("should skip migrations only when the runtime flag is false", async () => {
-      const { sut, database, http } = makeSut({ runMigrationsOnBoot: false });
+      const { sut, database, http } = makeSut({
+        runMigrationsOnBoot: false,
+      });
       const initialize = vi.spyOn(database, "initialize");
       const migrate = vi.spyOn(database, "migrate");
       const start = vi.spyOn(http, "start");
@@ -92,7 +99,10 @@ describe("bootstrap", () => {
       const failure = await sut().catch((error: unknown) => error);
 
       expect(failure).toBeInstanceOf(Error);
-      expect(failure).toMatchObject({ message: "Service startup failed.", cause });
+      expect(failure).toMatchObject({
+        message: "Service startup failed.",
+        cause,
+      });
       expect(migrate).not.toHaveBeenCalled();
       expect(start).not.toHaveBeenCalled();
       expect(stop).not.toHaveBeenCalled();
@@ -109,7 +119,10 @@ describe("bootstrap", () => {
       const failure = await sut().catch((error: unknown) => error);
 
       expect(failure).toBeInstanceOf(Error);
-      expect(failure).toMatchObject({ message: "Service startup failed.", cause });
+      expect(failure).toMatchObject({
+        message: "Service startup failed.",
+        cause,
+      });
       expect(close).toHaveBeenCalledOnce();
       expect(start).not.toHaveBeenCalled();
     });
@@ -124,7 +137,10 @@ describe("bootstrap", () => {
       const failure = await sut().catch((error: unknown) => error);
 
       expect(failure).toBeInstanceOf(Error);
-      expect(failure).toMatchObject({ message: "Service startup failed.", cause });
+      expect(failure).toMatchObject({
+        message: "Service startup failed.",
+        cause,
+      });
       expect(stop).toHaveBeenCalledOnce();
       expect(close).toHaveBeenCalledOnce();
       expect(stop.mock.invocationCallOrder[0]).toBeLessThan(close.mock.invocationCallOrder[0]!);
@@ -143,7 +159,8 @@ describe("bootstrap", () => {
 
       expect(failure).toBeInstanceOf(AggregateError);
       expect(failure).toMatchObject({
-        message: "Service startup and cleanup failed.", errors: [startupError, httpError, databaseError],
+        message: "Service startup and cleanup failed.",
+        errors: [startupError, httpError, databaseError],
       });
       expect(close).toHaveBeenCalledOnce();
     });
@@ -159,7 +176,8 @@ describe("bootstrap", () => {
 
       expect(failure).toBeInstanceOf(AggregateError);
       expect(failure).toMatchObject({
-        message: "Service startup and cleanup failed.", errors: [startupError, cleanupError],
+        message: "Service startup and cleanup failed.",
+        errors: [startupError, cleanupError],
       });
     });
   });
@@ -197,7 +215,10 @@ describe("bootstrap", () => {
       await service.stop();
 
       expect(failure).toBeInstanceOf(Error);
-      expect(failure).toMatchObject({ message: "Service shutdown failed.", cause });
+      expect(failure).toMatchObject({
+        message: "Service shutdown failed.",
+        cause,
+      });
       expect(closedAfterFailure).toBe(0);
       expect(stop).toHaveBeenCalledTimes(2);
       expect(close).toHaveBeenCalledOnce();
@@ -214,7 +235,10 @@ describe("bootstrap", () => {
       await service.stop();
 
       expect(failure).toBeInstanceOf(Error);
-      expect(failure).toMatchObject({ message: "Service shutdown failed.", cause });
+      expect(failure).toMatchObject({
+        message: "Service shutdown failed.",
+        cause,
+      });
       expect(stop).toHaveBeenCalledOnce();
       expect(close).toHaveBeenCalledTimes(2);
     });

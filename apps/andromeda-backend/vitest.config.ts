@@ -16,7 +16,9 @@ export default defineConfig({
   test: {
     projects: [
       {
-        resolve: { alias: aliases },
+        resolve: {
+          alias: aliases,
+        },
         test: {
           exclude: [
             ...configDefaults.exclude,
@@ -29,7 +31,9 @@ export default defineConfig({
         },
       },
       {
-        resolve: { alias: aliases },
+        resolve: {
+          alias: aliases,
+        },
         test: {
           include: ["src/**/*.integration.test.ts"],
           hookTimeout: 180_000,
@@ -38,7 +42,9 @@ export default defineConfig({
         },
       },
       {
-        resolve: { alias: aliases },
+        resolve: {
+          alias: aliases,
+        },
         test: {
           include: ["src/**/*.e2e.test.ts"],
           hookTimeout: 300_000,

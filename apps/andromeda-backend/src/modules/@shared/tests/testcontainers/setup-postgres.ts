@@ -13,7 +13,11 @@ export const setupPostgres = async (
 ): Promise<PostgresTestSetupInterface> => {
   const container = await definition.start();
   const teardown = async (): Promise<void> => {
-    await container.stop({ timeout: 10_000, remove: true, removeVolumes: true });
+    await container.stop({
+      timeout: 10_000,
+      remove: true,
+      removeVolumes: true,
+    });
   };
 
   try {

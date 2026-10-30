@@ -1,6 +1,6 @@
 # SPEC-EP-00-F01 — Design
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–10 technically validated and accepted; M0-11 technically validated, tenant entity review pending · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–12 technically validated and accepted; M0-13 not started · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → Design (this document) → [Tasks](EP-00-F01-govern-scoped-access.tasks.md).
 
@@ -10,7 +10,7 @@ The main path is simple: **trusted identity context → OpenFGA decision → pro
 
 The user explicitly approved revision 6's M0 technical design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) records the accepted M0 decisions. The approval session did not authorize implementation. The user subsequently requested the first task's implementation in a new context on the same date. M0-01 configuration is implemented and reorganized at the user's request into separate database/runtime configuration folders and schema/error/interface/loader files, with a configuration-only `main.ts`. Its behavior is unchanged: 33 unit tests, strict typecheck, build and two built-entrypoint smoke scenarios passed; user review was accepted on 2026-10-30, America/Sao_Paulo. Future F01 milestones and G01–G04 require their own reviewed designs. The [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0) and [execution evidence](EP-00-F01-govern-scoped-access.tasks.md#execution-evidence) record the current stage and limits; approved design contracts remain unchanged.
 
-**Current execution — 2026-10-30:** M0-01–10 are technically validated and accepted. The user explicitly authorized M0-11; its complete pure tenant contract is now implemented exactly as specified below in `src/modules/tenant/entity/tenant.entity.ts`. Required string `id` is stable tenant identity; required string `code` is a display value and never authorization identity. Strict app typecheck and exact source-to-contract comparison passed for the tenant portion of TC-M0-06. Tenant entity review is pending. No approved design contract changed; M0-12 and later tasks have not started. M0/F01 remain in progress.
+**Current execution — 2026-10-30:** M0-01–12 are technically validated and accepted. M0-12 retains the complete approved actor contract shape and values. During review, the user requested ESLint-enforced property layout: kind/status catalogs and other backend object/interface/type bodies now use one member per line, consistent indentation and delimiters. Backend-local flat configuration/dependencies, root lint/fix commands and Turbo tasks are implemented; lint, autofix idempotence, six targeted lint fixtures, AST preservation checks across 44 existing source/config files and strict app typecheck passed. This changes implementation formatting, not the approved contract definitions below. User identity entity and ESLint correction review was accepted on 2026-10-30, America/Sao_Paulo; M0-13 and later tasks have not started. M0/F01 remain in progress.
 
 ## One request, from identity to authorization to business data
 

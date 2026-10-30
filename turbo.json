@@ -13,6 +13,12 @@
       "dependsOn": ["^build"],
       "outputs": []
     },
+    "lint": {
+      "outputs": []
+    },
+    "lint:fix": {
+      "cache": false
+    },
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": []

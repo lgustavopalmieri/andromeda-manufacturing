@@ -50,7 +50,9 @@ export const bootstrap = async (options: BootstrapOptionsInterface): Promise<Run
       }
     }
     if (failures.length > 1) throw new AggregateError(failures, "Service startup and cleanup failed.");
-    throw new Error("Service startup failed.", { cause: error });
+    throw new Error("Service startup failed.", {
+      cause: error,
+    });
   }
 
   return {
@@ -60,7 +62,9 @@ export const bootstrap = async (options: BootstrapOptionsInterface): Promise<Run
         await closeDatabase();
       })().catch((error: unknown) => {
         stopPromise = undefined;
-        throw new Error("Service shutdown failed.", { cause: error });
+        throw new Error("Service shutdown failed.", {
+          cause: error,
+        });
       });
       return stopPromise;
     },

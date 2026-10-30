@@ -11,7 +11,10 @@ const observability = new PinoObservability();
 const main = async (): Promise<void> => {
   const config = loadRuntimeConfig();
   const dataSource = createDataSource(config.database);
-  const http = new HttpServer({ ...config.http, routes: [] });
+  const http = new HttpServer({
+    ...config.http,
+    routes: [],
+  });
   const starting = bootstrap({
     database: {
       initialize: async () => { await initializeDatabase(dataSource); },

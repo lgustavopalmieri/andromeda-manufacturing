@@ -16,9 +16,19 @@ const makeSut = (overrides: Partial<GracefulShutdownOptionsInterface> = {}): Mak
   const signalSource = new EventEmitter();
   const shutdown = overrides.shutdown ?? vi.fn<GracefulShutdownOptionsInterface["shutdown"]>().mockResolvedValue(undefined);
   const onError = overrides.onError ?? vi.fn<GracefulShutdownOptionsInterface["onError"]>();
-  const sut = registerGracefulShutdown({ signalSource, shutdown, onError, ...overrides });
+  const sut = registerGracefulShutdown({
+    signalSource,
+    shutdown,
+    onError,
+    ...overrides,
+  });
   disposers.add(sut);
-  return { sut, signalSource, shutdown, onError };
+  return {
+    sut,
+    signalSource,
+    shutdown,
+    onError,
+  };
 };
 
 afterEach(() => {
@@ -42,7 +52,9 @@ describe("registerGracefulShutdown", () => {
     it("should register with process signals and remove only its own listeners", () => {
       const interrupts = process.listeners("SIGINT");
       const terminations = process.listeners("SIGTERM");
-      const { sut } = makeSut({ signalSource: process });
+      const { sut } = makeSut({
+        signalSource: process,
+      });
       const registeredInterrupts = process.listeners("SIGINT").length;
       const registeredTerminations = process.listeners("SIGTERM").length;
 
@@ -91,7 +103,9 @@ describe("registerGracefulShutdown", () => {
         await startup.promise;
         await stop();
       });
-      const { signalSource, onError } = makeSut({ shutdown });
+      const { signalSource, onError } = makeSut({
+        shutdown,
+      });
 
       signalSource.emit("SIGTERM");
       signalSource.emit("SIGINT");
@@ -118,7 +132,9 @@ describe("registerGracefulShutdown", () => {
     it("should finish an in-progress callback when its signal handlers are manually removed", async () => {
       const draining = Promise.withResolvers<void>();
       const shutdown = vi.fn(() => draining.promise);
-      const { sut, signalSource, onError } = makeSut({ shutdown });
+      const { sut, signalSource, onError } = makeSut({
+        shutdown,
+      });
 
       signalSource.emit("SIGTERM");
       await vi.waitFor(() => expect(shutdown).toHaveBeenCalledOnce());
@@ -137,7 +153,9 @@ describe("registerGracefulShutdown", () => {
       const draining = Promise.withResolvers<void>();
       const failure = new Error("shutdown rejected");
       const shutdown = vi.fn(() => draining.promise);
-      const { signalSource, onError } = makeSut({ shutdown });
+      const { signalSource, onError } = makeSut({
+        shutdown,
+      });
 
       signalSource.emit("SIGTERM");
       signalSource.emit("SIGINT");
@@ -154,7 +172,9 @@ describe("registerGracefulShutdown", () => {
     it("should route a synchronous throw through the same error callback and cleanup", async () => {
       const failure = new Error("shutdown threw");
       const shutdown = vi.fn(() => { throw failure; });
-      const { signalSource, onError } = makeSut({ shutdown });
+      const { signalSource, onError } = makeSut({
+        shutdown,
+      });
 
       signalSource.emit("SIGINT");
       await vi.waitFor(() => expect(signalSource.listenerCount("SIGINT")).toBe(0));

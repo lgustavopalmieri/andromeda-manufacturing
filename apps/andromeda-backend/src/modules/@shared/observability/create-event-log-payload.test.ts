@@ -5,7 +5,9 @@ interface MakeSutInterface {
   sut: typeof createEventLogPayload;
 }
 
-const makeSut = (): MakeSutInterface => ({ sut: createEventLogPayload });
+const makeSut = (): MakeSutInterface => ({
+  sut: createEventLogPayload,
+});
 
 describe("createEventLogPayload", () => {
   describe("when an event label is invalid", () => {

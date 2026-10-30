@@ -41,8 +41,14 @@ const servers = new Set<HttpServer>();
 
 const makeSut = (options: MakeSutOptionsInterface = {}): MakeSutInterface => {
   const dataSource = createDataSource(postgres.connection);
-  dataSource.setOptions({ migrations: options.failMigration ? [FailingBootstrapMigration1800000000000] : [] });
-  const http = new HttpServer({ host: "127.0.0.1", port: options.port ?? 0, routes: options.routes ?? [] });
+  dataSource.setOptions({
+    migrations: options.failMigration ? [FailingBootstrapMigration1800000000000] : [],
+  });
+  const http = new HttpServer({
+    host: "127.0.0.1",
+    port: options.port ?? 0,
+    routes: options.routes ?? [],
+  });
   dataSources.add(dataSource);
   servers.add(http);
   return {
@@ -62,7 +68,10 @@ const makeSut = (options: MakeSutOptionsInterface = {}): MakeSutInterface => {
 
 beforeAll(async () => {
   postgres = await setupPostgres();
-  inspector = new Client({ ...postgres.connection, user: postgres.connection.username });
+  inspector = new Client({
+    ...postgres.connection,
+    user: postgres.connection.username,
+  });
   await inspector.connect();
 });
 
@@ -88,22 +97,38 @@ describe("bootstrap", () => {
       await service.stop();
       const sessions = await inspector.query("SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()");
 
-      expect(health.body).toEqual({ error: false, data: { status: "ok" } });
-      expect(migrations.rows).toEqual([{ name: "migrations" }]);
+      expect(health.body).toEqual({
+        error: false,
+        data: {
+          status: "ok",
+        },
+      });
+      expect(migrations.rows).toEqual([{
+        name: "migrations",
+      }]);
       expect(http.server.listening).toBe(false);
       expect(dataSource.isInitialized).toBe(false);
-      expect(sessions.rows).toEqual([{ count: 0 }]);
+      expect(sessions.rows).toEqual([{
+        count: 0,
+      }]);
     });
 
     it("should keep the database usable until an active HTTP request finishes", async () => {
       const requestStarted = Promise.withResolvers<void>();
       const releaseRequest = Promise.withResolvers<void>();
       const router = express.Router();
-      const { sut, dataSource, http } = makeSut({ routes: [{ prefix: "/", router }] });
+      const { sut, dataSource, http } = makeSut({
+        routes: [{
+          prefix: "/",
+          router,
+        }],
+      });
       router.get("/slow", async (_req, res) => {
         requestStarted.resolve();
         await releaseRequest.promise;
-        const rows: { value: number }[] = await dataSource.query("SELECT 42::int AS value");
+        const rows: {
+          value: number;
+        }[] = await dataSource.query("SELECT 42::int AS value");
         res.json(rows);
       });
       const service = await sut();
@@ -118,7 +143,9 @@ describe("bootstrap", () => {
 
       expect(databaseAvailableDuringDrain).toBe(true);
       expect(response.status).toBe(200);
-      expect(response.body).toEqual([{ value: 42 }]);
+      expect(response.body).toEqual([{
+        value: 42,
+      }]);
       expect(dataSource.isInitialized).toBe(false);
     });
   });
@@ -128,21 +155,32 @@ describe("bootstrap", () => {
       const { http: occupying } = makeSut();
       await occupying.start();
       const port = (occupying.server.address() as AddressInfo).port;
-      const { sut, dataSource, http } = makeSut({ port });
+      const { sut, dataSource, http } = makeSut({
+        port,
+      });
 
       const failure = await sut().catch((error: unknown) => error);
       const sessions = await inspector.query("SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()");
 
       expect(failure).toBeInstanceOf(Error);
-      expect(failure).toMatchObject({ message: "Service startup failed.", cause: { code: "EADDRINUSE" } });
+      expect(failure).toMatchObject({
+        message: "Service startup failed.",
+        cause: {
+          code: "EADDRINUSE",
+        },
+      });
       expect(http.server.listening).toBe(false);
       expect(dataSource.isInitialized).toBe(false);
-      expect(sessions.rows).toEqual([{ count: 0 }]);
+      expect(sessions.rows).toEqual([{
+        count: 0,
+      }]);
       expect((await request(occupying.server).get("/health")).status).toBe(200);
     });
 
     it("should roll back failed migrations and release the pool without opening HTTP", async () => {
-      const { sut, dataSource, http } = makeSut({ failMigration: true });
+      const { sut, dataSource, http } = makeSut({
+        failMigration: true,
+      });
 
       const failure = await sut().catch((error: unknown) => error);
       const probe = await inspector.query("SELECT to_regclass('bootstrap_rollback_probe') AS name");
@@ -150,12 +188,23 @@ describe("bootstrap", () => {
       const sessions = await inspector.query("SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()");
 
       expect(failure).toBeInstanceOf(Error);
-      expect(failure).toMatchObject({ message: "Service startup failed.", cause: { message: "Database migrations failed." } });
-      expect(probe.rows).toEqual([{ name: null }]);
-      expect(history.rows).toEqual([{ count: 0 }]);
+      expect(failure).toMatchObject({
+        message: "Service startup failed.",
+        cause: {
+          message: "Database migrations failed.",
+        },
+      });
+      expect(probe.rows).toEqual([{
+        name: null,
+      }]);
+      expect(history.rows).toEqual([{
+        count: 0,
+      }]);
       expect(http.server.listening).toBe(false);
       expect(dataSource.isInitialized).toBe(false);
-      expect(sessions.rows).toEqual([{ count: 0 }]);
+      expect(sessions.rows).toEqual([{
+        count: 0,
+      }]);
     });
   });
 });

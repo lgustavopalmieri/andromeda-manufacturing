@@ -33,7 +33,10 @@ const makeSut = async (options: MakeSutOptionsInterface = {}): Promise<MakeSutIn
   clients.add(client);
   try {
     await client.connect();
-    return { sut, client };
+    return {
+      sut,
+      client,
+    };
   } catch (error) {
     try {
       await client.end();
@@ -72,7 +75,10 @@ describe("setupPostgres", () => {
         logging: false,
       });
       expect(sut.connection.port).toBeGreaterThan(0);
-      expect(result.rows).toEqual([{ database: sut.connection.database, username: sut.connection.username }]);
+      expect(result.rows).toEqual([{
+        database: sut.connection.database,
+        username: sut.connection.username,
+      }]);
       expect(tables.rows).toEqual([]);
     });
 
@@ -81,14 +87,21 @@ describe("setupPostgres", () => {
         .withDatabase("custom_database")
         .withUsername("custom_user")
         .withPassword("custom_test_password");
-      const { sut, client } = await makeSut({ container });
+      const { sut, client } = await makeSut({
+        container,
+      });
 
       const result = await client.query("SELECT current_database() AS database, current_user AS username");
 
       expect(sut.connection).toMatchObject({
-        database: "custom_database", username: "custom_user", password: "custom_test_password",
+        database: "custom_database",
+        username: "custom_user",
+        password: "custom_test_password",
       });
-      expect(result.rows).toEqual([{ database: "custom_database", username: "custom_user" }]);
+      expect(result.rows).toEqual([{
+        database: "custom_database",
+        username: "custom_user",
+      }]);
     });
 
     it("should isolate concurrently created instances even when their database names match", async () => {
@@ -102,8 +115,12 @@ describe("setupPostgres", () => {
       expect(first.sut.container.getId()).not.toBe(second.sut.container.getId());
       expect(first.sut.connection.database).toBe(second.sut.connection.database);
       expect(first.sut.connection.port).not.toBe(second.sut.connection.port);
-      expect(firstResult.rows).toEqual([{ id: 1 }]);
-      expect(secondResult.rows).toEqual([{ relation: null }]);
+      expect(firstResult.rows).toEqual([{
+        id: 1,
+      }]);
+      expect(secondResult.rows).toEqual([{
+        relation: null,
+      }]);
     });
   });
 
@@ -118,7 +135,9 @@ describe("setupPostgres", () => {
       const failure = await sut.container.exec(["true"]).catch((error: unknown) => error);
 
       expect(failure).toBeInstanceOf(Error);
-      expect(failure).toMatchObject({ message: expect.stringContaining("No such container") });
+      expect(failure).toMatchObject({
+        message: expect.stringContaining("No such container"),
+      });
     });
 
     it("should surface a teardown failure and allow cleanup to be retried", async () => {
@@ -134,7 +153,9 @@ describe("setupPostgres", () => {
 
       expect(failure).toBe(cleanupError);
       expect(failure).toBeInstanceOf(Error);
-      expect(failure).toMatchObject({ message: "synthetic-teardown-failure" });
+      expect(failure).toMatchObject({
+        message: "synthetic-teardown-failure",
+      });
     });
   });
 
@@ -146,15 +167,21 @@ describe("setupPostgres", () => {
         .withWaitStrategy(Wait.forLogMessage("synthetic-unreachable-readiness-marker"))
         .withStartupTimeout(1_000);
 
-      const failure = await makeSut({ container }).catch((error: unknown) => error);
+      const failure = await makeSut({
+        container,
+      }).catch((error: unknown) => error);
 
       expect(failure).toBeInstanceOf(Error);
-      expect(failure).toMatchObject({ message: expect.stringContaining("synthetic-unreachable-readiness-marker") });
+      expect(failure).toMatchObject({
+        message: expect.stringContaining("synthetic-unreachable-readiness-marker"),
+      });
       const { sut, client } = await makeSut({
         container: new PostgreSqlContainer("postgres:16-alpine").withName(name),
       });
       expect(sut.container.getName()).toBe(`/${name}`);
-      expect((await client.query("SELECT 1 AS ready")).rows).toEqual([{ ready: 1 }]);
+      expect((await client.query("SELECT 1 AS ready")).rows).toEqual([{
+        ready: 1,
+      }]);
     });
   });
 
@@ -175,11 +202,15 @@ describe("setupPostgres", () => {
 
       expect(failure).toBe(setupError);
       expect(failure).toBeInstanceOf(Error);
-      expect(failure).toMatchObject({ message: "synthetic-settings-failure" });
+      expect(failure).toMatchObject({
+        message: "synthetic-settings-failure",
+      });
       const { client } = await makeSut({
         container: new PostgreSqlContainer("postgres:16-alpine").withName(name),
       });
-      expect((await client.query("SELECT 1 AS ready")).rows).toEqual([{ ready: 1 }]);
+      expect((await client.query("SELECT 1 AS ready")).rows).toEqual([{
+        ready: 1,
+      }]);
     });
 
     it("should report both failures if acquired-container cleanup also fails", async () => {
@@ -199,12 +230,16 @@ describe("setupPostgres", () => {
       } finally {
         hostSpy.mockRestore();
         stopSpy.mockRestore();
-        await acquiredContainer?.stop({ remove: true, removeVolumes: true });
+        await acquiredContainer?.stop({
+          remove: true,
+          removeVolumes: true,
+        });
       }
 
       expect(failure).toBeInstanceOf(AggregateError);
       expect(failure).toMatchObject({
-        message: "PostgreSQL test setup and cleanup failed.", errors: [setupError, cleanupError],
+        message: "PostgreSQL test setup and cleanup failed.",
+        errors: [setupError, cleanupError],
       });
     });
   });

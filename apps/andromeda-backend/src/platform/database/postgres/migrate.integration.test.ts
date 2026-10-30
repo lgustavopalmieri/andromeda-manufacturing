@@ -34,7 +34,9 @@ const resources = new Set<ResourcesInterface>();
 
 const makeSut = async (options: MakeSutOptionsInterface = {}): Promise<MakeSutInterface> => {
   const directory = await mkdtemp(join(tmpdir(), "andromeda-migration-test-"));
-  const acquired: ResourcesInterface = { directory };
+  const acquired: ResourcesInterface = {
+    directory,
+  };
   resources.add(acquired);
   const postgres = await setupPostgres();
   acquired.postgres = postgres;
@@ -64,9 +66,15 @@ const makeSut = async (options: MakeSutOptionsInterface = {}): Promise<MakeSutIn
 
   const dataSource = createDataSource(postgres.connection);
   acquired.dataSource = dataSource;
-  dataSource.setOptions({ migrations: [SecondProbe1700000000002, FirstProbe1700000000001] });
+  dataSource.setOptions({
+    migrations: [SecondProbe1700000000002, FirstProbe1700000000001],
+  });
   if (options.initialize ?? true) await initializeDatabase(dataSource);
-  return { sut: migrateDatabase, dataSource, directory };
+  return {
+    sut: migrateDatabase,
+    dataSource,
+    directory,
+  };
 };
 
 afterAll(async () => {
@@ -77,7 +85,10 @@ afterAll(async () => {
       try {
         await postgres?.teardown();
       } finally {
-        await rm(directory, { recursive: true, force: true });
+        await rm(directory, {
+          recursive: true,
+          force: true,
+        });
       }
     }
   }));
@@ -93,9 +104,17 @@ describe("migrateDatabase", () => {
 
       expect(applied.map((migration) => migration.name)).toEqual(["FirstProbe1700000000001", "SecondProbe1700000000002"]);
       expect(dataSource.logger).toBe(originalLogger);
-      expect(await dataSource.query("SELECT id FROM migration_probe ORDER BY id")).toEqual([{ id: 1 }, { id: 2 }]);
+      expect(await dataSource.query("SELECT id FROM migration_probe ORDER BY id")).toEqual([{
+        id: 1,
+      }, {
+        id: 2,
+      }]);
       expect(await dataSource.query("SELECT name FROM migrations ORDER BY timestamp")).toEqual([
-        { name: "FirstProbe1700000000001" }, { name: "SecondProbe1700000000002" },
+        {
+          name: "FirstProbe1700000000001",
+        }, {
+          name: "SecondProbe1700000000002",
+        },
       ]);
     });
 
@@ -106,8 +125,14 @@ describe("migrateDatabase", () => {
       const applied = await sut(dataSource);
 
       expect(applied).toEqual([]);
-      expect(await dataSource.query("SELECT id FROM migration_probe ORDER BY id")).toEqual([{ id: 1 }, { id: 2 }]);
-      expect(await dataSource.query("SELECT count(*)::integer AS count FROM migrations")).toEqual([{ count: 2 }]);
+      expect(await dataSource.query("SELECT id FROM migration_probe ORDER BY id")).toEqual([{
+        id: 1,
+      }, {
+        id: 2,
+      }]);
+      expect(await dataSource.query("SELECT count(*)::integer AS count FROM migrations")).toEqual([{
+        count: 2,
+      }]);
     });
   });
 
@@ -128,13 +153,26 @@ describe("migrateDatabase", () => {
 
       expect(failure).toBeInstanceOf(RepositoryError);
       expect(dataSource.logger).toBe(originalLogger);
-      expect(failure).toMatchObject({ message: "Database migrations failed.", cause: { code: "42P01" } });
+      expect(failure).toMatchObject({
+        message: "Database migrations failed.",
+        cause: {
+          code: "42P01",
+        },
+      });
       expect(JSON.stringify(failure)).toBe('{"name":"RepositoryError"}');
-      expect(await dataSource.query("SELECT to_regclass('public.migration_probe') AS relation")).toEqual([{ relation: null }]);
-      expect(await dataSource.query("SELECT count(*)::integer AS count FROM migrations")).toEqual([{ count: 0 }]);
+      expect(await dataSource.query("SELECT to_regclass('public.migration_probe') AS relation")).toEqual([{
+        relation: null,
+      }]);
+      expect(await dataSource.query("SELECT count(*)::integer AS count FROM migrations")).toEqual([{
+        count: 0,
+      }]);
       await writeFile(join(directory, "0002-second.up.sql"), "INSERT INTO migration_probe VALUES (2);");
       expect((await sut(dataSource)).map((migration) => migration.name)).toEqual(["FirstProbe1700000000001", "SecondProbe1700000000002"]);
-      expect(await dataSource.query("SELECT id FROM migration_probe ORDER BY id")).toEqual([{ id: 1 }, { id: 2 }]);
+      expect(await dataSource.query("SELECT id FROM migration_probe ORDER BY id")).toEqual([{
+        id: 1,
+      }, {
+        id: 2,
+      }]);
     });
   });
 
@@ -146,21 +184,33 @@ describe("migrateDatabase", () => {
       const failure = await sut(dataSource).catch((error: unknown) => error);
 
       expect(failure).toBeInstanceOf(RepositoryError);
-      expect(failure).toMatchObject({ message: "Database migrations failed.", cause: { code: "ENOENT" } });
+      expect(failure).toMatchObject({
+        message: "Database migrations failed.",
+        cause: {
+          code: "ENOENT",
+        },
+      });
       expect(JSON.stringify(failure)).toBe('{"name":"RepositoryError"}');
-      expect(await dataSource.query("SELECT count(*)::integer AS count FROM migrations")).toEqual([{ count: 0 }]);
+      expect(await dataSource.query("SELECT count(*)::integer AS count FROM migrations")).toEqual([{
+        count: 0,
+      }]);
     });
   });
 
   describe("when the datasource has not initialized", () => {
     it("should report a safe migration failure without opening a connection", async () => {
-      const { sut, dataSource } = await makeSut({ initialize: false });
+      const { sut, dataSource } = await makeSut({
+        initialize: false,
+      });
 
       const failure = await sut(dataSource).catch((error: unknown) => error);
 
       expect(failure).toBeInstanceOf(RepositoryError);
       expect(failure).toMatchObject({
-        message: "Database migrations failed.", cause: { name: "CannotExecuteNotConnectedError" },
+        message: "Database migrations failed.",
+        cause: {
+          name: "CannotExecuteNotConnectedError",
+        },
       });
       expect(dataSource.isInitialized).toBe(false);
     });
@@ -168,11 +218,15 @@ describe("migrateDatabase", () => {
 
   describe("when the production tsup configuration packages SQL-first wrappers", () => {
     it("should execute emitted wrappers with colocated assets and remove stale output on rebuild", async () => {
-      const { dataSource, directory } = await makeSut({ initialize: false });
+      const { dataSource, directory } = await makeSut({
+        initialize: false,
+      });
       const appDirectory = fileURLToPath(new URL("../../../../", import.meta.url));
       const fixtureRoot = join(directory, "build-fixture");
       const sourceDirectory = join(fixtureRoot, "src/platform/database/postgres/migrations");
-      await mkdir(sourceDirectory, { recursive: true });
+      await mkdir(sourceDirectory, {
+        recursive: true,
+      });
       await writeFile(join(fixtureRoot, "package.json"), '{"type":"module"}');
       await writeFile(join(fixtureRoot, "src/main.ts"),
         'export { BuiltProbe1700000000003, migrateDatabase } from "./platform/database/postgres/migrations/0003-built";');
@@ -196,7 +250,9 @@ describe("migrateDatabase", () => {
       ];
       const buildExecutable = resolve(appDirectory, "node_modules/.bin/tsup");
 
-      await runBuild(buildExecutable, buildArguments, { cwd: fixtureRoot });
+      await runBuild(buildExecutable, buildArguments, {
+        cwd: fixtureRoot,
+      });
       const emittedWrapper = join(fixtureRoot, "dist/platform/database/postgres/migrations/0003-built.js");
       const emittedUpSql = join(dirname(emittedWrapper), "0003-built.up.sql");
       expect(await readFile(emittedUpSql, "utf8")).toBe(sql);
@@ -221,20 +277,38 @@ describe("migrateDatabase", () => {
       const mainExecution = await runBuild(process.execPath, [
         "--input-type=module", "-e", executeArtifact, join(fixtureRoot, "dist/main.js"), connectionFile,
       ]);
-      expect(JSON.parse(mainExecution.stdout)).toEqual({ applied: ["BuiltProbe1700000000003"], rows: [{ id: 3 }] });
+      expect(JSON.parse(mainExecution.stdout)).toEqual({
+        applied: ["BuiltProbe1700000000003"],
+        rows: [{
+          id: 3,
+        }],
+      });
       const standaloneExecution = await runBuild(process.execPath, [
         "--input-type=module", "-e", executeArtifact, emittedWrapper, connectionFile, "undo",
       ]);
-      expect(JSON.parse(standaloneExecution.stdout)).toEqual({ applied: ["BuiltProbe1700000000003"], rows: [{ id: 3 }] });
+      expect(JSON.parse(standaloneExecution.stdout)).toEqual({
+        applied: ["BuiltProbe1700000000003"],
+        rows: [{
+          id: 3,
+        }],
+      });
 
       await writeFile(join(fixtureRoot, "src/main.ts"), "export const buildProbe = true;");
       await rm(join(sourceDirectory, "0003-built.up.sql"));
       await rm(join(sourceDirectory, "0003-built.down.sql"));
       await rm(join(sourceDirectory, "0003-built.ts"));
-      await runBuild(buildExecutable, buildArguments, { cwd: fixtureRoot });
-      await expect(access(emittedUpSql)).rejects.toMatchObject({ code: "ENOENT" });
-      await expect(access(join(dirname(emittedWrapper), "0003-built.down.sql"))).rejects.toMatchObject({ code: "ENOENT" });
-      await expect(access(emittedWrapper)).rejects.toMatchObject({ code: "ENOENT" });
+      await runBuild(buildExecutable, buildArguments, {
+        cwd: fixtureRoot,
+      });
+      await expect(access(emittedUpSql)).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+      await expect(access(join(dirname(emittedWrapper), "0003-built.down.sql"))).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+      await expect(access(emittedWrapper)).rejects.toMatchObject({
+        code: "ENOENT",
+      });
     });
   });
 });

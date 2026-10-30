@@ -14,18 +14,25 @@ const migrationEntries = Object.fromEntries(migrationFiles
 
 export default defineConfig({
   clean: true,
-  entry: { main: "src/main.ts", ...migrationEntries },
+  entry: {
+    main: "src/main.ts",
+    ...migrationEntries,
+  },
   format: ["esm"],
   splitting: false,
   outDir: "dist",
   sourcemap: true,
   target: "node22",
-  loader: { ".sql": "text" },
+  loader: {
+    ".sql": "text",
+  },
   onSuccess: async () => {
     const sqlFiles = migrationFiles.filter((filename) => filename.endsWith(".sql"));
     if (sqlFiles.length === 0) return;
     const outputDirectory = resolve("dist/platform/database/postgres/migrations");
-    await mkdir(outputDirectory, { recursive: true });
+    await mkdir(outputDirectory, {
+      recursive: true,
+    });
     await Promise.all(sqlFiles.map((filename) =>
       copyFile(resolve(migrationsDirectory, filename), resolve(outputDirectory, filename))));
   },
