@@ -201,8 +201,13 @@ prefixes (`/api/v1/...`); main supplies them to HttpServer. Register new routes 
 ## 5. Observability
 
 Platform `pino-observability.ts` implements shared `ObservabilityInterface`, logging
-errors at error level with the cause chain preserved. Wire injects `PinoObservability`;
-handlers depend only on the interface so logger changes do not affect features.
+events at info level and captured errors at error level. Wire injects
+`PinoObservability`; handlers depend only on the interface so logger changes do not
+affect features. The adapter passes shared payload builders' results to Pino; payload
+shape, allowed context fields and error-to-log-category mapping are application
+conventions owned by [shared observability](shared.md#observabilityobservabilityts--the-observability-contract).
+Do not import repository/domain errors into the provider to classify them, or
+serialize raw exception details that the shared logging contract excludes.
 
 ### Testing platform infrastructure
 
@@ -210,8 +215,10 @@ Read [common testing rules](testing.md).
 
 - HttpServer: supertest + createServer, liveness response and stop resolution with/without start.
 - PinoObservability: integration-style unit test with real Pino writing to captured
-  Writable; assert emitted level 50, err.type/message, cause chain and context.
-  Exercise serializer + SUT together; do not mock Pino.
+  Writable; assert emitted info/error levels, prepared event/category fields, safe
+  context and omission of excluded error details. Test application logging policy
+  in shared; retain meaningful provider-output checks without repeating every policy
+  case. Exercise the adapter + shared payload builders together; do not mock Pino.
 
 For authentication infrastructure, use the [auth-specific tests](auth.md#5-testing).
 

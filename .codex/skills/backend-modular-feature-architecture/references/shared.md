@@ -23,8 +23,14 @@ create a premature abstraction; promote when a second real use demonstrates the 
 │   ├── http-response.ts              # HttpResponse (abstract envelope base)
 │   └── http-response.mock.ts         # Response mock for testing mappers
 ├── observability/
-│   ├── observability.ts              # ObservabilityInterface + ObservabilityContext
+│   ├── observability.ts              # ObservabilityInterface + ObservabilityContextInterface
 │   ├── observability.mock.ts         # makeObservabilityMock()
+│   ├── observability-payload.interface.ts # payload/context/resource contracts
+│   ├── log-context-fields.ts         # allowed context field names
+│   ├── select-log-context-fields.ts  # safe context selection and related helpers
+│   ├── create-event-log-payload.ts   # event payload preparation
+│   ├── create-error-log-payload.ts   # captured-error payload preparation
+│   ├── observability-error-mapper.ts # application error → safe log category
 │   └── composite-observability.ts    # CompositeObservability (fan-out)
 └── tests/                            # cross-module TEST infrastructure (test-only)
     ├── factories/<module>/           # data factories grouped by module (make<Thing>)
@@ -58,18 +64,37 @@ with their own error → status `mapError` (`references/inbound-http.md`).
 ### `observability/observability.ts` — the observability contract
 
 ```ts
-export interface ObservabilityContext {
+export interface ObservabilityContextInterface {
   readonly [key: string]: unknown;
 }
 
 export interface ObservabilityInterface {
-  capture(error: unknown, context?: ObservabilityContext): void;
+  event(name: string, context?: ObservabilityContextInterface): void;
+  capture(error: unknown, context?: ObservabilityContextInterface): void;
 }
 ```
 
 Handlers depend on this contract and use `makeObservabilityMock` in tests; concrete
 `PinoObservability` stays in platform. Shared `CompositeObservability` implements the
 same interface, fans out to log/trace/metric targets and isolates each target's failure.
+
+Application logging conventions belong in shared observability: explicit payload
+contracts, allowed context fields, safe context selection and event/error payload
+builders. Keep those responsibilities in the separate files shown above; do not
+combine interfaces, field lists, context preparation and multiple payload builders
+in one payload file. Related private validation/property-reading helpers may stay
+with context selection. Import each builder directly rather than adding a barrel.
+Keep error-to-log-category mapping in an explicit shared mapper; map
+already classified application errors, never driver codes or raw technical messages.
+Outbound adapters translate driver failures to application error categories; inbound
+adapters own HTTP status mapping. The logging provider does neither translation.
+
+The platform logger consumes prepared shared payloads and chooses the provider's
+emission operation. Keep field lists, payload policy and error classification out of
+that adapter. Use names that state the operation, such as `createEventLogPayload`,
+`createErrorLogPayload`, `mapErrorToLogCategory` and `selectLogContextFields`.
+Preserve safe diagnostics without serializing raw error messages, stacks or causes
+when the feature's logging contract excludes them.
 
 ### `errors/repository.error.ts` — generic persistence failure
 

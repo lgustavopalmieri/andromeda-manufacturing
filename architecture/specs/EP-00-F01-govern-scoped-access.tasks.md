@@ -1,12 +1,12 @@
 # SPEC-EP-00-F01 — Tasks
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–04 reviews accepted; next task not started · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–05 reviews accepted; next task not started · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → [Design](EP-00-F01-govern-scoped-access.design.md) → Tasks (this document).
 
 ## Approved M0 handoff
 
-The user approved revision 6's M0 design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. That approval session covered approval/ADR only. The user subsequently explicitly started implementation in a new context. Under the [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0), M0-01–03 are implemented, technically validated and accepted. The user's later explicit instruction authorized M0-04: the observability port/mock are now implemented, compiler-validated and accepted on 2026-10-30, America/Sao_Paulo. M0-05 and later tasks have not started.
+The user approved revision 6's M0 design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. The approval session did not authorize implementation; the user subsequently explicitly started it in a new context. Under the [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0), M0-01–04 are implemented, technically validated and accepted. The user separately authorized M0-05, whose implementation was then corrected at the user's review request: shared owns payload/category conventions and Pino only emits. The subsequent file-organization correction preserves that responsibility boundary and all behavior. The user explicitly accepted the final M0-05 delivery, including both corrections, on 2026-10-30, America/Sao_Paulo. M0-06 and later tasks have not started.
 
 ## Start here
 
@@ -73,10 +73,11 @@ Task trace fields refer to [M0 requirements](EP-00-F01-govern-scoped-access.requ
   - **Verify:** TC-M0-02 compiler. **Trace:** M0-R07; R06. **Review:** shared observability.
   - **Execution — 2026-10-30:** validated for this contract/mock stage; user review accepted on 2026-10-30, America/Sao_Paulo. Added `modules/@shared/observability/observability.ts` with `ObservabilityContextInterface` readonly unknown-valued entries and `ObservabilityInterface.event(name, context?)` / `.capture(error, context?)`, both synchronous void operations. Added test-only `observability.mock.ts` exporting `makeObservabilityMock(): Mocked<ObservabilityInterface>` with fresh independent typed `vi.fn` methods. `npm run typecheck`: exit 0. Temporary compiler checks confirmed contract/mock compatibility and eight rejected misuse cases; removing suppression directives produced exactly eight diagnostics. Temporary files were removed. No logger, runtime logging, sanitization or later task was added.
 
-- [ ] **M0-05 — Implement the structured logger adapter**
-  - **Area / paths:** `platform/observability/logger.ts; logger.test.ts`. **Depends on:** M0-01, M0-04.
+- [x] **M0-05 — Implement the structured logger adapter**
+  - **Area / paths:** `platform/observability/logger.ts; logger.test.ts`; review-authorized support under `modules/@shared/observability/{observability-payload.interface,log-context-fields,select-log-context-fields,create-event-log-payload,create-error-log-payload,observability-error-mapper}.ts` and co-located behavior tests. **Depends on:** M0-01, M0-04.
   - **Deliver:** Implement the observability port with Pino and safe error categories/redaction.
   - **Verify:** TC-M0-03. **Trace:** M0-R07; R06. **Review:** logger adapter.
+  - **Execution — 2026-10-30:** reorganized and technically validated after the user requested files separated by responsibility; final user review accepted on 2026-10-30, America/Sao_Paulo, including the responsibility and organization corrections. Interfaces, field list, context selection and event/error builders now live in the named files above, with unchanged declarations/function bodies apart from imports/required exports. The old payload monolith was removed without a barrel or compatibility façade. M0-04 port/mock, error mapper/categories, format rules, safe output and Pino emission behavior are unchanged. Tests were relocated by SUT without duplicating cases: selection 22, event builder 5, error builder 1, mapper 7, Pino integration 9; full unit run 77 passed across six files and strict typecheck exit 0. No M0-06 work started.
 
 - [ ] **M0-06 — Implement the HTTP server lifecycle**
   - **Area / paths:** `platform/http/server.ts; server.test.ts`. **Depends on:** M0-01, M0-02, M0-05.
@@ -280,7 +281,7 @@ Task trace fields refer to [M0 requirements](EP-00-F01-govern-scoped-access.requ
 
 ## M0 technical case catalog
 
-Cases are planned except for the applicable TC-M0-01 configuration checks executed at M0-01 and TC-M0-02 shared HTTP/repository-error/observability compiler checks executed at M0-02–04, recorded below. TC-M0-01 provider binding/timeout checks remain pending M0-26a; TC-M0-02 remains pending for its other owning tasks, and all other cases remain unexecuted. Use real provider/SQL integration where stated; unit faults exercise the actual boundary implementation. Each fixture variation is isolated and versioned. No case assumes a runtime lifecycle API exists.
+Cases are planned except for the applicable TC-M0-01 configuration checks executed at M0-01 and TC-M0-02 shared HTTP/repository-error/observability compiler checks executed at M0-02–04 and TC-M0-03 logger-output checks executed at M0-05, recorded below. TC-M0-01 provider binding/timeout checks remain pending M0-26a; TC-M0-02 remains pending for its other owning tasks; TC-M0-03 remains pending for M0-33/M0-36 application producers, and all other cases remain unexecuted. Use real provider/SQL integration where stated; unit faults exercise the actual boundary implementation. Each fixture variation is isolated and versioned. No case assumes a runtime lifecycle API exists.
 
 | Case | Level / owner | Starting condition and stimulus | Observable expectation |
 | --- | --- | --- | --- |
@@ -366,7 +367,7 @@ Scope clarification on 2026-10-30: approval and ADR recording only in this sessi
 
 | Milestone | Implementation | Execution evidence | Next checkpoint |
 | --- | --- | --- | --- |
-| M0 | in progress; M0-01–03 accepted, M0-04 observability port/mock compiler-validated with user review accepted on 2026-10-30, America/Sao_Paulo | 2026-10-30: M0-01–03 retain their earlier evidence; M0-04 adds `src/modules/@shared/observability/observability.ts` and `observability.mock.ts`, passing strict typecheck and temporary positive/negative compiler checks. | Explicit instruction to start M0-05; M0-04 review is accepted and M0-05 remains not started. |
+| M0 | in progress; M0-01–05 technically validated and accepted, including final M0-05 corrections on 2026-10-30, America/Sao_Paulo | Final M0-05 evidence: 44 observability + 33 configuration cases passed, 77 total across six files; strict typecheck passed. Earlier evidence below remains historical. | Explicit instruction to start M0-06; no subsequent task has started. |
 | M1–M7 | not started; design required | None; original product criteria retained. | Complete the relevant future design task and resolve its gates. |
 
 ### M0-01 configuration evidence — 2026-10-30
@@ -429,8 +430,55 @@ The user explicitly authorized task 04 after accepting M0-03. Only `src/modules/
 | Positive compiler checks | Temporary checks extending the backend tsconfig compiled mock-to-port assignment, structured/omitted contexts, unknown capture values, void event results and typed mock implementation/call/reset controls. Temporary rootDir/ambient-type adjustments did not change repository tooling. |
 | Negative compiler checks | Eight cases covered invalid event names/context, omitted capture argument, invalid capture context, readonly context mutation, unsafe unknown-value assignment and matching mock argument constraints. Expected rejections compiled with `@ts-expect-error`; removing those directives produced exactly eight diagnostics. No valid case was suppressed; temporary files were removed. |
 | Limits | No redundant runtime suite for interfaces or native Vitest mock behavior was added, and no runtime coverage percentage is claimed. Concrete logging, safe categorization/redaction and actual event emission remain later tasks. This contract/mock does not validate event contents, implement audit history or claim TC-M0-03 execution. TC-M0-02 for its remaining owning tasks is still pending. |
-| Stage gate | M0-04 implemented and compiler-validated; user observability review accepted on 2026-10-30, America/Sao_Paulo. M0-05 remains not started and requires an explicit start instruction. M0/F01 remain in progress. |
+| Stage gate | M0-04 implemented and compiler-validated; user observability review accepted on 2026-10-30, America/Sao_Paulo. At that checkpoint, M0-05 had not started and required an explicit start instruction; its later authorized execution is recorded below. M0/F01 remain in progress. |
 
 ### M0-04 review acceptance — 2026-10-30
 
-The user explicitly approved M0-04 on 2026-10-30, America/Sao_Paulo. Its implementation, compiler verification and observability review are complete. M0-05 remains not started and requires an explicit start instruction; M0/F01 remain in progress. This acceptance update changes execution metadata only. Runtime checks were not rerun; `git diff --check` passed.
+The user explicitly approved M0-04 on 2026-10-30, America/Sao_Paulo. Its implementation, compiler verification and observability review are complete. At that checkpoint, M0-05 had not started and required an explicit start instruction; its later authorized execution is recorded below. M0/F01 remain in progress. This acceptance update changed execution metadata only. Runtime checks were not rerun; `git diff --check` passed.
+
+### Initial M0-05 Pino logger evidence — 2026-10-30 (before boundary correction)
+
+This section records the initial pre-review implementation and test counts. Its placement of payload/category conventions in the Pino adapter was corrected at the user's request; the current correction evidence follows below.
+
+The user explicitly authorized task 05 after accepting M0-04. Only `src/platform/observability/logger.ts` and `logger.test.ts` were added to the backend. The M0-01 configuration and M0-04 port are approved dependencies; the adapter also consumes the already approved M0-03 shared error classes. No earlier contract, skill, package, root tooling, infrastructure, main or application event producer was changed.
+
+| Check / case | Actual result and limits |
+| --- | --- |
+| API / output | `PinoObservability implements ObservabilityInterface`, with optional injected `DestinationStream` (stdout by default). It creates Pino internally with no hostname/PID bindings and ISO timestamps. `event` logs at info/30; `capture` logs at error/50 using fixed `error.captured`. Context is nested so caller metadata cannot overwrite event/severity/time/category. |
+| Safe projection / categories | Only invocationId, actorId, tenantId, action, result, outcome, reasonCategory, occurredAt, policyVersion, scenarioVersion and resource `{kind,id}` are projected from own data properties. Unknown fields, resource contents, inherited values, getters and serialization hooks are not forwarded to Pino. `capture` uses fixed `repository_unavailable`, `repository_error`, `unexpected_error` or `unknown_error` categories; it never serializes the exception, arbitrary name/message/stack or cause chain. This follows the approved F01 safety contract over the generic guide's raw-cause example. |
+| Producer format contract | Metadata values are nonempty symbolic strings of at most 256 characters, matching `[A-Za-z0-9][A-Za-z0-9_.:-]*`; resource requires valid kind and id. Invalid values are omitted. Event labels start with a lowercase letter, contain only lowercase letters/digits/underscore/dot and are at most 128 characters; invalid labels become `observability.event`. Whole-string match checks reject trailing newlines. These are logging-format limits, not business-identity or permission validation. |
+| TC-M0-03 · logger output only | `npm run test -- src/platform/observability/logger.test.ts`: **1 file, 43 passed**, using actual Pino 10.4.0 output into a captured Writable. Checks preserve allow/deny/indeterminate and correlated completed/business-unavailable records; enforce levels, category/time/metadata fields and no decision rewriting; discard synthetic credentials/tokens/SQL/provider/foreign-content fields and raw error chains; exercise format bounds, malformed/nested values, immutable inputs and throwing inspection traps. Test-driven baseline first failed because the adapter was absent; no empty run is counted. |
+| Regression / compiler | `npm run test`: **2 files, 76 passed** (33 configuration + 43 logger), Vitest 4.1.12 / Node.js 24.18.0. `npm run typecheck`: exit 0 under the existing strict compiler settings. No configured coverage provider was installed; no percentage is claimed. No service build/E2E was needed for this isolated adapter stage. |
+| Trust / operational limits | This is redaction by projection, not arbitrary-secret detection. Producers must supply trusted identifiers and authorized resource references; a secret or foreign ID deliberately placed in a permitted field with valid format cannot be identified by this adapter. The adapter preserves supplied metadata without deriving authorization or business outcomes. Destination protection, retention, transport reliability and durable audit/history remain environment/later-feature responsibilities. Tests of emitted records do not prove real authorization/SQL behavior or application event production; TC-M0-03 for M0-33/M0-36 is still pending. |
+| Stage gate | At this initial implementation checkpoint, M0-05 was technically validated and user logger review was pending. The user subsequently requested corrections, whose final acceptance is recorded below. M0-06 had not started. M0/F01 remain in progress. |
+
+### M0-05 responsibility correction evidence — 2026-10-30 (before file separation)
+
+The user requested changes to M0-05: application context/payload conventions belong in shared observability, error categories require an explicit mapping outside Pino, and helper names must express intent. Architect documented the narrow ownership clarification in Design; implementation followed that handoff without changing the accepted M0-04 event/capture signatures, output, categories or safety behavior. This records the responsibility correction before the subsequent user-requested file separation below; it did not approve or start M0-06.
+
+| Check / case | Actual result and limits |
+| --- | --- |
+| Shared payload ownership | `modules/@shared/observability/observability-payload.ts` defines explicit resource/context/event/error payload interfaces and `createEventLogPayload` / `createErrorLogPayload`. It owns selected fields, existing format bounds and safe projection. Helpers are named `selectLogContextFields`, `readContextFieldWithoutInvokingGetters` and `isValidLogMetadataValue`. |
+| Explicit error representation | `observability-error-mapper.ts` exports the current fixed category vocabulary and `mapErrorToLogCategory`. It represents already classified `RepositoryUnavailableError`, `RepositoryError` and native/unknown fallbacks; it inspects no driver code, message, stack or cause. Layer-specific driver-to-application error translation and application-to-HTTP translation remain later adapters' responsibilities. No error hierarchy or registry was introduced. |
+| Pino adapter ownership | `platform/observability/logger.ts` retains Pino construction/destination/ISO timestamps. `event` calls `info(createEventLogPayload(...))`; `capture` calls `error(createErrorLogPayload(...))`. It has no repository-error imports, context field list, regex policy, category classification or private policy helpers. |
+| TC-M0-03 · focused verification | `npm run test -- src/modules/@shared/observability src/platform/observability/logger.test.ts`: **3 files, 44 passed** (27 payload conventions, 7 category mapper, 10 actual Pino/Writable integration cases). Prior relevant cases were moved to their owning concern; Pino integration retains real levels/serialization, correlation and safe-output assertions. One representative error-output integration case remains alongside the pure mapper cases to verify the adapter boundary. |
+| Regression / compiler | `npm run test`: **4 files, 77 passed** (33 configuration + 44 observability), Vitest 4.1.12 / Node.js 24.18.0 / Pino 10.4.0. `npm run typecheck`: exit 0 under existing strict settings. No coverage percentage or assembled-service proof is claimed. |
+| Preserved safety / limits | Raw exception details and causes are never included in emitted payloads; unknown/nested content fields, inherited/getter/serialization-hook values and malformed metadata remain excluded by shared conventions. Previously documented formats and producer trust limits are unchanged. Payload selection cannot detect a secret or foreign reference disguised as a valid permitted identifier; producers remain responsible for trustworthy, authorized context. TC-M0-03 application producers at M0-33/M0-36 and real SQL/FGA behavior remain pending. |
+| Scope / stage gate | At this responsibility-correction checkpoint, M0-05 had moved from changes requested to refactored and technically validated; user correction review was pending. Subsequent file separation and final acceptance are recorded below. Runtime port/mock, earlier shared contracts, configuration and main are unchanged. Architect owns the Design clarification and coordinator owns skill updates; Backend changed implementation/tests and execution evidence only. M0-06 remains not started and M0/F01 remain in progress. |
+
+### M0-05 file-organization correction — 2026-10-30
+
+The user requested separate files for the declarations and operations combined in the shared payload module. This organization-only revision removes `observability-payload.ts` and relocates its declarations/function bodies unchanged, apart from imports and required exports. It preserves the accepted runtime port/mock, the explicit error mapper/categories, all formatting/projection rules and output, and Pino's emission-only responsibility.
+
+| Responsibility | Current file / evidence |
+| --- | --- |
+| Payload/context interfaces | `modules/@shared/observability/observability-payload.interface.ts`; the existing four interfaces are unchanged. |
+| Allowed context field list | `log-context-fields.ts`; unchanged `LOG_CONTEXT_FIELDS`, with an export for its consumer. |
+| Context selection | `select-log-context-fields.ts`; exported `selectLogContextFields` with related private helpers `readContextFieldWithoutInvokingGetters` and `isValidLogMetadataValue` kept together. |
+| Payload operations | `create-event-log-payload.ts` and `create-error-log-payload.ts`; direct imports replace the old monolith, without a barrel or compatibility façade. Pino method bodies are unchanged. |
+| Verification | `npm run test`: **6 files, 77 passed** (selection 22, event builder 5, error builder 1, mapper 7, Pino integration 9, configuration 33). Cases were relocated to their SUT, not duplicated. `npm run typecheck`: exit 0. Extraction assertions confirmed preserved declarations/function bodies. No runtime behavior or safety convention changed. |
+| Stage gate | M0-05 reorganized and technically validated; final user review accepted on 2026-10-30, America/Sao_Paulo, including both responsibility and organization corrections. Previously documented trust/operational limits remain unchanged. M0-06 has not started and M0/F01 remain in progress. Architect owns Design path alignment and coordinator owns skill alignment; Backend changed code/tests and permitted execution tracking only. |
+
+### M0-05 final review acceptance — 2026-10-30
+
+The user explicitly approved the final M0-05 organization on 2026-10-30, America/Sao_Paulo. This accepts the delivered logger and its responsibility/file-organization corrections. Implementation, technical verification and final review are complete; the evidence remains 77 passing unit tests across six files and a passing strict typecheck. M0-06 remains not started and requires an explicit start instruction; M0/F01 remain in progress. This approval update changes execution metadata only; runtime checks were not rerun. `git diff --check` passed.

@@ -1,6 +1,6 @@
 # SPEC-EP-00-F01 — Design
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–04 reviews accepted; next task not started · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–05 reviews accepted; M0-06 not started · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → Design (this document) → [Tasks](EP-00-F01-govern-scoped-access.tasks.md).
 
@@ -10,7 +10,7 @@ The main path is simple: **trusted identity context → OpenFGA decision → pro
 
 The user explicitly approved revision 6's M0 technical design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) records the accepted M0 decisions. The approval session did not authorize implementation. The user subsequently requested the first task's implementation in a new context on the same date. M0-01 configuration is implemented and reorganized at the user's request into separate database/runtime configuration folders and schema/error/interface/loader files, with a configuration-only `main.ts`. Its behavior is unchanged: 33 unit tests, strict typecheck, build and two built-entrypoint smoke scenarios passed; user review was accepted on 2026-10-30, America/Sao_Paulo. Future F01 milestones and G01–G04 require their own reviewed designs. The [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0) and [execution evidence](EP-00-F01-govern-scoped-access.tasks.md#execution-evidence) record the current stage and limits; approved design contracts remain unchanged.
 
-**Current execution — 2026-10-30:** M0-01–03 are implemented, technically validated and accepted. Explicitly authorized M0-04 adds the pure structured observability event/capture port and a separate reusable typed Vitest mock. Strict typecheck and temporary contract/mock compiler checks passed; user observability review was accepted on 2026-10-30, America/Sao_Paulo. No concrete logger, redaction, application event producer or approved design contract changed in this stage; M0-05 has not started.
+**Current execution — 2026-10-30:** M0-01–04 are technically validated and accepted. Explicitly authorized M0-05 now places payload interfaces, allowed fields, context selection, event/error payload builders and error-to-log mapping in separate shared observability files; `PinoObservability` imports the builders directly and only emits their prepared payloads. Following the user's boundary and file-organization corrections, 44 observability tests and 77 full unit tests across six files, plus strict typecheck, passed. The existing port, output format and safe-output behavior are preserved. User logger review was accepted on 2026-10-30, America/Sao_Paulo. This stage changes no approved design contract and adds no application event producer or HTTP/bootstrap assembly; M0-06 has not started.
 
 ## One request, from identity to authorization to business data
 
@@ -136,6 +136,27 @@ The inherited base generates an invocation ID and emits one `authorization.check
 Only a handler that actually runs emits `validation.completed`, with the same invocation ID and one outcome: `completed`, `resource_unavailable`, `business_unavailable` or `failed`. Include the requested tenant/resource/action and sanitized category/time. An allowed check followed by a business503 therefore has **two truthful events**, not a rewritten denial or a false operation success. Denied/indeterminate checks emit no business-completed event.
 
 Logs are supporting information; they are not a transaction, durable path proof, permission source or historical-query product. Destination access/retention is environment-owned. G03 retains the full protected-history requirement without introducing an audit framework now.
+
+### Shared observability conventions and the Pino boundary
+
+The user's M0-05 review on 2026-10-30 clarified ownership: the application's log fields, payload format and error-to-log mapping belong in `modules/@shared/observability/`; Pino is the output adapter. This is a correction of responsibility placement within revision 6, preserving the accepted `event(name, context?)` / `capture(error, context?)` port, existing output and safe-output behavior. It changes no authorization, business-error or HTTP-result contract.
+
+| Component | Responsibility |
+| --- | --- |
+| `modules/@shared/observability/observability.ts` | Keep the provider-neutral port and input context contract. |
+| `modules/@shared/observability/observability-payload.interface.ts` | Define the application payload, context and resource shapes without runtime preparation logic. |
+| `modules/@shared/observability/log-context-fields.ts` | Define `LOG_CONTEXT_FIELDS`, the application convention for allowed scalar context fields. |
+| `modules/@shared/observability/select-log-context-fields.ts` | Expose `selectLogContextFields` and keep its related property-reading and value-validation helpers private. Own safe context projection and metadata format limits. |
+| `modules/@shared/observability/create-event-log-payload.ts` | Expose `createEventLogPayload`, composing selected context with the event label and its format/fallback rules. |
+| `modules/@shared/observability/create-error-log-payload.ts` | Expose `createErrorLogPayload`, composing selected context and the explicit error mapper's category into the capture payload. |
+| `modules/@shared/observability/observability-error-mapper.ts` | Expose `mapErrorToLogCategory`, converting already classified `RepositoryUnavailableError` / `RepositoryError` and native/unknown fallbacks into their existing safe log categories. Do not inspect driver codes, raw messages, stacks or causes. |
+| `platform/observability/logger.ts` | Implement the existing port by importing the two builders directly and passing shared prepared payloads to Pino's info/error operations. Own Pino construction, destination and timestamp serialization; contain no repository-error imports, application field list or category/format policy. |
+
+The prepared event payload remains `{event, context}`; a captured failure remains `{event: "error.captured", errorCategory, context}`. Shared context preparation preserves only invocationId, actorId, tenantId, action, result, outcome, reasonCategory, occurredAt, policyVersion, scenarioVersion and resource `{kind,id}` under the existing format rules. Raw errors and unknown/nested content remain excluded, including getters and serialization hooks. Context cannot replace event, level, time or errorCategory. Producers remain responsible for trusted identifiers and authorized references; metadata formatting cannot establish tenant ownership or detect a secret disguised as a permitted identifier.
+
+Each technical adapter still translates its own technology failures into the appropriate application error; HTTP response mapping stays at the inbound boundary. The shared observability mapper only chooses the safe log representation of that existing error. It does not replace those layer-owned translations or introduce a domain-error registry. Use names that state each operation's purpose, such as `selectLogContextFields`, `readContextFieldWithoutInvokingGetters` and `isValidLogMetadataValue`, rather than ambiguous names such as `safeContext`, `ownValue` or `errorCategory`.
+
+TC-M0-03 retains its existing expectations. Shared unit checks verify payload preparation and error-to-log mapping; platform checks use real Pino output to verify consumption, severity and serialization without duplicating shared policy. Backend records the refactor's actual paths, results and review state in Tasks. This clarification does not reopen M0-01–04 review or authorize M0-06.
 
 ## Business data and initialization
 

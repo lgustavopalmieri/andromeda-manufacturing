@@ -17,7 +17,7 @@ This delivery exercises scoped grants, groups, temporary delegation, expiry, rev
 | Dimension | Status | Updated | Evidence or Reference |
 | --- | --- | --- | --- |
 | Product definition | Needs review | 2026-10-26 | Confirmed incremental foundation and continuity; feature-specific policies below remain proposed. |
-| Delivery | Not reported | — | No execution evidence supplied. |
+| Delivery | In progress | 2026-10-30 | [SPEC-EP-00-F01 revision 6](../../../architecture/specs/EP-00-F01-govern-scoped-access.requirements.md), [ADR-0001](../../../architecture/adrs/0001-m0-graph-authoritative-authorization-foundation.md). M0-01–04 accepted. M0-05 was reorganized at user review into separate interface/field-list/selection/builder files, preserving behavior; 77 tests across six files and strict typecheck passed; final user review accepted on 2026-10-30, America/Sao_Paulo, including responsibility and organization corrections. M0-06 and later work remain pending. [Execution evidence](../../../architecture/specs/EP-00-F01-govern-scoped-access.tasks.md#execution-evidence). |
 | Business validation | Not reported | — | No scenario results supplied. |
 
 ## Scope and Boundaries
@@ -114,6 +114,6 @@ Every other feature depends on this authority lifecycle and the epic's effective
 
 | Dimension | Status | Updated | Evidence or Reference |
 | --- | --- | --- | --- |
-| Delivery | In progress | 2026-10-30 | [SPEC-EP-00-F01 revision 6](../../../architecture/specs/EP-00-F01-govern-scoped-access.requirements.md), [ADR-0001](../../../architecture/adrs/0001-m0-graph-authoritative-authorization-foundation.md). M0-01–03 are technically validated and accepted. Authorized M0-04 adds the structured observability port and reusable typed mock; strict typecheck and temporary contract/mock compiler checks passed, user observability review accepted on 2026-10-30, America/Sao_Paulo. M0-05 and later work remain pending. [Execution evidence](../../../architecture/specs/EP-00-F01-govern-scoped-access.tasks.md#execution-evidence). |
+| Delivery | In progress | 2026-10-30 | [SPEC-EP-00-F01 revision 6](../../../architecture/specs/EP-00-F01-govern-scoped-access.requirements.md), [ADR-0001](../../../architecture/adrs/0001-m0-graph-authoritative-authorization-foundation.md). M0-01–04 accepted. M0-05 was reorganized at user review into separate interface/field-list/selection/builder files, preserving behavior; 77 tests across six files and strict typecheck passed; final user review accepted on 2026-10-30, America/Sao_Paulo, including responsibility and organization corrections. M0-06 and later work remain pending. [Execution evidence](../../../architecture/specs/EP-00-F01-govern-scoped-access.tasks.md#execution-evidence). |
 
 This engineering update records delivery only; product-definition and business-validation states are unchanged. Configuration and shared-support checks do not complete any F01 acceptance criterion.
