@@ -128,7 +128,7 @@ See `references/testing.md` for each level.
 
 ```
 src/
-├── configs/            # env.ts, database.ts, api-versions.ts
+├── configs/            # database/, runtimeconfig/, other named concerns
 ├── main.ts             # bootstrap
 ├── platform/
 │   ├── database/<engine>/   # data-source, orm-entity(ies), migrations, errors
@@ -154,28 +154,66 @@ No business module yet; add it with Workflow B.
 5. `platform/database/<engine>/data-source.ts`: `createDataSource(connection)`,
    `initializeDatabase(ds, { runMigrations })`, `AppDataSource` (`references/platform.md`).
 6. `platform/http/server.ts`: generic `HttpServer({ port, routes })` (`references/platform.md`).
-7. Configs: `env.ts` reads process.env/derives flags; `database.ts` supplies credentials;
-   `api-versions.ts` supplies versioned prefixes.
+7. Configs: group database and runtime configuration in separate folders using the
+   organization below. Keep other concerns, such as API versions, explicitly named.
+
+### Configuration organization
+
+Use this organization for backend configuration:
+
+```text
+configs/
+├── database/
+│   ├── schema.ts
+│   └── interface.ts
+└── runtimeconfig/
+    ├── schema.ts
+    ├── error.ts
+    ├── interface.ts
+    ├── load-runtime-config.ts
+    └── load-runtime-config.test.ts
+```
+
+Each file has one responsibility:
+
+- `schema.ts` defines validation and transformations. The runtime schema composes
+  the database schema.
+- `interface.ts` defines the typed configuration contract, importing the schema
+  as a type when its output determines the contract.
+- `error.ts` defines the configuration error, exposing field names without secret
+  values or raw validation causes. Add it only where a configuration error exists.
+- `load-runtime-config.ts` reads the environment, validates it and returns the typed
+  runtime configuration or throws the safe error. Accept an injected environment
+  for tests and default to `process.env`.
+- `load-runtime-config.test.ts` verifies the loader's public behavior, including
+  validation failures and secret-safe errors.
+
+Keep existing schemas, defaults, error messages and loader behavior unchanged during
+file reorganization. Use explicit imports from these files. `main.ts` calls
+`loadRuntimeConfig()` before initializing infrastructure and passes its validated
+settings onward; environment reads belong in the loader.
 
 ### `main.ts` — the bootstrap
 
 ```ts
-import { HttpServer } from "platform/http/server.js";
-import { buildApiRoutes } from "platform/http/routes/api-routes.js";
-import { shouldRunMigrationsOnBoot } from "configs/env.js";
-import { AppDataSource, initializeDatabase } from "platform/database/postgres/data-source.js";
+import { HttpServer } from "platform/http/server";
+import { buildApiRoutes } from "platform/http/routes/api-routes";
+import { loadRuntimeConfig } from "configs/runtimeconfig/load-runtime-config";
+import { createDataSource, initializeDatabase } from "platform/database/postgres/data-source";
 
 const bootstrap = async (): Promise<void> => {
-  await initializeDatabase(AppDataSource, { runMigrations: shouldRunMigrationsOnBoot });
+  const runtimeConfig = loadRuntimeConfig();
+  const dataSource = createDataSource(runtimeConfig.database);
+  await initializeDatabase(dataSource, { runMigrations: runtimeConfig.runMigrationsOnBoot });
   const httpServer = new HttpServer({
-    port: Number(process.env.PORT ?? 3000),
+    port: runtimeConfig.http.port,
     routes: buildApiRoutes(),
   });
   httpServer.start();
 };
 
-bootstrap().catch((error) => {
-  console.error("Failed to start the application", error);
+bootstrap().catch(() => {
+  console.error("Failed to start the application");
   process.exit(1);
 });
 ```

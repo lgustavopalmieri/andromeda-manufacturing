@@ -1,6 +1,6 @@
 # SPEC-EP-00-F01 — Design
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation not started · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01 configuration review accepted; next task not started · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → Design (this document) → [Tasks](EP-00-F01-govern-scoped-access.tasks.md).
 
@@ -8,7 +8,7 @@
 
 The main path is simple: **trusted identity context → OpenFGA decision → protected business operation**. Read the flow, responsibility and failure sections first; complete contracts/model are reference material for implementation. Stop at the M0 reading boundary and continue to Tasks. The historical appendix preserves superseded proposals, not current implementation instructions.
 
-The user explicitly approved revision 6's M0 technical design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) records the accepted M0 decisions. Future F01 milestones and G01–G04 require their own reviewed designs; production implementation remains not started. The user clarified on 2026-10-30 that this session covers approval/ADR only; no implementation stage is opened or currently authorized. The [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0) proposes M0-01 configuration as the first stage only after an explicit implementation-start instruction in a new context window.
+The user explicitly approved revision 6's M0 technical design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) records the accepted M0 decisions. The approval session did not authorize implementation. The user subsequently requested the first task's implementation in a new context on the same date. M0-01 configuration is implemented and reorganized at the user's request into separate database/runtime configuration folders and schema/error/interface/loader files, with a configuration-only `main.ts`. Its behavior is unchanged: 33 unit tests, strict typecheck, build and two built-entrypoint smoke scenarios passed; user review was accepted on 2026-10-30, America/Sao_Paulo. Future F01 milestones and G01–G04 require their own reviewed designs. The [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0) and [execution evidence](EP-00-F01-govern-scoped-access.tasks.md#execution-evidence) record the current stage and limits; approved design contracts remain unchanged.
 
 ## One request, from identity to authorization to business data
 

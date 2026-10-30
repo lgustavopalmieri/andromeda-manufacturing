@@ -101,7 +101,7 @@ Adapt `<module>`, `<feature>`, `<proto>` and `<tech>` to your service.
 
 ```
 src/
-├── configs/                         # env, database, api-versions (12-factor)
+├── configs/                         # database/, runtimeconfig/, other named concerns
 ├── main.ts                          # bootstrap: db + http server + routes
 ├── platform/                        # concrete infra, agnostic of business logic
 │   ├── database/<engine>/           # data-source, orm-entity, migrations, errors
@@ -198,6 +198,12 @@ reference. For listings, follow `references/listing-queries.md` from the start:
 - Configure `modules/*`, `platform/*`, `configs/*`, `@shared/*` aliases in TypeScript
   and tests. Use absolute aliases across boundaries (including entity/other features),
   relative paths within a feature.
+- **Configuration organization**: group configuration by named concern under `configs/`.
+  Separate schemas, interfaces, errors and loaders into their own files; name the loader
+  after its operation, such as `runtimeconfig/load-runtime-config.ts`, rather than `env.ts`.
+  Load runtime configuration from `main.ts` and pass validated settings to infrastructure.
+  See [configuration organization](references/project-setup.md#configuration-organization)
+  for the file layout and responsibilities.
 - **Enums**: `as const` object + derived type; never native `enum`:
   ```ts
   export const DEVICE_STATUS = { ACTIVE: "active", INACTIVE: "inactive" } as const;

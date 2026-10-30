@@ -12,7 +12,7 @@
 | Supporting sources | [EP-00 overview](../../product/epics/00-authorization-first-validation/00-epic.md), [security/access requirements](../../product/requirements/00-andromeda-manufacturing-product-foundation/12-security-access-auditing-and-change-control.md), [operating model](../../product/requirements/00-andromeda-manufacturing-product-foundation/04-operating-model-and-master-data.md) |
 | Architecture context | [Authorization platform context](../00-authorization-platform-context.md) |
 | Approval status | **Approved — revision 6, M0 executable foundation only** |
-| Implementation / current step | **not started** / no implementation stage opened or currently authorized |
+| Implementation / current step | **in progress** / M0-01 configuration implemented and technically validated; user review accepted on 2026-10-30, America/Sao_Paulo |
 | F01 completion | **incomplete**; later milestones require design before implementation |
 | Approval record / ADR | User approval on 2026-10-30, America/Sao_Paulo / [ADR-0001 — Accepted](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) |
 
@@ -20,7 +20,7 @@ The requester explicitly chose three linked documents and incremental approval, 
 
 ## What we will be able to demonstrate first
 
-The backend currently has package, compiler, build and test configuration, but no application source or implemented authorization. **Milestone 0 — Executable foundation (M0)** makes one real authorization path executable.
+The backend now has runtime configuration source and unit checks from M0-01, alongside its package, compiler, build and test configuration. Application bootstrap and authorization remain pending. **Milestone 0 — Executable foundation (M0)** makes one real authorization path executable.
 
 An operator selected by a controlled fixture runner requests a good-quantity permission validation for A-M1. The application sends its trusted identity context, fixed action and machine reference directly to OpenFGA. The graph requires an enabled global actor, enabled tenant, active membership and a valid permission source. Only after an allow does the protected operation read the machine from PostgreSQL using the trusted tenant and machine ID, then return an explicitly labelled validation result. It does not record a quantity or start a machine.
 
@@ -57,7 +57,7 @@ The sequence below explains the journey. Detailed implementation checkboxes curr
 
 | Order | Milestone | What becomes possible | Design prerequisite / limit |
 | --- | --- | --- | --- |
-| 0 | **M0 — Executable foundation** | Authorize directly through OpenFGA, then read the business machine behind the execution gate. | Revision 6 M0 design approved; implementation not started. |
+| 0 | **M0 — Executable foundation** | Authorize directly through OpenFGA, then read the business machine behind the execution gate. | Revision 6 M0 design approved; implementation in progress; M0-01 configuration review accepted on 2026-10-30, next task not started. |
 | 1 | **M1 — Direct grant and revoke** | An owner creates/removes one identifiable permission source in controlled sequential scenarios. | Specify grant/revoke slices and uncertain-write outcomes. No claim of the AC06 cutoff before G01. |
 | 2 | **M2 — Hierarchy and independent paths** | Direct and line/group fixture paths coexist; removing one leaves another valid path. | Specify action-specific inheritance, source identity and scoped current-source inspection. |
 | 3 | **M3 — Delegation and time** | Delegate within action/scope/time ceilings; expire and end dependent authority. | Specify create/end-delegation and delegated grant/revoke; forbid self-expansion and onward delegation. |
@@ -113,18 +113,20 @@ The linked product feature remains the business source of truth. Every story, ru
 | 5, historical | Unapproved three-document foundation design with a SQL fact reader and request-supplied status context. Superseded by revision 6. Planning QA: 41 local links, 12 JSON examples, 16 source IDs, 45 task dependencies and 24 case families; 11 M0 and 13 historical contract files compiled in `/tmp/andromeda-f01-r5-contracts-p6zicbpc`. No runtime/model execution or implementation. |
 | 6 | Dated 2026-10-30. User-requested direct graph authorization with trusted identity context, persisted actor/tenant/membership gates and business SQL only after allow. The user explicitly approved this M0 design on 2026-10-30 (“perfeito. spec aprovada”); [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. Implementation remains not started; future milestone designs remain pending. Current planning QA is recorded in [Tasks](EP-00-F01-govern-scoped-access.tasks.md#documentation-verification). |
 
-**Next checkpoint:** the user explicitly starts implementation in a new context window. M0-01 configuration is the proposed first stage for that future start, followed by its stage review. F01 and the product's business-validation state remain incomplete/unreported.
+**Current execution update — 2026-10-30, America/Sao_Paulo:** the user explicitly requested implementation of the first backend F01 task in this new context, then requested configuration folders and separate schema/error/interface/loader files plus a configuration-only `main.ts`. M0-01 preserves its behavior after that reorganization: 33 unit tests, strict typecheck, build and two built-entrypoint smoke scenarios passed; [execution evidence](EP-00-F01-govern-scoped-access.tasks.md#execution-evidence) records scope and limits. M0 and F01 remain in progress; no later task has started.
+
+**Next checkpoint:** an explicit instruction to start M0-02, the shared HTTP response contract. M0-01 review was accepted on 2026-10-30, America/Sao_Paulo; that acceptance does not start or authorize M0-02. F01 and the product's business-validation state remain incomplete/unreported.
 
 ## Backend handoff — approved revision 6 M0
 
 | Handoff item | Execution contract |
 | --- | --- |
 | Source and approval | Complete EP-00-F01 source linked above; SPEC-EP-00-F01 revision 6 approved **for M0 only** on 2026-10-30. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) records the decision. |
-| Proposed first stage in a new context | **M0-01 — runtime configuration**, only after the user explicitly starts implementation in a new context window. Its planned outputs are `src/configs/env.ts`, `src/configs/database.ts` and co-located configuration unit checks inside `apps/andromeda-backend`. OpenFGA-specific configuration remains M0-26a, not this stage. |
-| M0-01 entry and completion | Entry requires the future explicit start instruction; there is no task dependency. Once started, follow the [exact task/case contract](EP-00-F01-govern-scoped-access.tasks.md#m0-execution-checklist); exercise applicable TC-M0-01 runtime settings, reject invalid/incomplete values safely and record actual checks/results. Then stop for configuration review. Do not mark other tasks done. |
+| Current first stage | **M0-01 — runtime configuration** started by the user's explicit instruction on 2026-10-30 in a new context. Following the user's organization revision, outputs are `src/configs/database/{schema,interface}.ts`, `src/configs/runtimeconfig/{schema,error,interface,load-runtime-config,load-runtime-config.test}.ts` and a configuration-only `src/main.ts`. OpenFGA-specific configuration remains M0-26a. |
+| M0-01 entry and completion | No task dependency. Configuration code/checks are complete: 33 unit tests, strict typecheck, build and two built-entrypoint smoke scenarios passed for the applicable TC-M0-01 HTTP/business DB/validation flag scope. User configuration review was accepted on 2026-10-30, America/Sao_Paulo; other tasks remain unchecked. |
 | Subsequent sequence | Once implementation is explicitly started, follow Tasks: support → five entity contracts/schema/mappings/seeds → neutral ports and separate business reader → provider model/binding/adapter → shared gate/protected operation → HTTP/wire → E2E. Each changed area/layer retains its own review gate. |
 | Modules/contracts | `tenant`, `identity`, `location`, `machine`, `authorization` and required shared/platform support. Implement the [complete M0 contracts](EP-00-F01-govern-scoped-access.design.md#complete-m0-contracts) and [five business entities](EP-00-F01-govern-scoped-access.design.md#complete-m0-business-entity-contracts), not superseded historical alternatives. |
 | Critical boundaries | No application SQL dependency/status facts in authorization; same trusted actor/tenant context; all graph gates; business machine read only after allow; explicit v2 binding; safe separate decision/business outcomes. |
 | Verification | Task-linked TC-M0-01–29 cover compiler/unit/real SQL/real FGA/assembled flows at their assigned stages. Documentation QA is not execution evidence; empty test-suite success is not verification. |
-| Readiness and limits | M0 design/ADR are ready. This session authorizes approval/ADR records only. Implementation and all runtime cases remain not started/unexecuted; no implementation stage is currently authorized. No prior model/data migration or authentication implementation exists. G01–G04 and M1–M7 remain pending design/implementation, and F01 is incomplete. |
-| Ownership | Backend will own execution status/evidence and stage review after the user explicitly starts implementation in a new context. Material design changes return to Architect for revision/approval; routine implementation choices remain with Backend. |
+| Readiness and limits | M0 design/ADR are ready. M0-01 alone is implemented and technically validated; user configuration review was accepted on 2026-10-30, America/Sao_Paulo. Provider settings/timeout checks remain M0-26a, and service startup, SQL/FGA integration and E2E remain unimplemented/unverified. G01–G04 and M1–M7 remain pending design/implementation, and F01 is incomplete. |
+| Ownership | Backend owns current execution status/evidence and stage review. Material design changes return to Architect for revision/approval; routine implementation choices remain with Backend. |

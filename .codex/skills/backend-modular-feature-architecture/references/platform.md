@@ -69,10 +69,11 @@ export const initializeDatabase = async (
 ```
 
 - `createDataSource(connection)` accepts parameters for both testcontainer connections
-  and app `AppDataSource` (configured by `configs/database.ts`).
+  and the app datasource (configured from `loadRuntimeConfig().database`).
 - Always `synchronize: false`; manage schema with migrations, never destructive auto-sync.
 - `initializeDatabase` uses `options.runMigrations`: main passes
-  `shouldRunMigrationsOnBoot` from `configs/env.ts`; integration tests pass `true`.
+  `runtimeConfig.runMigrationsOnBoot` from `configs/runtimeconfig/load-runtime-config.ts`;
+  integration tests pass `true`.
 
 ### `device.orm-entity.ts` — the mapping (EntitySchema, not decorators)
 
@@ -166,7 +167,7 @@ If `tsc` does not copy SQL into dist, add a mirroring build step.
 
 A single instance may run idempotent migrations at boot; multiple instances require
 one migration job **before** startup to avoid races. Configure that deployment decision
-in `configs/env.ts` (`shouldRunMigrationsOnBoot`).
+in `configs/runtimeconfig/load-runtime-config.ts` (`runtimeConfig.runMigrationsOnBoot`).
 
 ## 4. HTTP
 

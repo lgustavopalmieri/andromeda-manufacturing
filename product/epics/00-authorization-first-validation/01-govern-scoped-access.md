@@ -109,3 +109,11 @@ Story: US01–US02. Rules: BR02, BR06. A-OPERATOR cannot grant its own permissio
 ## Dependencies and Pending Decisions
 
 Every other feature depends on this authority lifecycle and the epic's effective-change boundary. The grant ceiling, absence of onward delegation and expiry convention are proposed initial product policies needing review, not unresolved implementation choices. There is no blocking product question for writing technical specs against this proposal; broader enterprise delegation and emergency access remain outside scope.
+
+## Engineering Delivery Progress
+
+| Dimension | Status | Updated | Evidence or Reference |
+| --- | --- | --- | --- |
+| Delivery | In progress | 2026-10-30 | [SPEC-EP-00-F01 revision 6](../../../architecture/specs/EP-00-F01-govern-scoped-access.requirements.md), [ADR-0001](../../../architecture/adrs/0001-m0-graph-authoritative-authorization-foundation.md). M0-01 runtime configuration implemented and reorganized at the user's request, with a configuration-only entrypoint; 33 unit tests, strict typecheck, build and entrypoint smoke passed. User configuration review accepted on 2026-10-30, America/Sao_Paulo; M0-02 requires explicit approval. Other M0 tasks, later milestones and full F01 acceptance remain pending. [Execution evidence](../../../architecture/specs/EP-00-F01-govern-scoped-access.tasks.md#execution-evidence). |
+
+This engineering update records delivery only; product-definition and business-validation states are unchanged. No F01 acceptance criterion is complete from configuration checks alone.

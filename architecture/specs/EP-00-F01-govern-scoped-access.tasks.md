@@ -1,12 +1,12 @@
 # SPEC-EP-00-F01 — Tasks
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation not started · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01 configuration review accepted; next task not started · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → [Design](EP-00-F01-govern-scoped-access.design.md) → Tasks (this document).
 
 ## Approved M0 handoff
 
-The user approved revision 6's M0 design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. The user clarified on the same date: **this session is approval and ADR only; no implementation stage is opened or currently authorized**. The [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0) proposes M0-01 runtime configuration as the first stage only after the user explicitly starts implementation in a new context window. Once that future start occurs, its implementation/evidence and review follow the stage protocol. All checkboxes remain not started; approval is not implementation authorization.
+The user approved revision 6's M0 design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. That approval session covered approval/ADR only. The user subsequently explicitly requested implementation of the first backend F01 task in a new context on the same date. Under the [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0), M0-01 configuration is now implemented and technically validated, with user review accepted on 2026-10-30, America/Sao_Paulo. No subsequent task is started or authorized by these results.
 
 ## Start here
 
@@ -49,10 +49,11 @@ These rows are navigation groups. **Each checkbox below is a separate task and r
 
 Task trace fields refer to [M0 requirements](EP-00-F01-govern-scoped-access.requirements.md#m0-requirements-and-completion-evidence), [design risks](EP-00-F01-govern-scoped-access.design.md#m0-risks-and-failure-behavior), and the case catalog below. An ID names one case family; the catalog specifies its separate stimuli and expectations.
 
-- [ ] **M0-01 — Validate runtime configuration**
-  - **Area / paths:** `configs/env.ts, configs/database.ts; co-located env.test.ts`. **Depends on:** none.
+- [x] **M0-01 — Validate runtime configuration**
+  - **Area / paths:** `configs/database/{schema,interface}.ts; configs/runtimeconfig/{schema,error,interface,load-runtime-config,load-runtime-config.test}.ts; configuration-only main.ts` (organization revision explicitly requested by the user on 2026-10-30). **Depends on:** none.
   - **Deliver:** Read only required HTTP/database/validation settings; reject incomplete or invalid values without exposing secrets. OpenFGA configuration is added in M0-26a.
   - **Verify:** TC-M0-01. **Trace:** M0-R01/R05; R01. **Review:** configuration.
+  - **Execution — 2026-10-30:** validated for this configuration stage; user review accepted on 2026-10-30, America/Sao_Paulo. Configuration now lives in the separate folders/files above, preserving the original declarations and loader body after the user's organization revision. `main.ts` only calls `loadRuntimeConfig()`. HTTP and database ports are required decimal integers in 1–65535; database host/user/password/name are required and nonblank. Flags accept only literal `true`/`false`; validation defaults false, migrations true, SSL/logging false, and HTTP binds to `127.0.0.1`. Configuration errors contain field paths without input values or causes; intentional password whitespace is preserved. No Keycloak/AWS/provider settings are required. `npm run test -- src/configs/runtimeconfig/load-runtime-config.test.ts`: 1 suite, 33 passing tests; `npm run typecheck` and `npm run build`: exit 0; built-entrypoint smoke passed for valid and invalid configuration. TC-M0-01 provider binding/timeout coverage remains M0-26a. No subsequent task started.
 
 - [ ] **M0-02 — Define the shared HTTP response contract**
   - **Area / paths:** `modules/@shared/http/http-response.ts`. **Depends on:** none.
@@ -276,7 +277,7 @@ Task trace fields refer to [M0 requirements](EP-00-F01-govern-scoped-access.requ
 
 ## M0 technical case catalog
 
-All cases are **planned, not executed**. Use real provider/SQL integration where stated; unit faults exercise the actual boundary implementation. Each fixture variation is isolated and versioned. No case assumes a runtime lifecycle API exists.
+Cases are planned except for the applicable TC-M0-01 configuration checks executed at M0-01, recorded below. TC-M0-01 provider binding/timeout checks remain pending M0-26a; all other cases remain unexecuted. Use real provider/SQL integration where stated; unit faults exercise the actual boundary implementation. Each fixture variation is isolated and versioned. No case assumes a runtime lifecycle API exists.
 
 | Case | Level / owner | Starting condition and stimulus | Observable expectation |
 | --- | --- | --- | --- |
@@ -362,5 +363,23 @@ Scope clarification on 2026-10-30: approval and ADR recording only in this sessi
 
 | Milestone | Implementation | Execution evidence | Next checkpoint |
 | --- | --- | --- | --- |
-| M0 | not started; no stage opened or currently authorized | None; no implementation evidence accepted in this approval-only session. | Explicit implementation start in a new context window; M0-01 is the proposed first stage. |
+| M0 | in progress; M0-01 configuration technically validated, user review accepted on 2026-10-30, America/Sao_Paulo | 2026-10-30: separated `src/configs/database/` and `src/configs/runtimeconfig/`, plus configuration-only `src/main.ts`; 33 passing unit tests, strict typecheck/build exit 0 and two successful built-entrypoint smoke scenarios. | Explicit instruction to start M0-02 shared HTTP contract; M0-01 review is accepted and no subsequent task has started. |
 | M1–M7 | not started; design required | None; original product criteria retained. | Complete the relevant future design task and resolve its gates. |
+
+### M0-01 configuration evidence — 2026-10-30
+
+The user explicitly started the first implementation task in a new context, then requested separate database/runtime configuration folders, schema/error/interface/loader files and a loader call in `main.ts`. Existing schemas, interfaces, error and loader statements were preserved through extraction; only imports and the runtime schema export changed. No database-specific error was invented. The relocated unit suite retains the same assertions. `main.ts` only calls `loadRuntimeConfig()`; it opens no resources and does not implement M0-10 lifecycle behavior. No business modules or platform adapters were implemented. Existing dependencies and root/app tooling were unchanged.
+
+| Check / case | Actual result and limits |
+| --- | --- |
+| Test-driven baseline | The first targeted suite failed because `./env` did not exist; implementation then made the real configuration tests pass. No empty run is counted as runtime evidence. |
+| TC-M0-01 · HTTP/database/validation flag | After reorganization, `npm run test -- src/configs/runtimeconfig/load-runtime-config.test.ts` from `apps/andromeda-backend`: **1 suite, 33 passed**, Vitest 4.1.12 / Node.js 24.18.0. Checks required/blank settings, both port boundaries, invalid numeric forms, boolean literals and failures, disabled-by-default validation, loopback binding, current process environment, input immutability, password preservation, unrelated settings and safe error fields. |
+| Strict compilation | `npm run typecheck` from the backend: exit 0 with the existing strict, optional-property and indexed-access compiler settings. |
+| Configuration build / entrypoint smoke | `npm run build`: exit 0, tsup 8.5.1 produced `dist/main.js` and sourcemap. Invoking `node dist/main.js` with only the six required synthetic HTTP/database settings exits 0 with empty stdout/stderr; replacing `PORT` with a synthetic invalid value exits nonzero with `Invalid runtime configuration: http.port.` and no invalid value/password disclosure. These two smoke scenarios exercise the configuration-only entrypoint, not an assembled service. |
+| Coverage | No configured/installed Vitest coverage provider was available; no coverage percentage is claimed. Both boolean values/defaults and each custom invalid-input branch have behavioral assertions. |
+| Remaining verification | Provider binding/timeout is M0-26a. M0-10 still owns full service bootstrap/shutdown; the configuration-only `main.ts` does not complete it. No assembled service start, SQL/FGA integration, E2E, capacity or business acceptance is claimed. |
+| Stage gate | Configuration code/checks complete; user explicitly accepted the M0-01 review on 2026-10-30, America/Sao_Paulo. M0-02 is dependency-ready but has not been started or authorized; it requires an explicit start instruction. M0/F01 remain in progress. |
+
+### M0-01 review acceptance — 2026-10-30
+
+The user explicitly approved the delivered configuration revision and asked whether it was task 1. This is **M0-01 — Validate runtime configuration**, whose implementation and review are now complete. The approval is recorded in the America/Sao_Paulo timezone and applies to M0-01 only; M0-02 remains not started and requires a separate explicit start instruction. M0 and F01 remain in progress, with all later verification and design limits unchanged. This update changes execution metadata only; no code, design contracts, ADR or skills changed, and runtime checks were not rerun. `git diff --check` passed.
