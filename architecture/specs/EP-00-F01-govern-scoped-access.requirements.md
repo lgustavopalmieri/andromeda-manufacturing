@@ -11,12 +11,12 @@
 | Source feature | [EP-00-F01 — Govern scoped access](../../product/epics/00-authorization-first-validation/01-govern-scoped-access.md) |
 | Supporting sources | [EP-00 overview](../../product/epics/00-authorization-first-validation/00-epic.md), [security/access requirements](../../product/requirements/00-andromeda-manufacturing-product-foundation/12-security-access-auditing-and-change-control.md), [operating model](../../product/requirements/00-andromeda-manufacturing-product-foundation/04-operating-model-and-master-data.md) |
 | Architecture context | [Authorization platform context](../00-authorization-platform-context.md) |
-| Approval requested | **M0 executable foundation only — Awaiting approval** |
-| Implementation / current step | **not started** / no implementation step opened |
+| Approval status | **Approved — revision 6, M0 executable foundation only** |
+| Implementation / current step | **not started** / no implementation stage opened or currently authorized |
 | F01 completion | **incomplete**; later milestones require design before implementation |
-| Previous approval / ADR | No revision approved / not created |
+| Approval record / ADR | User approval on 2026-10-30, America/Sao_Paulo / [ADR-0001 — Accepted](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) |
 
-The requester explicitly chose three linked documents and incremental approval, with a complete design for the foundation and the remaining F01 mapped afterward. These are three parts of **one feature specification**, with one package revision. Approval of M0 will not approve future designs or complete F01. The approved reorganization plan authorizes this documentation change; it is not approval of the resulting M0 technical design.
+The requester explicitly chose three linked documents and incremental approval, with a complete design for the foundation and the remaining F01 mapped afterward. These are three parts of **one feature specification**, with one package revision. The user explicitly approved revision 6's M0 design on 2026-10-30 (“perfeito. spec aprovada”). This approval does not approve future milestone designs or complete F01. The accepted ADR records that approved scope. On 2026-10-30 the user clarified that this session is approval and ADR only: implementation remains not started, with no stage opened or currently authorized. Implementation will begin only after an explicit instruction in a new context window.
 
 ## What we will be able to demonstrate first
 
@@ -57,7 +57,7 @@ The sequence below explains the journey. Detailed implementation checkboxes curr
 
 | Order | Milestone | What becomes possible | Design prerequisite / limit |
 | --- | --- | --- | --- |
-| 0 | **M0 — Executable foundation** | Authorize directly through OpenFGA, then read the business machine behind the execution gate. | This revision is the proposed M0 design. |
+| 0 | **M0 — Executable foundation** | Authorize directly through OpenFGA, then read the business machine behind the execution gate. | Revision 6 M0 design approved; implementation not started. |
 | 1 | **M1 — Direct grant and revoke** | An owner creates/removes one identifiable permission source in controlled sequential scenarios. | Specify grant/revoke slices and uncertain-write outcomes. No claim of the AC06 cutoff before G01. |
 | 2 | **M2 — Hierarchy and independent paths** | Direct and line/group fixture paths coexist; removing one leaves another valid path. | Specify action-specific inheritance, source identity and scoped current-source inspection. |
 | 3 | **M3 — Delegation and time** | Delegate within action/scope/time ceilings; expire and end dependent authority. | Specify create/end-delegation and delegated grant/revoke; forbid self-expansion and onward delegation. |
@@ -111,6 +111,20 @@ The linked product feature remains the business source of truth. Every story, ru
 | 3, historical | Unapproved commented-records/simple Check→handle proposal. Thirteen contracts compiled in `/tmp/andromeda-f01-r3-review-al_c4ed8`; that QA applies only to that revision. |
 | 4, historical | Dated 2026-10-28. Provider-decided management/condition proposal. Thirteen contracts compiled with strict optional/index settings in `/tmp/andromeda-f01-r4-review-7u_yawnu`; nine JSON examples parsed, 16 local links resolved, fences/whitespace checked and AC01–AC08 mapped. Model/authority/cycle semantics were reviewed conceptually. No provider/application/performance execution, approval, ADR or implementation. The detailed proposal is retained as [historical reference](EP-00-F01-govern-scoped-access.design.md#historical-revision-4-reference). |
 | 5, historical | Unapproved three-document foundation design with a SQL fact reader and request-supplied status context. Superseded by revision 6. Planning QA: 41 local links, 12 JSON examples, 16 source IDs, 45 task dependencies and 24 case families; 11 M0 and 13 historical contract files compiled in `/tmp/andromeda-f01-r5-contracts-p6zicbpc`. No runtime/model execution or implementation. |
-| 6 | Dated 2026-10-30. User-requested direct graph authorization with trusted identity context, persisted actor/tenant/membership gates and business SQL only after allow. The direction is confirmed; this resulting design is Awaiting approval, implementation not started. Current planning QA is recorded in [Tasks](EP-00-F01-govern-scoped-access.tasks.md#documentation-verification). |
+| 6 | Dated 2026-10-30. User-requested direct graph authorization with trusted identity context, persisted actor/tenant/membership gates and business SQL only after allow. The user explicitly approved this M0 design on 2026-10-30 (“perfeito. spec aprovada”); [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. Implementation remains not started; future milestone designs remain pending. Current planning QA is recorded in [Tasks](EP-00-F01-govern-scoped-access.tasks.md#documentation-verification). |
 
-**Next checkpoint:** review revision 6's M0 requirements, design, tasks and stated limits. F01 and the product's business-validation state remain incomplete/unreported. No ADR is created by this revision.
+**Next checkpoint:** the user explicitly starts implementation in a new context window. M0-01 configuration is the proposed first stage for that future start, followed by its stage review. F01 and the product's business-validation state remain incomplete/unreported.
+
+## Backend handoff — approved revision 6 M0
+
+| Handoff item | Execution contract |
+| --- | --- |
+| Source and approval | Complete EP-00-F01 source linked above; SPEC-EP-00-F01 revision 6 approved **for M0 only** on 2026-10-30. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) records the decision. |
+| Proposed first stage in a new context | **M0-01 — runtime configuration**, only after the user explicitly starts implementation in a new context window. Its planned outputs are `src/configs/env.ts`, `src/configs/database.ts` and co-located configuration unit checks inside `apps/andromeda-backend`. OpenFGA-specific configuration remains M0-26a, not this stage. |
+| M0-01 entry and completion | Entry requires the future explicit start instruction; there is no task dependency. Once started, follow the [exact task/case contract](EP-00-F01-govern-scoped-access.tasks.md#m0-execution-checklist); exercise applicable TC-M0-01 runtime settings, reject invalid/incomplete values safely and record actual checks/results. Then stop for configuration review. Do not mark other tasks done. |
+| Subsequent sequence | Once implementation is explicitly started, follow Tasks: support → five entity contracts/schema/mappings/seeds → neutral ports and separate business reader → provider model/binding/adapter → shared gate/protected operation → HTTP/wire → E2E. Each changed area/layer retains its own review gate. |
+| Modules/contracts | `tenant`, `identity`, `location`, `machine`, `authorization` and required shared/platform support. Implement the [complete M0 contracts](EP-00-F01-govern-scoped-access.design.md#complete-m0-contracts) and [five business entities](EP-00-F01-govern-scoped-access.design.md#complete-m0-business-entity-contracts), not superseded historical alternatives. |
+| Critical boundaries | No application SQL dependency/status facts in authorization; same trusted actor/tenant context; all graph gates; business machine read only after allow; explicit v2 binding; safe separate decision/business outcomes. |
+| Verification | Task-linked TC-M0-01–29 cover compiler/unit/real SQL/real FGA/assembled flows at their assigned stages. Documentation QA is not execution evidence; empty test-suite success is not verification. |
+| Readiness and limits | M0 design/ADR are ready. This session authorizes approval/ADR records only. Implementation and all runtime cases remain not started/unexecuted; no implementation stage is currently authorized. No prior model/data migration or authentication implementation exists. G01–G04 and M1–M7 remain pending design/implementation, and F01 is incomplete. |
+| Ownership | Backend will own execution status/evidence and stage review after the user explicitly starts implementation in a new context. Material design changes return to Architect for revision/approval; routine implementation choices remain with Backend. |

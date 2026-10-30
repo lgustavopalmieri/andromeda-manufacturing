@@ -1,8 +1,12 @@
 # SPEC-EP-00-F01 — Tasks
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Awaiting approval · implementation not started · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation not started · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → [Design](EP-00-F01-govern-scoped-access.design.md) → Tasks (this document).
+
+## Approved M0 handoff
+
+The user approved revision 6's M0 design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. The user clarified on the same date: **this session is approval and ADR only; no implementation stage is opened or currently authorized**. The [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0) proposes M0-01 runtime configuration as the first stage only after the user explicitly starts implementation in a new context window. Once that future start occurs, its implementation/evidence and review follow the stage protocol. All checkboxes remain not started; approval is not implementation authorization.
 
 ## Start here
 
@@ -346,13 +350,17 @@ Architect and coordinator completed the following **revision 6 planning checks**
 | SQL/identity boundary | Current authorization TypeScript has no SQL/entity/status port or actor_status/membership_status context. Business machine reader belongs to the protected validation feature; graph refusal does not require it. |
 | Current tuple/model review | The 24 exact baseline tuples have unique keys, global self-enabled actors, enabled-userset memberships and matching tenant links/expected-tenant context. Coordinator reviewed source/resource intersections and persisted tenant binding conceptually. **No real-provider model validation or runtime decision test was run.** |
 | Historical preservation | Original 13 TypeScript, 9 JSON and 1 FGA blocks remain verbatim inside the explicitly superseded appendix; all 28 original exported contract names remain present. |
-| Change boundary / whitespace | Only the four assigned architecture documents are edited in this revision; the earlier requirements filename change is preserved. No product/code/config/ADR changes; `git diff --check` passes. |
+| Design-authoring boundary / whitespace | Before approval recording, only the four assigned architecture documents were edited; the earlier requirements filename change was preserved. No product/code/config/ADR changes were part of that authoring QA; `git diff --check` passed. |
 
-No implementation, real-provider/model, infrastructure, application or performance suite has been executed for this documentation revision. All execution cases remain planned. Revision-5 QA is historical only; M0 remains Awaiting approval/not started and F01 incomplete.
+No implementation, real-provider/model, infrastructure, application or performance suite has been executed for this documentation revision. All execution cases remain planned. Revision-5 QA is historical only; M0 design is now Approved, implementation remains not started and F01 incomplete. Approval/ADR recording does not change the historical execution evidence.
+
+Approval-record QA on 2026-10-30 checked ADR/spec/context links, approval-state consistency, unchanged revision-6 fenced contracts/model/examples and no completed checkboxes; `git diff --check` passed. No code/runtime suite was needed for this approval-only update.
+
+Scope clarification on 2026-10-30: approval and ADR recording only in this session; implementation is deferred to an explicit start in a new context window. The handoff/ADR wording was corrected without changing revision 6's approved design or marking any task complete. No code tests were run for this wording correction.
 
 ## Execution evidence
 
 | Milestone | Implementation | Execution evidence | Next checkpoint |
 | --- | --- | --- | --- |
-| M0 | not started | None; no runtime suites executed for this documentation revision. | Revision 6 M0 design review. |
+| M0 | not started; no stage opened or currently authorized | None; no implementation evidence accepted in this approval-only session. | Explicit implementation start in a new context window; M0-01 is the proposed first stage. |
 | M1–M7 | not started; design required | None; original product criteria retained. | Complete the relevant future design task and resolve its gates. |

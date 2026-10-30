@@ -1,6 +1,6 @@
 # SPEC-EP-00-F01 — Design
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Awaiting approval · implementation not started · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation not started · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → Design (this document) → [Tasks](EP-00-F01-govern-scoped-access.tasks.md).
 
@@ -8,7 +8,7 @@
 
 The main path is simple: **trusted identity context → OpenFGA decision → protected business operation**. Read the flow, responsibility and failure sections first; complete contracts/model are reference material for implementation. Stop at the M0 reading boundary and continue to Tasks. The historical appendix preserves superseded proposals, not current implementation instructions.
 
-This revision implements the user's requested design direction in documents only. The resulting M0 technical design remains Awaiting approval. Future F01 milestones and G01–G04 require their own reviewed designs; no ADR or production implementation exists.
+The user explicitly approved revision 6's M0 technical design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) records the accepted M0 decisions. Future F01 milestones and G01–G04 require their own reviewed designs; production implementation remains not started. The user clarified on 2026-10-30 that this session covers approval/ADR only; no implementation stage is opened or currently authorized. The [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0) proposes M0-01 configuration as the first stage only after an explicit implementation-start instruction in a new context window.
 
 ## One request, from identity to authorization to business data
 
@@ -395,7 +395,7 @@ export interface MachineEntityInterface {
 
 ## Minimum M0 provider model and exact native examples
 
-This is the **current proposed v2 model** loaded by M0-28/29. It supersedes the SQL-status condition and tenant-qualified actor identities from earlier unapproved drafts. Native model/tuple execution is planned, not claimed completed.
+This is the **approved M0 v2 model** loaded by M0-28/29. It supersedes the SQL-status condition and tenant-qualified actor identities from earlier unapproved drafts. Native model/tuple execution is planned, not claimed completed.
 
 Intended artifacts: `platform/openfga/models/m0/model.fga`, equivalent `model.json` for SDK upload, and `store.fga.yaml` for assertions/isolated variants.
 
@@ -642,7 +642,7 @@ Remove only DUAL's A membership, preserving B:
 
 The isolated dual-report variant adds direct grant sources for DUAL in A/B. Checks in each selected tenant allow while all gates remain enabled; selecting A for a B source/resource fails the persisted expected-tenant condition. A deliberately wrong B-source→A-resource test also fails because the source's tenant guard sees selected A. This is tested without using SQL to decide which membership/status is current.
 
-The global-actor, selected-tenant and source/gate design is an engineering proposal using native usersets, intersections, conditions and writes. Primary sources: [user groups/usersets](https://openfga.dev/docs/modeling/user-groups), [multiple restrictions](https://openfga.dev/docs/modeling/multiple-restrictions), [conditions](https://openfga.dev/docs/modeling/conditions), [Check API](https://openfga.dev/docs/api/service/relationship-queries/check-user-authorization), [Write API](https://openfga.dev/docs/api/service/relationship-tuples/add-or-delete-tuples), [contextual tuples](https://openfga.dev/docs/interacting/contextual-tuples), [token-claim modeling/freshness](https://openfga.dev/docs/modeling/token-claims-contextual-tuples) and [query consistency](https://openfga.dev/docs/interacting/consistency). These were inspected during the 2026-10-30 design discussion. They document mechanisms, not execution of this model or an automatic lifecycle/sync product.
+The approved M0 global-actor, selected-tenant and source/gate design uses native usersets, intersections, conditions and writes; runtime conformance remains to be verified. Primary sources: [user groups/usersets](https://openfga.dev/docs/modeling/user-groups), [multiple restrictions](https://openfga.dev/docs/modeling/multiple-restrictions), [conditions](https://openfga.dev/docs/modeling/conditions), [Check API](https://openfga.dev/docs/api/service/relationship-queries/check-user-authorization), [Write API](https://openfga.dev/docs/api/service/relationship-tuples/add-or-delete-tuples), [contextual tuples](https://openfga.dev/docs/interacting/contextual-tuples), [token-claim modeling/freshness](https://openfga.dev/docs/modeling/token-claims-contextual-tuples) and [query consistency](https://openfga.dev/docs/interacting/consistency). These were inspected during the 2026-10-30 design discussion. They document mechanisms, not execution of this model or an automatic lifecycle/sync product.
 
 **M0 reading ends here. Continue with [Tasks](EP-00-F01-govern-scoped-access.tasks.md#m0-execution-checklist). The remaining material is optional historical reference, not a prerequisite or current implementation target.**
 
