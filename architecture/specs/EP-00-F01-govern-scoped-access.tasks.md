@@ -1,12 +1,12 @@
 # SPEC-EP-00-F01 — Tasks
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-02 shared HTTP review pending; M0-01 review accepted · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01/M0-02/M0-03 reviews accepted; next task not started · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → [Design](EP-00-F01-govern-scoped-access.design.md) → Tasks (this document).
 
 ## Approved M0 handoff
 
-The user approved revision 6's M0 design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. That approval session covered approval/ADR only. The user subsequently explicitly requested implementation of the first backend F01 task in a new context on the same date. Under the [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0), M0-01 configuration is implemented and technically validated, with user review accepted on 2026-10-30, America/Sao_Paulo. The user's later separate instruction explicitly started M0-02; its pure HTTP envelope is now implemented and compiler-validated, awaiting review. M0-03 and later tasks have not started.
+The user approved revision 6's M0 design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. That approval session covered approval/ADR only. The user subsequently explicitly requested implementation of the first backend F01 task in a new context on the same date. Under the [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0), M0-01 and M0-02 are implemented, technically validated and accepted. The user's instruction to continue to task 3 accepted M0-02 and authorized M0-03, not the later M3 milestone. M0-03 repository failure categories are now implemented, technically validated and accepted on 2026-10-30, America/Sao_Paulo. M0-04 and later tasks have not started.
 
 ## Start here
 
@@ -59,12 +59,13 @@ Task trace fields refer to [M0 requirements](EP-00-F01-govern-scoped-access.requ
   - **Area / paths:** `modules/@shared/http/http-response.ts`. **Depends on:** none.
   - **Deliver:** Define the common success/error envelope used by later HTTP mappers.
   - **Verify:** TC-M0-02 compiler. **Trace:** M0-R06; R06. **Review:** shared HTTP.
-  - **Execution — 2026-10-30:** validated for this pure-contract stage; user review pending. Added `modules/@shared/http/http-response.ts`: `HttpSuccessResponseInterface<Data>` is `{ error: false; data: Data }`, `HttpErrorResponseInterface` is `{ error: true; message: string }`, and `HttpResponseInterface<Data>` is their discriminated union. No imports, framework dependency, runtime behavior or mapper was added. `npm run typecheck`: exit 0. Temporary strict compiler checks accepted valid envelopes/null payloads and narrowing, while 10 invalid cases were rejected; removing all suppression directives produced exactly 10 diagnostics. Fixtures were removed. TC-M0-02 remains pending for all other owning tasks; no M0-03 work started.
+  - **Execution — 2026-10-30:** validated for this pure-contract stage; user review accepted by the later instruction to continue to task 3. Added `modules/@shared/http/http-response.ts`: `HttpSuccessResponseInterface<Data>` is `{ error: false; data: Data }`, `HttpErrorResponseInterface` is `{ error: true; message: string }`, and `HttpResponseInterface<Data>` is their discriminated union. No imports, framework dependency, runtime behavior or mapper was added. `npm run typecheck`: exit 0. Temporary strict compiler checks accepted valid envelopes/null payloads and narrowing, while 10 invalid cases were rejected; removing all suppression directives produced exactly 10 diagnostics. Fixtures were removed. At this task's original checkpoint, TC-M0-02 remained pending for all other owning tasks and M0-03 had not started.
 
-- [ ] **M0-03 — Define the shared repository failure category**
+- [x] **M0-03 — Define the shared repository failure category**
   - **Area / paths:** `modules/@shared/errors/repository.error.ts`. **Depends on:** none.
   - **Deliver:** Provide generic RepositoryError plus a recognized RepositoryUnavailableError category for known connection/outage failures; keep technical causes internal. Unknown repository failures remain generic500.
   - **Verify:** TC-M0-02 compiler. **Trace:** M0-R01/R06; R04/R06. **Review:** shared errors.
+  - **Execution — 2026-10-30:** validated for this shared-errors stage; user review accepted on 2026-10-30, America/Sao_Paulo. Added `modules/@shared/errors/repository.error.ts`: `RepositoryError extends Error` accepts `(message: string, options?: ErrorOptions)`; `RepositoryUnavailableError extends RepositoryError` inherits that constructor and supplies its distinct name. Causes remain native internal diagnostics; no driver classification or HTTP status mapping was added. `npm run typecheck`: exit 0. A temporary runtime check confirmed distinct categories, unavailable-error inheritance and original cause identity without copying technical details into the supplied message or enumerable fields. No persistent test suite or later task was added.
 
 - [ ] **M0-04 — Define the observability port**
   - **Area / paths:** `modules/@shared/observability/observability.ts and observability.mock.ts`. **Depends on:** none.
@@ -278,7 +279,7 @@ Task trace fields refer to [M0 requirements](EP-00-F01-govern-scoped-access.requ
 
 ## M0 technical case catalog
 
-Cases are planned except for the applicable TC-M0-01 configuration checks executed at M0-01 and TC-M0-02 shared HTTP compiler checks executed at M0-02, recorded below. TC-M0-01 provider binding/timeout checks remain pending M0-26a; TC-M0-02 remains pending for its other owning tasks, and all other cases remain unexecuted. Use real provider/SQL integration where stated; unit faults exercise the actual boundary implementation. Each fixture variation is isolated and versioned. No case assumes a runtime lifecycle API exists.
+Cases are planned except for the applicable TC-M0-01 configuration checks executed at M0-01 and TC-M0-02 shared HTTP/repository-error compiler checks executed at M0-02/M0-03, recorded below. TC-M0-01 provider binding/timeout checks remain pending M0-26a; TC-M0-02 remains pending for its other owning tasks, and all other cases remain unexecuted. Use real provider/SQL integration where stated; unit faults exercise the actual boundary implementation. Each fixture variation is isolated and versioned. No case assumes a runtime lifecycle API exists.
 
 | Case | Level / owner | Starting condition and stimulus | Observable expectation |
 | --- | --- | --- | --- |
@@ -364,7 +365,7 @@ Scope clarification on 2026-10-30: approval and ADR recording only in this sessi
 
 | Milestone | Implementation | Execution evidence | Next checkpoint |
 | --- | --- | --- | --- |
-| M0 | in progress; M0-01 accepted, M0-02 shared HTTP contract compiler-validated with user review pending | 2026-10-30: M0-01 retains its 33 unit tests/typecheck/build/smoke evidence; M0-02 adds `src/modules/@shared/http/http-response.ts`, passing strict typecheck and temporary positive/negative compiler checks. | User M0-02 shared HTTP review; explicit approval to continue is required before M0-03. |
+| M0 | in progress; M0-01/M0-02 accepted, M0-03 repository failure categories technically validated with user review accepted on 2026-10-30, America/Sao_Paulo | 2026-10-30: M0-01/M0-02 retain their earlier evidence; M0-03 adds `src/modules/@shared/errors/repository.error.ts`, passing strict typecheck and a focused temporary category/cause runtime check. | Explicit instruction to start M0-04; M0-03 review is accepted and M0-04 remains not started. |
 | M1–M7 | not started; design required | None; original product criteria retained. | Complete the relevant future design task and resolve its gates. |
 
 ### M0-01 configuration evidence — 2026-10-30
@@ -396,4 +397,21 @@ The user separately explicitly authorized task 02 after accepting M0-01. Only `s
 | Positive compiler checks | A temporary configuration extending the backend tsconfig compiled valid success/failure envelopes, a generic null payload and both branches narrowed by `error`. `rootDir` and ambient types were adjusted only in that temporary configuration; no repository tooling changed. |
 | Negative compiler checks | Ten cases cover success/failure field access after narrowing, missing payload/message/discriminant, invalid discriminant/payload/message types and mixed fresh-literal envelopes. Expected rejections compiled with `@ts-expect-error`; a second pass without those directives produced exactly 10 diagnostics. No valid case was suppressed. Temporary files were removed after verification. |
 | Limits | This type-only contract has no runtime paths or meaningful runtime coverage percentage; no artificial unit suite or service build was needed. TC-M0-02 for other owning tasks remains pending. No serialization, authorization, error sanitization, SQL/FGA integration or assembled HTTP behavior is claimed. |
-| Stage gate | M0-02 implemented and compiler-validated; user shared HTTP review pending. M0-03 remains not started and requires explicit approval to continue. M0/F01 remain in progress. |
+| Stage gate | M0-02 implemented and compiler-validated; user shared HTTP review accepted on 2026-10-30 by the instruction to continue to task 3. At the original M0-02 checkpoint, M0-03 had not started; its subsequent authorized execution is recorded below. M0/F01 remain in progress. |
+
+### M0-03 shared repository failure evidence — 2026-10-30
+
+The user's instruction to proceed to task 3 accepted M0-02 and authorized only M0-03. This is the third M0 implementation task, not the future delegation/time milestone M3. Only `src/modules/@shared/errors/repository.error.ts` was added to the backend; configuration, main, shared HTTP contract, skills and approved design contracts are unchanged.
+
+| Check / case | Actual result and limits |
+| --- | --- |
+| TC-M0-02 · repository failures only | Framework-free `RepositoryError extends Error` accepts a required message and optional native `ErrorOptions`. `RepositoryUnavailableError extends RepositoryError` inherits the same signature and carries a distinct `name`, remaining recognizable as both repository and unavailable failure. |
+| Strict compilation | `npm run typecheck` from `apps/andromeda-backend`: exit 0 under the existing strict, exact optional-property and indexed-access settings. No external type/import dependencies were added. |
+| Focused temporary runtime check | `node --input-type=module` imported the actual TypeScript module and confirmed generic errors are not unavailable errors, unavailable errors inherit the generic category, names/messages are correct and both retain the original `cause`. With a supplied safe message, technical cause text was absent from `String(error)`/JSON output. The cause uses native non-enumerable `ErrorOptions` storage, not a new serialization mechanism. No temporary fixture remained. |
+| Test scope | The final change retains no redundant runtime suite for the trivial native-Error constructors. The required compiler check and focused temporary check above are the stage evidence. No coverage percentage is claimed. |
+| Limits | Classes preserve the supplied message and cause; they do not sanitize arbitrary caller messages, identify driver failures or assign HTTP statuses. Later adapters must explicitly recognize connection/outage failures and select the unavailable category; unknown failures remain generic. Safe generic500/business-unavailable503 mapping and actual storage interruption remain later verification. No database, mapper, logger or authorization implementation was added. |
+| Stage gate | M0-03 implemented and technically validated; user shared errors review accepted on 2026-10-30, America/Sao_Paulo. M0-04 remains not started and requires an explicit start instruction. M0/F01 remain in progress. |
+
+### M0-03 review acceptance — 2026-10-30
+
+The user explicitly approved M0-03 on 2026-10-30, America/Sao_Paulo. Its implementation, technical verification and shared errors review are complete. M0-04 remains not started and requires an explicit start instruction; M0/F01 remain in progress. This acceptance update changes execution metadata only. Runtime checks were not rerun; `git diff --check` passed.
