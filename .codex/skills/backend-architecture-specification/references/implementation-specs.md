@@ -1,9 +1,10 @@
-# One-Feature Spec-Driven Development
+# One-Feature Spec-Driven Development: Investigation and Authoring
 
-The spec is the reviewable technical contract for implementing **exactly one complete
-numbered feature file from an epic**. It covers every story, rule and acceptance
-criterion in that file, never multiple files, a fraction of one file or no source file.
-Save it in **`architecture/specs/`**, with the source feature ID in its filename.
+The spec is one reviewable, three-part technical contract for **exactly one numbered
+feature file from an epic**. Its Requirements document maps every story, rule and
+acceptance criterion; Design and Tasks describe the scope submitted for approval.
+Save the linked `.requirements.md`, `.design.md` and `.tasks.md` siblings directly in
+**`architecture/specs/`**, using the same source feature ID and basename.
 Requirements and epics are Architect's read-only inputs, never its deliverables.
 The spec explains the problem, proposed design, risks, complete entity
 contracts where needed, steps and observable completion evidence. Architect owns
@@ -11,11 +12,55 @@ this design; Backend implements the approved version and records its execution. 
 [the modular architecture skill](../../backend-modular-feature-architecture/SKILL.md)
 and relevant references before designing those steps. A task list alone is not SDD.
 
-Keep one canonical spec for the entire selected product feature file. Its operations may
-need separate modular use-case slices, each with its own layer plan, but cannot include
-a second product feature. Contextual dependencies are read-only scope references.
+Use [specification-format.md](specification-format.md) for the repository model,
+document structure, navigation and writing style. Keep one canonical package for the
+entire selected product feature file. Its operations may need separate modular
+use-case slices, each with its own layer plan, but cannot include a second product
+feature. Contextual dependencies are read-only scope references.
 If another feature must be delivered first, record that dependency and obtain a
 scope decision instead of writing a second spec or hiding it in a foundation task.
+
+## Discovery and delivery framing
+
+Investigate before choosing the final flow or producing a complete task breakdown:
+
+1. Read the assigned feature, overview, supporting product requirements, relevant
+   accepted decisions and current implementation/tests. Identify retained state,
+   implemented capabilities and gaps. Installed packages and reference examples do
+   not establish a capability.
+2. Read the modular skill and the references for the affected layers/topics. Use
+   their dependency, entity, orchestration, persistence, authorization and verification
+   rules to compare candidate designs throughout the investigation.
+3. Clarify choices whose answers materially change the feature flow, architecture
+   or delivery order. Questions before writing are encouraged; do not wait until a
+   polished design makes an unresolved choice expensive to change.
+
+Useful questions, selected for the actual uncertainty, include:
+
+| Uncertainty | Question to clarify |
+| --- | --- |
+| Operational path | Who initiates the operation, on what resource/state, and what should they observe afterward? |
+| First useful result | What should the first demonstration accomplish? Which state and effects must be real, and which may be controlled fixtures or simulations? |
+| Ownership and flow | Which component owns the authoritative state/decision? What must happen before an operation is allowed or acknowledged as effective? |
+| Failure and concurrency | If a dependency fails, a request repeats or a concurrent change arrives, what outcome and recovery does the product expect? |
+| Delivery sequence | Should this review cover the whole feature design or an incremental delivery? What must remain usable and which prerequisites already exist? |
+
+Ask only what repository evidence and existing conversation decisions cannot answer.
+Prefer a few focused questions, explaining consequential options, over a generic
+questionnaire. Continue independent research while waiting. Route missing business
+policy/source scope to Product Owner; Architect clarifies and proposes technical
+choices without editing product definitions. Record confirmed answers and explicit
+assumptions in the relevant package section. Questions are discovery, separate from
+the final approval checkpoint.
+
+Normally design the complete source feature. When incremental planning is requested
+or agreed, keep the complete source map in Requirements, fully specify the submitted
+increment in Design and Tasks, and map later outcomes to explicit Architect design
+tasks and blocking gates. Do not present future mechanisms as designed or approved.
+Unresolved gates may remain only outside the submitted implementable scope: show the
+source behavior they block and prevent claims of that behavior before closure. If a
+gate prevents the current increment's promised outcome, resolve it before review.
+The feature remains incomplete until all required deliveries and verification finish.
 
 ## Spec identity and review state
 
@@ -23,12 +68,14 @@ Use a stable identifier derived from the source, such as `SPEC-EP-00-F01`. Recor
 
 - The actual source feature path and its feature ID, plus the epic overview link.
 - Referenced requirement files, story/rule/acceptance IDs and relevant accepted ADRs.
-- Current spec revision, update date, affected modules and approval state/evidence.
+- Shared package revision, update date, affected modules and approval scope/evidence.
 - Independent implementation status, current operation/layer/step and next review gate.
 
-Record approval only for the revision actually approved by the user. Revised design
-with materially different behavior, entity shape, risk acceptance or architecture
-returns to review; ordinary progress/evidence updates do not invalidate approval.
+Keep the authoritative review table in Requirements and compact matching summaries
+in Design and Tasks. Record approval only for the revision and scope actually
+approved by the user. Revised design with materially different behavior, entity
+shape, risk acceptance or architecture returns to review; ordinary progress/evidence
+updates do not invalidate approval.
 
 ## Required narrative and design
 
@@ -47,10 +94,11 @@ Do not silently change business policy to make a technical approach easier.
 ### Domain and complete entity contracts
 
 Identify owning modules, aggregates, invariants, relationships and value objects.
-For **every module entity created or changed**, include its complete proposed pure
-TypeScript contract in the spec before requesting approval. List the intended source
-path for each code block. Include dependent local interfaces, const objects and derived
-types needed to understand the contract; a field list, database schema, ellipsis or
+For **every module entity created or changed in the submitted scope**, include its
+complete proposed pure TypeScript contract in Design before requesting approval.
+List the intended source path for each code block. Include dependent local interfaces,
+const objects and derived types needed to understand the contract; a field list,
+database schema, ellipsis or
 instruction to define it later is insufficient. For changes, show the complete proposed
 result and explain the changes and compatibility impact.
 
@@ -64,7 +112,7 @@ Tenant-owned entities cannot become cross-tenant through an optional tenant boun
 justify truly platform-wide entities and their separate access rules explicitly.
 
 For unchanged entities, link existing contracts and explain their use; do not invent
-new entity code unnecessarily. Canonical entity code in the approved spec is the
+new entity code unnecessarily. Canonical entity code in the approved Design is the
 documented implementation target, updated through reviewed revisions when it changes.
 Other layers need precise responsibilities, inputs/outputs, invariants and collaboration
 contracts in prose/tables; full implementation code for those layers is not required.
@@ -119,7 +167,8 @@ Material unknowns that prevent a viable design must be resolved before seeking a
 The epic's acceptance criteria establish business outcomes; they are not the entire
 verification plan. Architect must identify additional implementation and behavior
 cases needed to prove the selected technical contracts and mitigate its risks. These
-cases remain inside this feature's one spec and do not invent new product requirements.
+cases live in this feature package's Tasks catalog and do not invent new product
+requirements. Link their source outcomes in Requirements and technical risks in Design.
 
 Read [testing.md](../../backend-modular-feature-architecture/references/testing.md)
 and each affected layer's testing section while planning cases. Use
@@ -149,12 +198,12 @@ as implementation reveals them; a material design change returns to Architect.
 
 ## Ordered implementation and verification plan
 
-Use numbered checklist steps inside this same spec, ordered by actual dependencies
-and the modular skill's inside-out workflow. Identify shared/platform prerequisites
+Use stable, numbered checkbox tasks in Tasks, ordered by actual dependencies and
+the modular skill's inside-out workflow. Identify shared/platform prerequisites
 explicitly, without hiding another product feature's implementation in a support step.
 Preserve a separate review gate for each changed layer/supporting area and E2E stage.
 
-Every step states:
+Every task states:
 
 - The operation, layer/area and intended source/test paths.
 - Entry dependencies and the relevant modular skill reference(s).
@@ -162,40 +211,44 @@ Every step states:
 - Required verification, technical case IDs and observable completion evidence.
 - Status, evidence, remaining limitations and the next review checkpoint.
 
-For entity steps, reference the complete entity code already in this spec and plan
+For entity tasks, link the complete entity code in Design and plan
 compiler validation. For behavior, use the modular skill's common testing rules and
 current layer's testing section. Use the E2E guide for assembled flows. Avoid superficial
 tests that merely repeat code structure. Plans must cover applicable tenant/permission
 denials, business-state boundaries, failure/recovery, version history and concurrency.
 
-Define the whole source feature's done conditions, including all required stages,
-checks, retained behavior and known limits. Passing one layer does not complete the
-feature. Keep planning approval, code completion, technical verification and stakeholder
-business validation distinct.
+Define the submitted scope's done conditions and the whole feature's completion
+conditions, including required stages, checks, retained behavior and known limits.
+When later increments still need design, identify their required outcomes without
+pretending their implementation plan is ready. Passing one layer or completing an
+increment does not complete the feature. Keep planning approval, code completion,
+technical verification and stakeholder business validation distinct.
 
-## Suggested document structure
+## Package verification and review
 
-Use these sections with actual feature-specific content; do not leave template
-instructions in a submitted spec:
+Use the three document structures in
+[specification-format.md](specification-format.md). Before submitting the package:
 
-1. Identity, source feature, revision and tracking.
-2. Operational problem, outcomes, scope and exclusions.
-3. Stories/rules/acceptance traceability.
-4. Domain boundaries and complete new/changed entity code.
-5. Layer flow, contracts, data/consistency and proposed decisions.
-6. Technical risk assessment and validation experiments.
-7. Business acceptance and complementary technical test-case catalog.
-8. Ordered implementation/verification checklist and review checkpoints.
-9. Done conditions, dependencies, limits and unresolved decisions.
-10. Approval history and, only after approval, the associated ADR link and Backend handoff.
+- Resolve local links/anchors and check Markdown fences/diagrams; parse structured
+  examples where appropriate. Check that package IDs, revision/scope summaries,
+  contracts and fixture names agree across all three parts.
+- Compare the source feature with the complete source map, including deferred
+  destinations. Check that each task dependency and case reference exists, the
+  execution order has no readiness cycles, and gates block the affected claims.
+- Compile new/changed TypeScript contracts in an isolated temporary workspace using
+  the project's strict settings when they can be validated independently. Record
+  actual results and limits; do not write app code or implementation tests as QA.
+- Verify technical boundaries against the relevant modular references. Identify
+  external behavior researched versus integration behavior still awaiting runtime
+  proof. Do not invent approval, execution results or completion from document QA.
 
-The handoff names the source feature/spec revision/ADR, modules and entity contracts,
-operation/layer sequence, test-case/step mapping, dependency readiness, critical risks
-and known limits. Keep it in the same approved spec instead of a competing handoff
-spec or duplicating its design across agents.
+Record planning evidence in Tasks and meaningful revision history in Requirements.
+Keep runtime cases planned and execution evidence separate until Backend performs
+them. Do not leave template instructions in the submitted documents.
 
-Complete this one spec, record its own planning evidence and source links, mark
-`Awaiting approval` and **stop/end the turn**. Do not create an ADR, a second spec or
-implementation code before approval. Follow the main skill's execution/status protocol
-after approval and Architect-owned ADR recording; Backend then follows the approved
-handoff and records its implementation/test evidence.
+Complete the package for the proposed scope, mark `Awaiting approval` with its shared
+revision and exact scope, and **stop/end the turn**. Do not create an ADR, a second
+feature package or implementation code before approval. After explicit approval,
+Architect records the matching ADR and adds the Requirements handoff, linking Design
+contracts and Tasks/cases. Follow the main skill's execution/status protocol; Backend
+implements only authorized stages and records their actual evidence.

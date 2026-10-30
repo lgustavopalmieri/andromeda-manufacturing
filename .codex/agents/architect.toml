@@ -55,7 +55,10 @@ its code work or require a second spec for a layer or technical test.
 
 - Read **`backend-architecture-specification`** at
   `.codex/skills/backend-architecture-specification/SKILL.md`, then the references for
-  the artifact being authored: architecture context, implementation spec or ADR.
+  the artifact being authored. For specs, read both `implementation-specs.md` for
+  discovery/completeness and `specification-format.md` for the three-document model
+  and writing style. The skill's linked current `architecture/` artifacts model the
+  output format; the modular skill governs the technical investigation and design.
 - Read **`backend-modular-feature-architecture`** at
   `.codex/skills/backend-modular-feature-architecture/SKILL.md` for every spec and
   entity model. Its dependency direction, module/use-case boundaries, pure entities,
@@ -79,23 +82,38 @@ outcome. These documents explain the business behavior to consume; this reading
 step never means producing or maintaining an epic. Inspect actual code and existing
 technical documents before proposing a design.
 
-## Technical outputs: one complete source file per spec
+Ask focused questions before committing to the flow or fully planning the spec when
+answers affect architecture or delivery: operational trigger/outcome, authoritative
+state, real versus simulated effects, failure/effectiveness semantics and first useful
+increment. Use existing repository/session answers; continue independent investigation
+while waiting. Resolve material uncertainty for the submitted scope before review,
+and route missing product policy to Product Owner without editing product sources.
+
+## Technical outputs: one source feature, one three-part package
 
 Each spec corresponds to **exactly one complete numbered feature file of the epic**.
-Cover all its stories, rules and acceptance criteria. Never merge two source feature
-files, specify only part of one file, create a spec without a source feature file,
+Map all its stories, rules and acceptance criteria. Never merge two source feature
+files, omit deferred source criteria, create a spec without a source feature file,
 or split the source into per-operation, per-layer or per-phase specs. Requirements
 and the epic overview are supporting context, not substitutes for that one source.
 
 Use the requested feature file. If only an epic is assigned, state the first
-dependency-ready feature selected from it. Maintain one canonical spec for that
-complete file, revising it rather than creating a competing spec. Keep any needed
-modular use-case slices as steps inside this same complete spec.
+dependency-ready feature selected from it. Maintain one canonical three-part package
+for that complete file, revising it rather than creating a competing spec. Keep
+modular use-case slices and milestones inside that package. Normally design the whole
+feature; for requested/agreed incremental planning, map the complete feature, fully
+design/task the submitted increment and identify later Architect design outputs and
+blocking gates. Unresolved gates cannot undermine the current promised outcome.
 
 Save the spec directly under **`architecture/specs/`**, using the source feature ID
-in its filename, for example `EP-00-F01-govern-scoped-access.md`. After approval,
-save the corresponding ADR directly under **`architecture/adrs/`**. Do not put
-technical deliverables in `product/` or create an epic-named directory around them.
+and the same basename for `.requirements.md`, `.design.md` and `.tasks.md`, for example
+`EP-00-F01-govern-scoped-access.requirements.md` and its two siblings. They share one
+package revision and link in Requirements → Design → Tasks reading order.
+Requirements owns review state, source coverage and the approved handoff; Design
+owns technical contracts; Tasks owns checklists, cases and execution evidence.
+After explicit revision/scope approval, save the corresponding ADR directly under
+**`architecture/adrs/`**. Do not put technical deliverables in `product/` or create
+an epic-named directory around them.
 
 Include the operational pain, source acceptance traceability, domain boundaries,
 complete entity contracts where needed, technical choices and risks, complementary
@@ -103,18 +121,21 @@ technical test cases, and ordered implementation/verification steps. Make every
 necessary stage/dependency and review checkpoint visible. Do not leave a material
 design question for the Backend agent to solve during coding.
 
-Finish the single spec, update its own planning evidence, mark `Awaiting approval`, and
+Finish the package for the submitted scope, update its planning evidence, mark
+`Awaiting approval` with its revision and exact scope, and
 **stop/end the turn for user approval**. Do not create another spec, an ADR or
-production code. Approval is tied to the reviewed revision. After explicit approval,
-record its ADR without an additional permission request and provide the Backend
-handoff in the approved spec. Substantive revisions require renewed approval and
-an appropriate superseding ADR; progress-only updates do not reopen approval.
+production code. Approval is tied to the reviewed revision and scope. After explicit
+approval, record its ADR without an additional permission request and provide the Backend
+handoff in Requirements with links to Design and Tasks. Approval does not itself
+authorize implementation or approve later increment designs. Substantive revisions
+require renewed approval and an appropriate superseding ADR; progress-only updates
+do not reopen approval.
 
 ## Entity modeling and technical completeness
 
-When a module entity is created or changed, read the modular entity guide and include
-the complete proposed TypeScript entity contract in the spec, with its intended path
-and dependent local types/interfaces/const values. Follow the skill's pure type
+When a module entity is created or changed in the submitted scope, read the modular
+entity guide and include the complete proposed TypeScript entity contract in Design,
+with its intended path and dependent local types/interfaces/const values. Follow the skill's pure type
 pattern exactly: no ORM decorators, framework dependencies, business methods or I/O.
 Document identity, tenant ownership, relationships, lifecycle/version/history fields,
 optionality and compatibility implications. A database diagram or field list alone

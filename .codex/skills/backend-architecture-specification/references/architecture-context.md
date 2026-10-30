@@ -5,8 +5,10 @@ Architect creates or updates a technical context document such as
 pointed requirements, epic overview and selected feature file as read-only sources.
 Do not create, edit or deliver a product epic, including its tracking information.
 Keep this document at the architectural level; detailed tasks belong in the one
-selected feature spec in `architecture/specs/`. An architecture request alone does
-not authorize a batch of specs or a spec without exactly one complete source feature.
+selected feature package's Tasks document in `architecture/specs/`. An architecture
+request alone does not authorize a batch of specs or a spec without a source feature.
+Use the current [authorization context](../../../../architecture/00-authorization-platform-context.md)
+as the orientation/reading-map model, adapting its domain content to this assignment.
 
 ## Required content
 
@@ -33,9 +35,11 @@ not authorize a batch of specs or a spec without exactly one complete source fea
    Connect database choices to queries, indexes/uniqueness, tenant filters, transaction
    isolation, contention, migration and recovery. Link complementary technical tests
    as well as product acceptance; Backend supplies their later execution evidence.
-7. **Delivery map.** Link product feature → canonical spec → approved ADR → current
-   implementation evidence. List unresolved prerequisites and the next bounded scope;
-   this map does not authorize drafting later specs or starting their implementation.
+7. **Delivery map.** Link product feature → canonical package (Requirements → Design
+   → Tasks) → approved ADR → Tasks execution evidence. Identify the package revision,
+   approved scope and whole-feature completion separately. List unresolved
+   prerequisites and the next bounded scope; this map does not authorize drafting
+   later specs or starting their implementation.
 
 Use a table for the delivery map with one row per known feature dependency. A spec
 or ADR cell without an existing document must say `Not created`, rather than link to
@@ -51,7 +55,7 @@ evidence that a broker, outbox relay, transaction port or authorization adapter 
 already implemented in this repository.
 
 Keep minimum entity scope tied to actual use cases. Full code for a new/changed
-entity belongs in the selected implementation spec, which becomes its approved
+entity belongs in the selected package's Design document, which becomes its approved
 engineering reference. Link that contract instead of maintaining conflicting copies
 across architecture documents.
 
