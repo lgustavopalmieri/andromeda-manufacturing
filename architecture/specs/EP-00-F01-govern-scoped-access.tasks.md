@@ -1,12 +1,12 @@
 # SPEC-EP-00-F01 — Tasks
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–05 reviews accepted; next task not started · F01 incomplete.**
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–06 technically validated and accepted; next task not started · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → [Design](EP-00-F01-govern-scoped-access.design.md) → Tasks (this document).
 
 ## Approved M0 handoff
 
-The user approved revision 6's M0 design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. The approval session did not authorize implementation; the user subsequently explicitly started it in a new context. Under the [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0), M0-01–04 are implemented, technically validated and accepted. The user separately authorized M0-05, whose implementation was then corrected at the user's review request: shared owns payload/category conventions and Pino only emits. The subsequent file-organization correction preserves that responsibility boundary and all behavior. The user explicitly accepted the final M0-05 delivery, including both corrections, on 2026-10-30, America/Sao_Paulo. M0-06 and later tasks have not started.
+The user approved revision 6's M0 design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) is Accepted. The approval session did not authorize implementation; the user subsequently explicitly started it in a new context. Under the [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0), M0-01–04 are implemented, technically validated and accepted. The user separately authorized M0-05, whose implementation was then corrected at the user's review request: shared owns payload/category conventions and Pino only emits. The subsequent file-organization correction preserves that responsibility boundary and all behavior. The user explicitly accepted the final M0-05 delivery, including both corrections, on 2026-10-30, America/Sao_Paulo. The user then explicitly started M0-06: HTTP lifecycle implementation and technical verification are complete, with user HTTP review accepted on 2026-10-30, America/Sao_Paulo. M0-07 and later tasks have not started.
 
 ## Start here
 
@@ -79,10 +79,11 @@ Task trace fields refer to [M0 requirements](EP-00-F01-govern-scoped-access.requ
   - **Verify:** TC-M0-03. **Trace:** M0-R07; R06. **Review:** logger adapter.
   - **Execution — 2026-10-30:** reorganized and technically validated after the user requested files separated by responsibility; final user review accepted on 2026-10-30, America/Sao_Paulo, including the responsibility and organization corrections. Interfaces, field list, context selection and event/error builders now live in the named files above, with unchanged declarations/function bodies apart from imports/required exports. The old payload monolith was removed without a barrel or compatibility façade. M0-04 port/mock, error mapper/categories, format rules, safe output and Pino emission behavior are unchanged. Tests were relocated by SUT without duplicating cases: selection 22, event builder 5, error builder 1, mapper 7, Pino integration 9; full unit run 77 passed across six files and strict typecheck exit 0. No M0-06 work started.
 
-- [ ] **M0-06 — Implement the HTTP server lifecycle**
+- [x] **M0-06 — Implement the HTTP server lifecycle**
   - **Area / paths:** `platform/http/server.ts; server.test.ts`. **Depends on:** M0-01, M0-02, M0-05.
   - **Deliver:** Start/close an injected route set on the configured loopback address; expose /health without business data.
   - **Verify:** TC-M0-04. **Trace:** M0-R01; R01. **Review:** HTTP platform.
+  - **Execution — 2026-10-30:** implemented and technically validated for the HTTP platform stage; user review accepted on 2026-10-30, America/Sao_Paulo. Added `HttpServer({host, port, routes})` with injected prefixed Express routers, JSON parsing, minimal shared-envelope `GET /health`, and asynchronous `start()` / `stop()`. The listener binds to the supplied validated loopback address. Concurrent/repeated lifecycle calls share pending work; shutdown drains active requests, releases the port, and permits restart. Asynchronous bind failure and synchronous invalid-listen arguments reject startup and remove temporary listeners. `npm run test`: 7 suites, 89 passing tests, including 12 real HTTP lifecycle cases; `npm run typecheck` and `npm run build`: exit 0. Socket tests required approved sandbox escalation after loopback bind returned `EPERM`. TC-M0-04 bootstrap/resource-acquisition cleanup remains M0-10; no database lifecycle, protected route, bootstrap or M0-07 work was added. See detailed evidence below.
 
 - [ ] **M0-07 — Provide disposable PostgreSQL test setup**
   - **Area / paths:** `modules/@shared/tests/testcontainers/setup-postgres.ts`. **Depends on:** none.
@@ -281,7 +282,7 @@ Task trace fields refer to [M0 requirements](EP-00-F01-govern-scoped-access.requ
 
 ## M0 technical case catalog
 
-Cases are planned except for the applicable TC-M0-01 configuration checks executed at M0-01 and TC-M0-02 shared HTTP/repository-error/observability compiler checks executed at M0-02–04 and TC-M0-03 logger-output checks executed at M0-05, recorded below. TC-M0-01 provider binding/timeout checks remain pending M0-26a; TC-M0-02 remains pending for its other owning tasks; TC-M0-03 remains pending for M0-33/M0-36 application producers, and all other cases remain unexecuted. Use real provider/SQL integration where stated; unit faults exercise the actual boundary implementation. Each fixture variation is isolated and versioned. No case assumes a runtime lifecycle API exists.
+Cases are planned except for the applicable TC-M0-01 configuration checks executed at M0-01, TC-M0-02 shared HTTP/repository-error/observability compiler checks executed at M0-02–04, TC-M0-03 logger-output checks executed at M0-05 and TC-M0-04 HTTP lifecycle checks executed at M0-06, recorded below. TC-M0-01 provider binding/timeout checks remain pending M0-26a; TC-M0-02 remains pending for its other owning tasks; TC-M0-03 remains pending for M0-33/M0-36 application producers; TC-M0-04 bootstrap/resource cleanup remains pending M0-10. All other cases remain unexecuted. Use real provider/SQL integration where stated; unit faults exercise the actual boundary implementation. Each fixture variation is isolated and versioned. No case assumes a runtime lifecycle API exists.
 
 | Case | Level / owner | Starting condition and stimulus | Observable expectation |
 | --- | --- | --- | --- |
@@ -367,7 +368,7 @@ Scope clarification on 2026-10-30: approval and ADR recording only in this sessi
 
 | Milestone | Implementation | Execution evidence | Next checkpoint |
 | --- | --- | --- | --- |
-| M0 | in progress; M0-01–05 technically validated and accepted, including final M0-05 corrections on 2026-10-30, America/Sao_Paulo | Final M0-05 evidence: 44 observability + 33 configuration cases passed, 77 total across six files; strict typecheck passed. Earlier evidence below remains historical. | Explicit instruction to start M0-06; no subsequent task has started. |
+| M0 | in progress; M0-01–05 accepted; M0-06 technically validated, HTTP review accepted on 2026-10-30, America/Sao_Paulo | 12 real HTTP lifecycle cases plus 77 existing cases passed: 89 total across seven files; strict typecheck and build passed. Earlier evidence below remains historical. | Explicit instruction to start M0-07; M0-07 and later tasks have not started. |
 | M1–M7 | not started; design required | None; original product criteria retained. | Complete the relevant future design task and resolve its gates. |
 
 ### M0-01 configuration evidence — 2026-10-30
@@ -482,3 +483,20 @@ The user requested separate files for the declarations and operations combined i
 ### M0-05 final review acceptance — 2026-10-30
 
 The user explicitly approved the final M0-05 organization on 2026-10-30, America/Sao_Paulo. This accepts the delivered logger and its responsibility/file-organization corrections. Implementation, technical verification and final review are complete; the evidence remains 77 passing unit tests across six files and a passing strict typecheck. M0-06 remains not started and requires an explicit start instruction; M0/F01 remain in progress. This approval update changes execution metadata only; runtime checks were not rerun. `git diff --check` passed.
+
+### M0-06 HTTP platform evidence — 2026-10-30
+
+The user explicitly requested continuation with backend task 06 of spec 01. This authorizes only M0-06, whose configuration, shared-envelope and logger dependencies are accepted. Added only `src/platform/http/server.ts` and its co-located `server.test.ts`; existing configuration, main, logger, dependencies and tooling are unchanged. The generic HTTP platform owns listener lifecycle and mounts supplied routers without importing feature composition or business modules.
+
+| Check | Actual result / limit |
+| --- | --- |
+| TC-M0-04 · listener and health | `HttpServer({host, port, routes})` uses Express and a real Node HTTP server; `start()` and `stop()` return `Promise<void>`. It binds the supplied validated loopback host. `GET /health` returns exactly `{error:false,data:{status:"ok"}}`, even with a fallback router mounted at `/`; no business data or dependency-readiness claim is included. Routers are injected as `{prefix,router}` entries and receive parsed JSON bodies. Without injection the protected validation route is absent. |
+| TC-M0-04 · lifecycle failures and cleanup | Real sockets verify repeated/concurrent start, stop before start, repeated/concurrent close, stop during pending startup, draining an active HTTP request, port release and restart. A second server on an occupied port rejects with `EADDRINUSE`, opens no listener, and can retry after release. Direct invalid listener arguments reject with `RangeError` / `ERR_SOCKET_BAD_PORT` and restore temporary listener counts. Bootstrap and acquired database resources are outside this SUT and remain M0-10. |
+| Unit execution | Final `npm run test` from `apps/andromeda-backend`: **7 suites, 89 passed**, including **12 HTTP tests** and all 77 existing cases, Vitest 4.1.12 / Node.js 24.18.0. The initial sandbox run refused loopback binds with `EPERM`; approved execution outside that restriction ran the real tests successfully. No socket mock or empty-suite evidence is used. |
+| Compiler/build | `npm run typecheck` and `npm run build`: **exit 0**. Strict TypeScript includes the new HTTP source/tests. The build still bundles the configuration-only `main.ts`; it does not assemble or start HTTP until M0-10. |
+| Coverage | `@vitest/coverage-v8` is unavailable in the installed dependencies; no percentage is claimed and no dependency/tooling was added solely for coverage. The executed cases above establish the reported behavior. |
+| Limits / next gate | HTTP platform code/checks are complete; user M0-06 review was explicitly accepted on 2026-10-30, America/Sao_Paulo. TC-M0-04 startup sequencing and resource-acquisition cleanup remain M0-10. No SQL/FGA, protected operation, authentication, provider readiness or assembled E2E behavior is claimed. Shutdown waits for active requests; no force-close timeout/SLA is introduced. M0-07 and later tasks have not started. M0/F01 remain in progress. |
+
+### M0-06 final review acceptance — 2026-10-30
+
+The user explicitly approved M0-06 on 2026-10-30, America/Sao_Paulo (“ok. aprovado entao”), after clarification that this task drains active HTTP requests while M0-10 owns application shutdown and acquired-resource cleanup. HTTP implementation, technical verification and user review are complete. Existing evidence remains 12 HTTP lifecycle cases and 89 total passing unit tests across seven files, plus passing strict typecheck and build. This update records approval metadata only; no runtime code changed and no tests were rerun. `git diff --check` passed. M0-07 requires an explicit start instruction and has not started; M0/F01 remain in progress.
