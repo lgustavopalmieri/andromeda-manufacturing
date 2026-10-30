@@ -1,75 +1,658 @@
-# SPEC-EP-00-F01 — Govern Scoped Access
+# SPEC-EP-00-F01 — Design
 
-## Identity and review state
+**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Awaiting approval · implementation not started · F01 incomplete.**
 
-| Field | Value |
-| --- | --- |
-| Source | [EP-00-F01 — Govern scoped access](../../product/epics/00-authorization-first-validation/01-govern-scoped-access.md), complete feature file |
-| Supporting sources | [EP-00 overview](../../product/epics/00-authorization-first-validation/00-epic.md), [security/access requirements](../../product/requirements/00-andromeda-manufacturing-product-foundation/12-security-access-auditing-and-change-control.md), [operating model](../../product/requirements/00-andromeda-manufacturing-product-foundation/04-operating-model-and-master-data.md) |
-| Context | [Authorization platform context](../00-authorization-platform-context.md) |
-| Revision / date | **4** / 2026-10-28, America/Sao_Paulo |
-| Approval / implementation | **Awaiting approval** / **not started**; no revision approved, no ADR, no implementation |
+[Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → Design (this document) → [Tasks](EP-00-F01-govern-scoped-access.tasks.md).
 
-Revision 4 delegates authorization decisions to OpenFGA models, relations and conditions. Application bootstrap supplies only stable action/resource identifiers and their mappings; ordinary entity changes register the relevant facts/relationships. The reusable application mechanism asks the provider before execution and emits a structured log. There is no access-change-request product, approval workflow, transaction-callback gate, tenant lock/fence, graph snapshot/rebuild, reconciliation framework or audit database. The source's stronger concurrency/history requirements that this integration does not satisfy are identified below rather than claimed implemented.
+## Reading guide and approval boundary
 
-## The proposed behavior, in plain language
+The main path is simple: **trusted identity context → OpenFGA decision → protected business operation**. Read the flow, responsibility and failure sections first; complete contracts/model are reference material for implementation. Stop at the M0 reading boundary and continue to Tasks. The historical appendix preserves superseded proposals, not current implementation instructions.
 
-A machine already has an ID and belongs to a tenant and a line in the application's database. A user already has an ID and a membership in that tenant. Giving that user permission to report good quantity on the machine creates an authorization relationship in OpenFGA. Putting the user in an authorized line group creates a different relationship. The application does not attach the whole factory hierarchy and every permission to the user row or send that universe with every request.
+This revision implements the user's requested design direction in documents only. The resulting M0 technical design remains Awaiting approval. Future F01 milestones and G01–G04 require their own reviewed designs; no ADR or production implementation exists.
 
-When A-OPERATOR tries to report good quantity on A-M1, the feature declares the action `quantities:good:report`. The selected identity supplies the actor and tenant; the request supplies the machine ID. The application verifies the ordinary records belong to that tenant and asks OpenFGA whether that actor has that action on that machine. OpenFGA uses the relationships **already stored there**, including group membership and hierarchy. Only a definite allow lets the inherited `execute` call the feature's `handle`.
-
-A-OWNER may administer access without being allowed to report quantities. Membership in Tenant A is necessary but grants no manufacturing action on its own. Tenant B can have another machine whose readable code is also `M1`; its stable identity and authorization object are different.
-
-F01 implements real access changes and labeled authorization probes for the later manufacturing operations. It does not post quantities, save setups, create orders or command equipment. Authentication, onboarding, unrestricted group editing, a role designer, public relocation and F02–F10 implementation remain excluded. The minimal records below are seeded platform records retained for later expansion; the old order/event records support AC07 without delivering their creation/production workflows.
-
-## What exists, where it is stored and who uses it
-
-| Thing | Example | Stored/defined where | Producer and consumer |
-| --- | --- | --- | --- |
-| Ordinary business record | Machine `m1a`, tenant `ta`, line `l1a` | Application PostgreSQL tables owned by the corresponding business module | Seeds now; later business usecases. Used to resolve real object identity, ownership and location. |
-| User's tenant membership | User `u-operator` is active in `ta` | Application tenant-membership table; active membership also registered as an FGA tuple | Seeds/membership operation. Application supplies current status as a trusted fact and registers the active-member tuple; OpenFGA decides whether membership permits the operation. |
-| Registered permission | `quantities:good:report` means report good quantity on a machine | Minimal application action vocabulary | Feature declares it; provider adapter maps it to `can_report_good`; provider model defines who may use/administer it. |
-| Authorization model | `can_report_good` includes direct or inherited group sources and requires active membership | Versioned `.fga`/JSON artifact loaded into OpenFGA; private configured model ID | Trusted provider configuration defines authorization policy; deployment loads it, and adapters use the pinned model. Ordinary requests do not rewrite it. |
-| Runtime authorization relationship | User belongs to group; group has a line grant; machine has current parent | OpenFGA tuples | Seed/authorized relationship Write. OpenFGA stores/traverses/evaluates them. |
-| Check input | Actor + tenant + action + machine ID + trusted current time | One application call, then one provider request | Inherited application gate/provider adapter. No table of check inputs is needed. |
-| Structured log | Actor, tenant, action, resource, allow/deny/unknown, time; grant source when relevant | Application's normal structured logging destination, not a new business entity/table | Application emits at operation boundaries. Useful operational evidence, not a permission source or full audit product. |
-
-The database owns business truth: `TenantMembership.status`, `Location.parentLocationId`, `Machine.locationId`, and an old order/event's `machineId` and captured original location. OpenFGA stores the authorization-relevant edges corresponding to those facts. It does not own where a manufacturing machine really belongs. A seed or relevant business operation writes the corresponding edge when the fact is created/changed; a Check does not reload the entire hierarchy into OpenFGA.
-
-Runtime permission grants, group membership sources, delegation ceilings and their evaluation rules are configured/stored in OpenFGA. The authorization capability exposes those operations through inward ports. Their SQL equivalents are not created. Fixed access-group names/IDs are small ordinary application records; their effective members and rights are FGA relationships. F01 has no general role entity/designer: an operator/group label is not a magic role granting every operation. The adjacent project's flat `roles` array is a useful action vocabulary reference, but cannot express these per-machine/line grants by itself.
-
-### Representative application records
-
-These are small readable **synthetic stable IDs**, not a recommendation to use display codes as identity. Real identifiers may be UUIDs. `A-M1` is the fixture label for machine ID `m1a`; its ordinary code is `M1`. Tenant B's code `M1` identifies `m1b`, not `m1a`.
-
-| Application record | Representative stored fields |
-| --- | --- |
-| Tenant A / B | `{ id: "ta", code: "A" }` / `{ id: "tb", code: "B" }` |
-| A-OPERATOR | `{ id: "u-operator", name: "A-OPERATOR", kind: "human", status: "active" }` |
-| A-OWNER / A-DELEGATE / A-NONE | Actor IDs `u-owner`, `u-delegate`, `u-none`; names are fixture labels only |
-| Active A memberships | `{ tenantId: "ta", actorId: "u-operator", status: "active" }`, similarly owner/delegate/none |
-| DUAL | One actor ID `u-dual`; separate `{ tenantId: "ta", ... }` and `{ tenantId: "tb", ... }` membership rows |
-| A hierarchy | Plant `p1a`; area `area1a.parentLocationId=p1a`; line `l1a.parentLocationId=area1a`; sibling line `l2a` |
-| A-M1 / A-M2 | `{ id: "m1a", tenantId: "ta", code: "M1", locationId: "l1a" }`; machine `m2a` also belongs to `l1a` |
-| B-M1 | `{ id: "m1b", tenantId: "tb", code: "M1", locationId: "l1b" }` |
-| Old A order/event | Order `o-old-a` and event `e-old-a` retain `machineId: "m1a"`, `recordedLocationId: "l1a"` |
-| A-L1-OPERATORS | `{ id: "g-l1a-operators", tenantId: "ta", name: "A-L1-OPERATORS" }` |
+## One request, from identity to authorization to business data
 
 ```mermaid
-erDiagram
-    TENANT ||--o{ TENANT_MEMBERSHIP : has
-    ACTOR ||--o{ TENANT_MEMBERSHIP : participates_through
-    TENANT ||--o{ LOCATION : owns
-    LOCATION o|--o{ LOCATION : parent_of
-    LOCATION ||--o{ MACHINE : contains
-    MACHINE ||--o{ PRODUCTION_ORDER : assigned_to
-    MACHINE ||--o{ DOWNTIME_EVENT : generated
-    TENANT ||--o{ ACCESS_GROUP : owns
+sequenceDiagram
+    participant I as Trusted identity context
+    participant H as HTTP handler
+    participant B as Inherited execute gate
+    participant F as OpenFGA authorization adapter
+    participant G as OpenFGA graph
+    participant V as Protected validation handle
+    participant D as PostgreSQL business reader
+    I->>H: Inject actorId and tenantId server-side
+    H->>B: execute(machineId, identityContext)
+    B->>F: authorize(fixed action, resource, identityContext)
+    F->>G: Check persisted actor, tenant, membership and source gates
+    G-->>F: allowed, denied or indeterminate
+    F-->>B: Neutral authorization decision
+    Note over B: Log the authorization decision
+    alt complete allow
+        B->>V: handle(input, trusted execution context)
+        V->>D: Read machine by trusted tenantId and machineId
+        D-->>V: Machine, no row or business-store failure
+        V-->>H: Validation-only result or safe business error
+        Note over V: Log the separate business outcome
+    else denied or indeterminate
+        B-->>H: Safe refusal, no handle or business SQL
+    end
 ```
 
-This diagram describes normal application records. Permission assignments and effective group members are in the FGA relationships below. An actor has no mandatory machine/line column: a person may receive several independent scoped grants. DUAL is why a global actor plus per-tenant membership is chosen instead of copying the reference project's single-tenant user shape unchanged.
+The authorization adapter implements the application's neutral capability directly. It has a generic FGA client and pinned configuration, **no SQL repository and no entity/status resolver**. The inherited base calls it once per invocation and only then admits the protected handler. The handler's business reader is a separate dependency behind this gate.
 
-## The OpenFGA model used by the example
+## Identity now and later
+
+The provider-neutral `IdentityContext` contains only `actorId` and `tenantId`. Today a controlled runner injects it once per app instance from trusted fixture configuration. Later the authentication layer validates the token and produces the same contract. Authentication, JWT verification and Keycloak integration are deferred to their own delivery; the fixture does not authenticate an external person.
+
+A future signed token identifies the subject/selected tenant. Its status, role or membership assertions are not current authorization truth. Mutable enabled/member/permission relations stay in OpenFGA. No token/request contextual tuple can recreate a membership removed from the persisted graph.
+
+The application declares the fixed action `quantities:good:report`. The body contains only `machineId`; the adapter constructs the tenant-addressed resource from the trusted context. Body/query/header identity, status, role, tuple or provider-configuration fields cannot replace that context. Strict body validation rejects unknown fields; identity-looking headers are ignored. No arbitrary FGA relation/string is accepted from clients.
+
+`ENABLE_AUTHORIZATION_VALIDATION` defaults to false. When enabled, the controlled demo listens on loopback and registers the route only after business bootstrap and exact provider binding verification. The runner selects contexts from its trusted fixture manifest, including deliberately disabled actors/tenants, inactive memberships and OUTSIDER negative cases. No per-request SQL lookup is used to construct/refresh identity. Unknown fixture selections fail setup.
+
+## Responsibilities and storage
+
+| Owner | Current responsibility |
+| --- | --- |
+| Shared application identity/base | Neutral identity/request/decision and one inherited allow-before-handle boundary, reusable across future protocols. |
+| OpenFGA authorization outbound adapter | Map trusted global actor, selected tenant, fixed action/resource and binding; validate the provider result. No business-module entity imports or SQL. |
+| OpenFGA model and persisted tuples | Global actor enabled, tenant enabled, active membership and valid action-specific grant source. These gates decide current authority. |
+| Generic platform/config | SDK, transport, timeout, credentials and pinned model/store. No business policy or automatic lifecycle synchronization. |
+| Protected validation application | After allow, read the business machine using the same trusted tenant and ID; return validation-only result or business error. |
+| PostgreSQL business modules | Retained tenant, actor-directory, membership-directory, location and machine data, mappings and tenant-safe constraints. Directory status fields are projections, not authorization inputs. |
+| Structured logger | Correlated authorization decision and subsequent business outcome. Permission allow is never represented as business success by itself. |
+| Controlled initializer | Explicitly seed business records and graph state and verify their known baseline before readiness. Not a public administration API. |
+
+Application PostgreSQL is used for business concerns. OpenFGA may itself use its own PostgreSQL datastore; this internal provider storage does not introduce an application SQL read into Check.
+
+## Minimum graph contract
+
+A protected action requires **all four**:
+
+1. The global actor's `enabled` userset contains that actor.
+2. The selected tenant's `enabled` gate exists and is bound to that selected tenant.
+3. The actor participates through the tenant's `member` relation referencing the enabled userset.
+4. A matching, independently identifiable direct source grants the requested action on that resource.
+
+An active membership alone gives no reporting permission. A grant alone cannot bypass a disabled actor/tenant or missing membership. An access-administrator label gives no manufacturing authority.
+
+Use global actor IDs such as `actor:u-operator`, matching the globally identified SQL actor. Membership points to `actor:u-operator#enabled`. Removing the single self-enabled tuple disables the actor's effective participation across tenants without enumerating grants. Suspending only A membership removes that userset's A member edge and leaves B independent. Disabling tenant A removes A's tenant-enabled tuple; it does not disable B or globally disable any actor.
+
+Tenant context is bound with a small condition: the tenant-enabled tuple persists `expected_tenant_id`, and Check supplies `selected_tenant_id` from trusted `IdentityContext`. This is tenant selection, **not a supplied status or entitlement**. Grant and resource both require membership through their own tenant; a B source cannot authorize an A operation even for DUAL with memberships in both. Missing/evaluation-error required context is indeterminate, never permission.
+
+All future protected operational **and administrative** relations must retain equivalent actor/tenant/membership gates. There is no automatic global filter applied by OpenFGA: a future relation that omits them would be a model bug and must be caught by regression tests. Future whole-tenant reactivation needs explicitly scoped control authority outside the disabled tenant's operational gate; that belongs to its own lifecycle-feature design, not an M0 bypass.
+
+### Lifecycle APIs are application features
+
+These relation names are application-defined policy, not built-in user/tenant status CRUD. An appropriately authorized lifecycle feature will translate its exact operation into native `POST /stores/{store_id}/write` writes/deletes. The service credential can mutate FGA data; it does not automatically authorize the human/agent initiator. The feature must Check the protected administrative operation first.
+
+M0 seeds and tests gate changes directly in isolated fixtures. It delivers no runtime actor, tenant or membership administration endpoint. Tenant-membership suspension/removal remains later F01; global-actor and whole-tenant lifecycle workflows are separately scoped future features. OpenFGA does not automatically observe SQL changes, subscribe to Keycloak or disable an IdP account. No webhook/synchronization subsystem is added here.
+
+A bounded FGA Write is atomic within FGA, not with SQL/IdP/business effects and not with an earlier Check. Unknown write completion, accepted-operation ordering, registration/relocation consistency and recovery remain G01/G02 work. Acknowledging a lifecycle change as effective must follow its future reviewed contract; a timed-out write is not asserted successful.
+
+## Protected business read and safe HTTP results
+
+`POST /api/v1/authorization/validate-good-report` strictly accepts `{machineId}`. The authorization adapter maps to `resource:<trusted-tenant>/machine/<machineId>` without reading the business database. Unknown or foreign graph references normally deny safely before any business SQL.
+
+Only an allow invokes `ValidateGoodReportUsecase.handle` with a trusted execution context containing the original identity and a server-generated invocation ID. The handler calls its machine repository once with `(tenantId,machineId)`. It does not look up actor/status/membership or infer authority from SQL. An existing row returns:
+
+```json
+{
+  "error": false,
+  "data": {
+    "validationOnly": true,
+    "permission": "allowed",
+    "action": "quantities:good:report",
+    "resource": { "kind": "machine", "id": "m1a" },
+    "manufacturingEffect": "none"
+  }
+}
+```
+
+No quantity, order transition or equipment command is created. A decision applies to this invocation only.
+
+| Condition | Safe HTTP result | Business read |
+| --- | --- | --- |
+| Complete allow and matching SQL row | 200, explicit validation-only result | Once, tenant-scoped |
+| Malformed body/unknown fields | 400, invalid request | None |
+| Missing injected identity | 401, identity unavailable | None |
+| Graph denies, including unknown/foreign reference or disabled gates | 403, action not permitted | None |
+| Provider timeout/unavailable/invalid result/required-context evaluation error | 503, authority could not be established | None |
+| Graph allows but no matching tenant-owned SQL machine exists | 404, resource unavailable | Once after allow |
+| Graph allows, then recognized business-store connection/outage failure | 503, business operation unavailable | Attempt after allow |
+| Generic `RepositoryError` or unexpected application failure | 500, generic internal error | Only if reached after allow |
+
+The existing `{error:true,message:<safe message>}` envelope remains. Provider-indeterminate and known business-unavailable 503 messages/categories are distinct. Generic SQL bugs/constraint/mapping errors do not become availability claims: preserve generic500 under the modular baseline. A shared `RepositoryUnavailableError` category represents only recognized connection/outage failures. Do not return raw SQL/SDK errors, provider IDs, tuple/path contents or foreign metadata.
+
+Startup still requires the configured business database for business migrations/seeds and route assembly. This is a service-bootstrap prerequisite, not a query added before every Check. After startup, an unavailable business database cannot change a graph denial or the correctness of an allow: denial needs zero SQL; an allowed validation subsequently fails its business read. Tests keep the provider/datastore independently available while interrupting only business storage.
+
+## Logging permission separately from operation outcome
+
+The inherited base generates an invocation ID and emits one `authorization.check` event for allow/deny/indeterminate, including safe identity/action/resource/time/version fields. It passes the same ID with trusted identity into the protected handler. The adapter/base never log token claims or raw provider responses as authority.
+
+Only a handler that actually runs emits `validation.completed`, with the same invocation ID and one outcome: `completed`, `resource_unavailable`, `business_unavailable` or `failed`. Include the requested tenant/resource/action and sanitized category/time. An allowed check followed by a business503 therefore has **two truthful events**, not a rewritten denial or a false operation success. Denied/indeterminate checks emit no business-completed event.
+
+Logs are supporting information; they are not a transaction, durable path proof, permission source or historical-query product. Destination access/retention is environment-owned. G03 retains the full protected-history requirement without introducing an audit framework now.
+
+## Business data and initialization
+
+Keep the five SQL contracts/mappings and same-tenant foreign keys from the previous proposal. `Machine.locationId` remains required; parent/location relationships and original machine identity are ordinary business data. Actor/membership directory status fields may be stored for business views, but the authorization adapter neither reads nor trusts them. Future lifecycle features must define any projection update/recovery explicitly; no automatic SQL/FGA synchronization is implied.
+
+Use string primary IDs, unique `(tenantId,actorId)` membership, unique `(tenantId,id)` resource keys and composite same-tenant location/machine foreign keys. Reused `(tenantId,code)` values stay distinct across A/B. Root location parent and optional actor owner map SQL null to omitted TypeScript fields. Fixed seed validation checks plant→area→line kinds/cycles. Migrations are versioned/transactional with `synchronize:false` and packaged SQL assets; no public hierarchy editor is delivered.
+
+The baseline has exactly tenants `ta`/`tb`, minimal plant/area/line records, A machines `m1a`/`m2a` and B machine `m1b`. Actor IDs are `u-operator`, `u-owner`, `u-none`, `u-disabled`, `u-dual`, `u-outsider`, `u-b-operator`. All are globally enabled initially; `u-disabled` is the inactive **A membership** fixture, not a globally disabled actor. Active graph memberships are A operator/owner/none/dual and B operator/dual. SQL business-directory memberships mirror that initial fixture; u-disabled has a suspended A directory row and no active graph member edge, OUTSIDER has no membership. No actor label grants an operation.
+
+Only A-OPERATOR→A-M1 and B-OPERATOR→B-M1 have baseline good-report sources. DUAL's existing product read-only A/start-only B meaning is not replaced by new baseline reporting rights. The isolated `dual-report` model/E2E variant explicitly adds direct reporting sources on A-M1/B-M1 to test both-tenant source gates, global disable and wrong-tenant source linkage, then disposes/resets that fixture. An isolated orphan-resource variant grants an A graph address without a corresponding SQL machine to prove post-allow404.
+
+### Explicit provider setup and binding
+
+Retain pinned OpenFGA **1.22.0** and SDK **0.9.7** for the controlled baseline. Generic config and client have separate review gates. Use a real PostgreSQL-backed FGA datastore separate from application tables/database; tests use independent provider/business datastore instances so business-outage tests do not also stop FGA. Preserve provider state across backend restarts; dispose it only when an isolated fixture environment is explicitly torn down. No root infrastructure change, broker, Keycloak or AWS service is needed.
+
+1. Start infrastructure and apply provider datastore migrations/readiness.
+2. Apply application business migrations and its deterministic SQL seed transaction.
+3. Explicitly initialize a controlled store with the new readable `model.fga` and equivalent uploadable `model.json`; keep model assertions/fixture variants in `store.fga.yaml`.
+4. Write the bounded current-model tuples in one FGA transaction and verify known baseline checks. SQL and FGA seed writes are separate transactions; partially initialized fixtures never become ready.
+5. Emit the private binding manifest: `storeId`, `authorizationModelId`, canonical model SHA-256, **policyVersion `authorization-m0-v2`** and scenarioVersion `ep00-m0-v2` (with explicit variant suffixes for isolated cases).
+6. Normal startup verifies the configured store/model/hash/version. It does not recreate data or select latest. A revision-5/v1 binding must fail verification. No live migration is needed because no earlier implementation exists; future deployed model changes require a reviewed compatibility plan.
+
+Identical seed writes use the pinned SDK's supported duplicate-write behavior, then validate the entire baseline. Unknown upload/Write completion stops setup; explicit inspection/repeat or isolated-store recreation is required, not an automatic reconciliation engine. The initializer may validate its declared business/graph fixture consistency; per-request authorization never needs that reader.
+
+Each Check uses the explicit model ID and `HIGHER_CONSISTENCY`, a validated positive timeout and no hidden automatic retries/cached allow. The runner reports its chosen timeout, not an SLA. A literal valid true allows, false denies and error/malformed/missing result is indeterminate. Higher consistency bypasses query cache; it does not solve G01/G02 atomicity.
+
+## M0 risks and failure behavior
+
+Facts: no backend application/model implementation exists; the graph and business database have different responsibilities; there is no supplied scale/SLA. These are proposed mitigations requiring actual implementation evidence.
+
+| Risk | Trigger / consequence | Current mitigation and residual limit | Tasks / cases |
+| --- | --- | --- | --- |
+| R01 — Startup and dependency lifecycle | Missing config, migration/listen failure or leaked test resources. | Validate config, initialize before serving, close failures safely. Startup SQL dependency is separate from per-request graph authorization. | M0-01/05–10/26a/27/41; TC-M0-01/04/05/24. |
+| R02 — Tenant/data boundary | DUAL rights combined, wrong-tenant source or unsafe business query. | Persist tenant-context binding on each tenant gate; scope source/resource and SQL business lookup. No denied request reads SQL. | M0-11–25/28/30/35/42; TC-M0-08/10/25/28. |
+| R03 — Stale identity/entitlement assertions | Client body/header or old token status recreates removed authority. | Trusted identity only; persisted global actor/tenant/member gates, no contextual permission tuples or SQL/status inputs. Future admin paths must retain gates. | M0-23/28/30/31/33/37/39/42; TC-M0-11/15/19/25–27. |
+| R04 — Authorization vs business outage | Provider failure permits execution, or business failure relabels correct allow. | Fail closed before handle on indeterminate; known business outage after allow is a separate503, generic repository failures500. Separate datastore interruption tests. | M0-03/25/31/33/35/38/43; TC-M0-14/16/22/29. |
+| R05 — Initialization/model drift | Old model binding, partial seed or uncertain native Write. | New v2 artifact/hash binding and known decision baseline before readiness; stable source IDs, no silent latest/reset/repair. | M0-22/26a/27–30/41/44; TC-M0-09/12/13/27. |
+| R06 — Disclosure/misleading evidence | Secrets/foreign content or allow presented as completed operation. | Sanitized correlated decision/outcome events and safe mapper; no path proof/audit-query claim. | M0-02–05/32/33/36–38/42; TC-M0-03/18/28. |
+| R07 — Mutable-state races | A prior Check is followed by revocation or inconsistent SQL/FGA resource mutation. | M0 native lifecycle variants are controlled fixtures, not runtime admin; G01/G02/G04 remain blockers. Direct graph Check removes SQL fact reads, not these races. | Future F01-P06–09; no AC06/concurrent AC07 completion claim. |
+| R08 — Source/time lifecycle | Future expiry, delegation or duplicate-looking independent sources. | Keep current static direct source IDs separate from enabled gates. M3 designs validity/dependency/cleanup; G03 defines full evidence. | M0-28/30; future F01-P02–05/10. |
+| R09 — Hot path/capacity | Provider saturation, then an allowed business read; pool contention. | Auth path has one bounded FGA Check and no application SQL fan-out. Business point-read remains indexed/tenant-scoped. No invented capacity or offline bypass. | M0-25/26b/31/44; TC-M0-10/14/23; future F01-P11. |
+
+No events/outbox/broker are required because M0 performs no business mutation. Versioned SQL/model artifacts begin now; later resource registration/lifecycle mutations must explicitly address G02 rather than add per-request status reads. Operational logging retention is not protected historical evidence. The full F01 requirement map and blocking design outputs remain in Requirements/Tasks.
+
+## Complete M0 contracts
+
+Paths are relative to backend `src/`. The identity/authorization contracts contain no business entities, SQL repository, token SDK or request-supplied mutable status. `AuthorizationCapabilityInterface` is implemented by the OpenFGA outbound adapter. The business-reader contract belongs only to the protected validation feature.
+
+Intended path: `modules/@shared/auth/identity-context.ts`.
+
+```ts
+export interface IdentityContextInterface {
+  actorId: string;
+  tenantId: string;
+}
+```
+
+Intended path: `modules/@shared/auth/authorization.ts`.
+
+```ts
+import type { IdentityContextInterface } from "./identity-context";
+
+export interface AuthorizationRequestInterface {
+  identityContext: IdentityContextInterface;
+  action: "quantities:good:report";
+  resource: { kind: "machine"; id: string };
+}
+
+export interface AuthorizationDecisionInterface {
+  outcome: "allowed" | "denied" | "indeterminate";
+  reasonCategory: "policy_allow" | "policy_deny" | "provider_unavailable";
+}
+
+export interface AuthorizationCapabilityInterface {
+  authorize(input: AuthorizationRequestInterface): Promise<AuthorizationDecisionInterface>;
+}
+```
+
+Intended path: `modules/@shared/auth/authorized-usecase.interface.ts`.
+
+```ts
+import type { IdentityContextInterface } from "./identity-context";
+
+export interface AuthorizedUsecaseInterface<Input, Output> {
+  execute(input: Input, identityContext: IdentityContextInterface): Promise<Output>;
+}
+
+export interface AuthorizedExecutionContextInterface {
+  identityContext: IdentityContextInterface;
+  invocationId: string;
+}
+```
+
+The inherited base generates the invocation ID and only calls `handle(input, executionContext)` after allow. The original identity is retained; the HTTP body cannot replace it.
+
+Intended path: `modules/authorization/features/validate-good-report/application/interfaces.ts`.
+
+```ts
+import type { MachineEntityInterface } from "modules/machine/entity/machine.entity";
+
+export interface ValidationMachineRepositoryInterface {
+  findById(input: {
+    tenantId: string;
+    machineId: string;
+  }): Promise<MachineEntityInterface | undefined>;
+}
+```
+
+This M0-24 port imports only the machine contract already available at M0-15. The driving usecase interface is added with M0-35 after its domain contracts exist, not before their compiler gate.
+
+Intended path: `modules/authorization/features/validate-good-report/domain/types.ts`.
+
+```ts
+export interface ValidateGoodReportInputInterface {
+  machineId: string;
+}
+
+export interface ValidateGoodReportOutputInterface {
+  validationOnly: true;
+  permission: "allowed";
+  action: "quantities:good:report";
+  resource: { kind: "machine"; id: string };
+  manufacturingEffect: "none";
+}
+```
+
+Intended path: `modules/authorization/features/validate-good-report/application/usecase.interface.ts`.
+
+```ts
+import type { AuthorizedUsecaseInterface } from "@shared/auth/authorized-usecase.interface";
+import type {
+  ValidateGoodReportInputInterface,
+  ValidateGoodReportOutputInterface
+} from "../domain/types";
+
+export type AuthorizedValidateGoodReportUsecaseInterface = AuthorizedUsecaseInterface<
+  ValidateGoodReportInputInterface,
+  ValidateGoodReportOutputInterface
+>;
+```
+
+Intended path: `modules/@shared/auth/authorization-log.interface.ts`.
+
+```ts
+import type {
+  AuthorizationDecisionInterface,
+  AuthorizationRequestInterface
+} from "./authorization";
+
+export interface AuthorizationDecisionLogInterface {
+  event: "authorization.check";
+  invocationId: string;
+  actorId: string;
+  tenantId: string;
+  action: AuthorizationRequestInterface["action"];
+  resource: AuthorizationRequestInterface["resource"];
+  result: AuthorizationDecisionInterface["outcome"];
+  reasonCategory: AuthorizationDecisionInterface["reasonCategory"];
+  occurredAt: string;
+  policyVersion: "authorization-m0-v2";
+  scenarioVersion: string;
+}
+```
+
+Business-outcome fields are specified in the logging section; no new audit entity or table is created. Existing shared repository failures are extended by a recognized unavailable category as described above; no database driver type crosses the port. Future actions extend the current action vocabulary and source model explicitly rather than adding a parallel authorization gate.
+
+## Complete M0 business entity contracts
+
+The five retained shapes preserve identity/tenant/location fields. Directory status comments now make their business-only role explicit. Pure contracts contain no methods, I/O or ORM annotations. Original revision-4 code is preserved verbatim in the historical appendix; superseded comments there are not current instructions.
+
+Intended path: `modules/tenant/entity/tenant.entity.ts`.
+
+```ts
+/** One customer organization. Persisted in the application's tenants table. */
+export interface TenantEntityInterface {
+  /** Stable customer ID, such as "ta"; scopes every tenant-owned record. */
+  id: string;
+  /** Human-readable seed/customer code, such as "A"; never an authorization ID. */
+  code: string;
+}
+```
+
+Intended path: `modules/identity/entity/actor.entity.ts`.
+
+```ts
+export const ACTOR_KIND = { HUMAN: "human", SERVICE: "service", AGENT: "agent" } as const;
+export type ActorKind = (typeof ACTOR_KIND)[keyof typeof ACTOR_KIND];
+export const ACTOR_STATUS = { ACTIVE: "active", INACTIVE: "inactive" } as const;
+export type ActorStatus = (typeof ACTOR_STATUS)[keyof typeof ACTOR_STATUS];
+
+/** Stable platform identity, persisted in actors; contains no login credentials or permissions. */
+export interface ActorEntityInterface {
+  /** Identifies the person/service/agent, such as "u-operator"; DUAL has one such ID. */
+  id: string;
+  /** Display/fixture name; does not grant a role, tenant membership or operation. */
+  name: string;
+  /** Distinguishes a human from an accountable service/agent identity. */
+  kind: ActorKind;
+  /** Business-directory lifecycle projection; authorization uses the persisted FGA actor-enabled gate without reading this row. */
+  status: ActorStatus;
+  /** Required by domain validation for service/agent identities; absent for ordinary humans. */
+  ownerActorId?: string;
+}
+```
+
+Intended path: `modules/tenant/entity/tenant-membership.entity.ts`.
+
+```ts
+export const MEMBERSHIP_STATUS = { ACTIVE: "active", SUSPENDED: "suspended", REMOVED: "removed" } as const;
+export type MembershipStatus = (typeof MEMBERSHIP_STATUS)[keyof typeof MEMBERSHIP_STATUS];
+
+/** One actor's participation in one tenant; persisted under a unique tenantId/actorId key. */
+export interface TenantMembershipEntityInterface {
+  /** Customer this membership belongs to; changing A never changes the independent B row. */
+  tenantId: string;
+  /** Foreign key to the global actor, such as "u-dual". */
+  actorId: string;
+  /** Business-directory membership projection; current authorization uses persisted graph membership and enabled gates. */
+  status: MembershipStatus;
+}
+```
+
+Intended path: `modules/location/entity/location.entity.ts`.
+
+```ts
+export const LOCATION_KIND = { PLANT: "plant", AREA: "area", LINE: "line", WAREHOUSE: "warehouse" } as const;
+export type LocationKind = (typeof LOCATION_KIND)[keyof typeof LOCATION_KIND];
+
+/** Actual factory/logistics location, persisted in locations; application owns this hierarchy. */
+export interface LocationEntityInterface {
+  /** Stable location ID, such as "l1a"; distinct from another tenant's readable L1 code. */
+  id: string;
+  /** Required tenant ownership; every parent lookup uses the same tenant. */
+  tenantId: string;
+  /** Readable identifier, such as "L1". */
+  code: string;
+  /** Determines valid parent kinds; warehouses cannot become line descendants. */
+  kind: LocationKind;
+  /** Current parent location. Absent for a root plant; its FGA parent is the tenant root. */
+  parentLocationId?: string;
+}
+```
+
+Intended path: `modules/machine/entity/machine.entity.ts`.
+
+```ts
+/** Minimal real machine record, persisted in machines; later features add machine details. */
+export interface MachineEntityInterface {
+  /** Stable identity, such as "m1a"; survives a line reassignment. */
+  id: string;
+  /** Required customer ownership; a foreign machine is never resolved by code alone. */
+  tenantId: string;
+  /** Readable machine code; both A and B may legitimately store "M1". */
+  code: string;
+  /** Current business location, such as "l1a"; future inheritance may register corresponding graph parent edges. */
+  locationId: string;
+}
+```
+
+## Minimum M0 provider model and exact native examples
+
+This is the **current proposed v2 model** loaded by M0-28/29. It supersedes the SQL-status condition and tenant-qualified actor identities from earlier unapproved drafts. Native model/tuple execution is planned, not claimed completed.
+
+Intended artifacts: `platform/openfga/models/m0/model.fga`, equivalent `model.json` for SDK upload, and `store.fga.yaml` for assertions/isolated variants.
+
+```fga
+model
+  schema 1.1
+
+type actor
+  relations
+    define enabled: [actor]
+
+type tenant
+  relations
+    define enabled: [actor:* with selected_tenant]
+    define member: [actor#enabled]
+    define current_member: member and enabled
+
+type grant
+  relations
+    define tenant: [tenant]
+    define direct: [actor]
+    define effective: direct and current_member from tenant
+
+type resource
+  relations
+    define tenant: [tenant]
+    define exact_good_reporter: [grant#effective]
+    define can_report_good: exact_good_reporter and current_member from tenant
+
+condition selected_tenant(expected_tenant_id: string, selected_tenant_id: string) {
+  expected_tenant_id == selected_tenant_id
+}
+```
+
+The initializer/lifecycle boundary mechanically enforces that `actor:<id>#enabled` contains only that same `actor:<id>` and that every source/resource tenant link matches its tenant-addressed ID. Native tuple type validation alone does not check these application identity invariants. No raw tuple-write endpoint is exposed to subjects.
+
+Every tenant-enabled tuple persists its own expected tenant ID. The adapter supplies only selected tenant context from trusted identity. Never persist a caller-specific selected tenant or accept caller-supplied contextual membership/status tuples. Future administrative/operational permissions must intersect the same gates. `grant` source IDs remain independently removable; membership or enable-state changes do not delete source provenance.
+
+### Baseline Write
+
+Call native `POST /stores/{store_id}/write` with the privately configured current model ID. This complete baseline set matches the declared seven global actors, six active memberships, three resources and two direct reporting sources. The sample model ID below is an illustrative generated binding, not a deployed model.
+
+```json
+{
+  "authorization_model_id": "01GXSA8YR785C4FYS3C0RTG7B1",
+  "writes": {
+    "tuple_keys": [
+      {
+        "user": "actor:u-operator",
+        "relation": "enabled",
+        "object": "actor:u-operator"
+      },
+      {
+        "user": "actor:u-owner",
+        "relation": "enabled",
+        "object": "actor:u-owner"
+      },
+      {
+        "user": "actor:u-none",
+        "relation": "enabled",
+        "object": "actor:u-none"
+      },
+      {
+        "user": "actor:u-disabled",
+        "relation": "enabled",
+        "object": "actor:u-disabled"
+      },
+      {
+        "user": "actor:u-dual",
+        "relation": "enabled",
+        "object": "actor:u-dual"
+      },
+      {
+        "user": "actor:u-outsider",
+        "relation": "enabled",
+        "object": "actor:u-outsider"
+      },
+      {
+        "user": "actor:u-b-operator",
+        "relation": "enabled",
+        "object": "actor:u-b-operator"
+      },
+      {
+        "user": "actor:*",
+        "relation": "enabled",
+        "object": "tenant:ta",
+        "condition": {
+          "name": "selected_tenant",
+          "context": {
+            "expected_tenant_id": "ta"
+          }
+        }
+      },
+      {
+        "user": "actor:*",
+        "relation": "enabled",
+        "object": "tenant:tb",
+        "condition": {
+          "name": "selected_tenant",
+          "context": {
+            "expected_tenant_id": "tb"
+          }
+        }
+      },
+      {
+        "user": "actor:u-operator#enabled",
+        "relation": "member",
+        "object": "tenant:ta"
+      },
+      {
+        "user": "actor:u-owner#enabled",
+        "relation": "member",
+        "object": "tenant:ta"
+      },
+      {
+        "user": "actor:u-none#enabled",
+        "relation": "member",
+        "object": "tenant:ta"
+      },
+      {
+        "user": "actor:u-dual#enabled",
+        "relation": "member",
+        "object": "tenant:ta"
+      },
+      {
+        "user": "actor:u-b-operator#enabled",
+        "relation": "member",
+        "object": "tenant:tb"
+      },
+      {
+        "user": "actor:u-dual#enabled",
+        "relation": "member",
+        "object": "tenant:tb"
+      },
+      {
+        "user": "tenant:ta",
+        "relation": "tenant",
+        "object": "resource:ta/machine/m1a"
+      },
+      {
+        "user": "tenant:ta",
+        "relation": "tenant",
+        "object": "resource:ta/machine/m2a"
+      },
+      {
+        "user": "tenant:tb",
+        "relation": "tenant",
+        "object": "resource:tb/machine/m1b"
+      },
+      {
+        "user": "tenant:ta",
+        "relation": "tenant",
+        "object": "grant:ta/g-direct-m1"
+      },
+      {
+        "user": "actor:u-operator",
+        "relation": "direct",
+        "object": "grant:ta/g-direct-m1"
+      },
+      {
+        "user": "grant:ta/g-direct-m1#effective",
+        "relation": "exact_good_reporter",
+        "object": "resource:ta/machine/m1a"
+      },
+      {
+        "user": "tenant:tb",
+        "relation": "tenant",
+        "object": "grant:tb/g-direct-m1-b"
+      },
+      {
+        "user": "actor:u-b-operator",
+        "relation": "direct",
+        "object": "grant:tb/g-direct-m1-b"
+      },
+      {
+        "user": "grant:tb/g-direct-m1-b#effective",
+        "relation": "exact_good_reporter",
+        "object": "resource:tb/machine/m1b"
+      }
+    ]
+  }
+}
+```
+
+### Check and controlled lifecycle variations
+
+Call native `POST /stores/{store_id}/check` using that same configured model ID. No entity/status read precedes it:
+
+```json
+{
+  "authorization_model_id": "01GXSA8YR785C4FYS3C0RTG7B1",
+  "tuple_key": {
+    "user": "actor:u-operator",
+    "relation": "can_report_good",
+    "object": "resource:ta/machine/m1a"
+  },
+  "context": { "selected_tenant_id": "ta" },
+  "consistency": "HIGHER_CONSISTENCY"
+}
+```
+
+The baseline permits this A-M1 Check and B-OPERATOR's independent B-M1 Check in B, but denies A-M2, owner/none without a source, disabled A membership and OUTSIDER. SQL directory status fields are irrelevant to these outcomes.
+
+The following exact native delete examples are **isolated fixture stimuli**, not delivered runtime lifecycle APIs. They use the same private model/store. Re-enabling writes back the original tuple with its required condition context.
+
+Disable a global actor in all tenants with one deletion:
+
+```json
+{
+  "authorization_model_id": "01GXSA8YR785C4FYS3C0RTG7B1",
+  "deletes": {
+    "tuple_keys": [
+      { "user": "actor:u-dual", "relation": "enabled", "object": "actor:u-dual" }
+    ]
+  }
+}
+```
+
+Disable tenant A only:
+
+```json
+{
+  "authorization_model_id": "01GXSA8YR785C4FYS3C0RTG7B1",
+  "deletes": {
+    "tuple_keys": [
+      { "user": "actor:*", "relation": "enabled", "object": "tenant:ta" }
+    ]
+  }
+}
+```
+
+Remove only DUAL's A membership, preserving B:
+
+```json
+{
+  "authorization_model_id": "01GXSA8YR785C4FYS3C0RTG7B1",
+  "deletes": {
+    "tuple_keys": [
+      { "user": "actor:u-dual#enabled", "relation": "member", "object": "tenant:ta" }
+    ]
+  }
+}
+```
+
+The isolated dual-report variant adds direct grant sources for DUAL in A/B. Checks in each selected tenant allow while all gates remain enabled; selecting A for a B source/resource fails the persisted expected-tenant condition. A deliberately wrong B-source→A-resource test also fails because the source's tenant guard sees selected A. This is tested without using SQL to decide which membership/status is current.
+
+The global-actor, selected-tenant and source/gate design is an engineering proposal using native usersets, intersections, conditions and writes. Primary sources: [user groups/usersets](https://openfga.dev/docs/modeling/user-groups), [multiple restrictions](https://openfga.dev/docs/modeling/multiple-restrictions), [conditions](https://openfga.dev/docs/modeling/conditions), [Check API](https://openfga.dev/docs/api/service/relationship-queries/check-user-authorization), [Write API](https://openfga.dev/docs/api/service/relationship-tuples/add-or-delete-tuples), [contextual tuples](https://openfga.dev/docs/interacting/contextual-tuples), [token-claim modeling/freshness](https://openfga.dev/docs/modeling/token-claims-contextual-tuples) and [query consistency](https://openfga.dev/docs/interacting/consistency). These were inspected during the 2026-10-30 design discussion. They document mechanisms, not execution of this model or an automatic lifecycle/sync product.
+
+**M0 reading ends here. Continue with [Tasks](EP-00-F01-govern-scoped-access.tasks.md#m0-execution-checklist). The remaining material is optional historical reference, not a prerequisite or current implementation target.**
+
+## Historical revision 4 reference
+
+**Superseded, unapproved historical design.** Preserve this material for traceability only. Its tenant-qualified actor IDs, SQL-derived status facts, conditional management inputs, current-source inspection and logging contracts are not the current revision-6 design and must not be used as future implementation instructions. Future designs must start from the current graph-authoritative identity/gate model and resolve the recorded F01 requirements/gaps. Keeping this appendix does not accept its proposals or restore a SQL fact-reader dependency.
+
+All original code/model/native examples below are retained verbatim, including comments that describe superseded choices. Revision 5's attempted split is recorded in Requirements; its QA applies only to that earlier design. Neither historical proposal received approval, an ADR or implementation.
+
+### The OpenFGA model used by the example
 
 The provider adapter maps an application resource to `resource:<tenant>/<kind>/<stable-id>`, an actor to `actor:<tenant>/<actor-id>`, and an action to a registered relation. Thus `m1a` is `resource:ta/machine/m1a`; `m1b` is `resource:tb/machine/m1b`. No browser payload chooses these strings, the store ID or model ID.
 
@@ -262,7 +845,7 @@ condition owner_change(
 
 The application's bootstrap catalog supplies only action/resource names and stable mappings. Ordinary machine/location/type constraints still belong to their business records. Which action inherits, who can administer it, the delegation ceiling, self-expansion restrictions and validity rules belong to this provider model/configuration. The adapter mechanically registers matching parent/source relations and invokes the corresponding policy query. Linked order/event access follows the machine's current FGA parent chain; the captured original location remains application history.
 
-### Relationships already stored before A-OPERATOR's request
+#### Relationships already stored before A-OPERATOR's request
 
 The seed writes these relationships using the same stable IDs as the application records. `W` below abbreviates the actual stored condition `within_window` with `starts_at=2026-10-28T00:00:00Z` and `ends_at=2026-10-29T00:00:00Z`. Tenant A also has `(actor:*, current_status, tenant:ta)` conditioned by `subject_is_active`, and `(actor:*, owner_change_guard, tenant:ta)` conditioned by `owner_change` with stored `owner_tenant="ta"` and the deployed operational-action list. Every resource has `(tenant:ta, tenant, resource:ta/...)`; a plant's parent is `resource:ta/tenant/ta`, an area's parent is its plant and a line's parent is its area.
 
@@ -296,7 +879,7 @@ The seed writes these relationships using the same stable IDs as the application
 
 For A-M1, OpenFGA can follow either `u-operator → direct grant → M1` or `u-operator → group membership → group line grant → current child machine`. For A-M2 only the group/line path exists. There is no rule saying a grant on A-M1 reaches its siblings or another tenant. Tenant B has its own membership/parent tuples and private store binding; its same readable code does not match these IDs.
 
-### One real Check payload
+#### One real Check payload
 
 The controlled validation context selects `{ actorId: "u-operator", tenantId: "ta" }`. A good-quantity probe receives `{ machineId: "m1a" }`; the **feature**, not the body, declares `quantities:good:report`. The application resolves the real actor, membership and machine records. Same-tenant record lookup is a data-integrity boundary. It supplies the observed current actor and membership status values as trusted strings; the OpenFGA `subject_is_active` condition, not a local permission rule, decides whether that status allows access. The neutral provider receives:
 
@@ -331,7 +914,7 @@ The model ID is an example of the adapter's configured pinned ID, not an existin
 
 No user locations, groups, roles or permission list are sent with that Check. Those relationships were written earlier. `now` is trusted server time so the caller cannot extend an expired grant. Every new operation calls Check again. The exact start is inclusive and end exclusive in the model; an invocation evaluated before expiry may finish afterward. Strict completion-before-expiry is not promised by this simple check-then-handle flow.
 
-### Delegated changes are decided by FGA before Write
+#### Delegated changes are decided by FGA before Write
 
 A-DELEGATE's authority is stored as `management_authority:ta/d-line1`. Relevant seed tuples are:
 
@@ -409,7 +992,7 @@ For revoke/remove, action/scope/recipient facts come from the existing stored so
 
 When the caller omits an end, the adapter supplies `end_provided=false` and a documented upper-bound timestamp. FGA may allow that omission, but a dependent source still intersects the authority's `enabled` window at execution time. An explicit longer end is refused by the condition. The application does not calculate/clamp the effective ceiling.
 
-### One grant and two removals
+#### One grant and two removals
 
 For AC01, A-DELEGATE requests a good-report grant to A-NONE on A-M2. The input is an ordinary operation input, not an approval/change-request entity:
 
@@ -468,7 +1051,7 @@ For AC03, A-OWNER instead revokes the existing **direct** A-OPERATOR source `g-d
 
 A fresh A-M1 Check still returns true through the group. A second authorized removal deletes `(actor:ta/u-operator, direct, membership_source:ta/ms-operator-group)`. With no other source, a fresh Check returns false. Removing source metadata is not needed to remove its authority; a source without an effective recipient contributes nothing. A structured log records which source was removed and the fresh decision result; Check itself does not return the full explanatory path shown in this worked example.
 
-## Application flow and replaceable adapter
+### Application flow and replaceable adapter
 
 Retain the actual adjacent [AuthorizedUsecase reference](/home/ninho/projects/andromeda-platform/apps/andromeda-backend/src/modules/@shared/auth/authorized-usecase.ts) mechanism: base-owned `execute(input, identity)` checks authority before `handle(input, identity)`. Its static role-overlap implementation is replaced by an injected authorization capability; it is not copied as a resource policy. A forwarding-only additional authorization-usecase layer is unnecessary.
 
@@ -503,7 +1086,7 @@ For a relationship-management usecase, inherited `execute` passes that private d
 
 Provider-specific model/store IDs, tuples, relation names, consistency flags and errors do not leak into feature inputs. Human/service/agent principals use the same contract. Middleware selects/authenticates an identity but does not decide operation permission. Validation mode uses seeded identities only; authentication/Keycloak integration and a production selector are excluded.
 
-## Complete commented business-record contracts
+### Complete commented business-record contracts
 
 These are proposed minimal records and intended paths, not implemented modules. All paths below are relative to `apps/andromeda-backend/src/`. Comments explain purpose/storage and significant fields as explicitly requested. Fields are ordinary application facts, not FGA-native objects. Pure contracts contain no methods, ORM annotations or I/O; database mappings remain at the outer edge.
 
@@ -648,7 +1231,7 @@ export interface AccessGroupEntityInterface {
 
 These records deliberately omit unrelated onboarding, machine telemetry, full order lifecycle and production-accounting fields. IDs/foreign keys are strings and tenant-owned joins require the tenant; group/grant expansion is not performed by SQL. No existing entity contract is replaced because this repository currently has no source implementation. Future feature specs evolve these retained records rather than discarding their identities/authority.
 
-## Catalog, Check input and ordinary grant input
+### Catalog, Check input and ordinary grant input
 
 A permission identifier is the registered **meaning of an action**, not a permission already held by a user. The catalog lives in application code/configuration, maps to provider relations as shown above; authorization meaning/conditions live in the versioned provider model, not a TypeScript policy engine. A generic reference parameter is just an address of a real record; it is not a new `AuthorizationResource` table.
 
@@ -791,7 +1374,7 @@ export interface GrantPermissionInputInterface {
 
 Other focused operations remain ordinary inputs, not additional domain entities: revoke receives a grant ID and reason; remove-group-member receives a membership-source ID and reason; add-group-member receives an existing group and actor/group member plus optional window/reason; delegate receives the administrator, allowed actions, scope/inheritance and window; end-delegation receives its ID; suspend/remove membership identifies the tenant membership. Acting identity always comes separately from `execute`. IDs of newly created grant/membership/delegation sources are generated by the application/adapter and returned so a later operation can remove that exact source.
 
-## Minimal bootstrap, trusted facts and provider decisions
+### Minimal bootstrap, trusted facts and provider decisions
 
 | Responsibility | Kept in the application/integration | Decided in OpenFGA |
 | --- | --- | --- |
@@ -815,7 +1398,7 @@ This supports the bounded sequential F01 groups, including its fixed nested vari
 
 A delegate-created direct or membership source references the same management authority actually allowed for the change and uses `dependent`, never `direct`. Ending that authority deletes its `enabled` gate and management/inspection actor edges; dependent execution paths cease without enumerating recipients. An independent owner source remains independent. A-OWNER's `access_owner` and owner-change condition authorize administration only; no operational relation derives from them.
 
-### Grant, revoke, deactivation and ordinary entity updates
+#### Grant, revoke, deactivation and ordinary entity updates
 
 - **Grant/revoke:** prepare facts, obtain the full provider allow, then call the focused outbound Write as demonstrated. The service's OpenFGA credential executes the Write; it is not the platform actor's identity and supplies no business authorization itself.
 - **Tenant membership suspension/removal:** ask `can_suspend_membership` through the owner-change policy using actual target membership facts; persist that tenant membership status and delete `(actor:ta/u-dual, active_member, tenant:ta)` via outbound API. DUAL's B membership/tuples are untouched. Existing grant nodes may remain as inert provenance; they cannot bypass `current_member`.
@@ -839,7 +1422,7 @@ Global actor inactivation is a different lifecycle event: current actor status i
 
 The adjacent Keycloak semantic adapter/port/wire was reread on 2026-10-28. It demonstrates an inward application interface over outbound translation and generic platform services; its user creation currently uses `enabled:true`. No implemented deactivate/suspend method was found in that reference inventory. Do not claim one exists or copy authentication into F01. A future **global** account-lifecycle requirement may call a Keycloak disable API through its own outbound port; tenant-local DUAL suspension must never globally disable that shared account. The FGA update is required here; a Keycloak update is conditional on the actual identity lifecycle, not a second permission engine.
 
-## Structured logging as supporting information
+### Structured logging as supporting information
 
 The requester explicitly retained a well-structured log. F01 BR06 is the source of actor/recipient/source/action/scope/time/reason attribution. Logging is supporting information, not the authorization engine, a new business workflow or an audit-query database. Emit one check result and a management-operation result where known. Provider failures use safe categories; never log credentials, tokens, private provider responses or foreign business contents.
 
@@ -913,72 +1496,7 @@ These fields are deliberately not sent wholesale to OpenFGA. The adapter's confi
 
 A plain logger is not atomic with application/FGA writes and does not by itself provide protected historical search, durable before/after snapshots or a full path-proof API. Access controls for the selected logging destination are an operational prerequisite; this feature does not build a log viewer or expose logs as unrestricted application data. A log entry naming a removed source plus a fresh Check result is useful evidence but does not prove which surviving path OpenFGA used.
 
-## Source coverage and explicit limits of the requested smaller integration
-
-Use single transactional OpenFGA Write calls for each bounded relationship change; no silent independent chunking of one business change. Known successful acknowledgment can be reported as effective/applied, definite rejection as failed/rejected, and timeout/uncertain completion as pending/unknown. Mutation retries must not turn uncertainty into asserted success. There is no custom pending state machine or automatic recovery service. A fresh Check uses pinned model, higher consistency and trusted current time; it never falls back to an earlier allow during an outage.
-
-**Concurrent revocation limitation:** an operation may pass Check, then a revocation may be acknowledged, then the already allowed operation may enter/finish `handle`. The proposed check-then-handle flow has no atomic admission/revocation boundary. Higher consistency removes stale query-cache use; it cannot undo an earlier allow or transact with business state. Therefore the strongest AC06 cutoff from the existing epic is **not guaranteed** by revision 4. A timed-out Write may also complete later. This is a visible source-alignment decision, not a reason to reintroduce the rejected coordination framework.
-
-**Business-edge update limitation:** ordinary SQL membership/location facts and corresponding FGA tuples are separate writes. New checks after both confirmed updates observe the new relationships, but partial updates/concurrent changes are not atomic. The application supplies current actor and membership status values as trusted facts and checks record ownership; the FGA status condition refuses a suspended subject even if an old active-member tuple remains. A hierarchy update still needs both writes to match; sequential AC07 fixtures demonstrate the matching state, not a general concurrency guarantee.
-
-**History/inspection limitation:** current scoped tuple/source inspection and structured logs do not deliver the source's full protected historical path/prior-result investigation capability. That part of BR06/AC03/AC08 requires source alignment or a separately requested capability. No criterion is marked implemented/validated here. Product files are unchanged; these explicit gaps preserve the difference between the requested small integration and the broader original definition.
-
-| Source | Planned behavior and verification | Status/limit |
-| --- | --- | --- |
-| US01, BR01–BR02, AC01 | A-DELEGATE → A-NONE M2-only good reporting; deny start/scrap/sibling/B and implicit admin execution | FGA conditional Check/Write plus application integration/E2E |
-| US01, BR01–BR02, AC02 | Refuse self/approval/A-P1/B/onward/broad-group expansion; bounded nested variant; no cycle | FGA conditional management/structural queries and real provider tests; local validation is data integrity only |
-| US02, BR03, AC03 | Delete direct source, retain group allow; delete membership source, obtain denial | Real sequential source removals; logger names removed source. Full surviving-path history proof not supplied by Check/logs. |
-| BR04, AC04 | Start inclusive/end exclusive; future grants and ended delegation deny; bound dependent sources | Provider condition tests at trusted evaluation time; no promise of business completion before expiry |
-| BR04, AC05 | DUAL's A suspension blocks A only; B independent; disabled/outsider deny | Ordinary membership facts plus FGA intersection; no cross-tenant IDs combined |
-| BR03/BR06, AC06 | Fresh post-removal checks and safe pending/failed/effective result categories | **Gap:** no atomic concurrent acceptance cutoff, no custom pending-recovery workflow |
-| BR05, AC07 | Matching SQL/FGA move M1 to L2; current reads of old linked records move; exact grants/history remain | Isolated sequential fixture; partial/concurrent dual-write atomicity not claimed |
-| BR02/BR06, AC08 | Refuse unauthorized administration/current relationship reads; indeterminate refuses handle; safe structured error/result logs | Full protected historical reviewer capability is outside the retained plain log |
-
-## Technical verification and implementation steps
-
-All implementation steps below are **not started**. They remain inside this one complete source-feature spec; gaps above are review items, not a claim that the original epic can be completed unchanged by this smaller design.
-
-| Case | Public behavior to verify | Level / owning step |
-| --- | --- | --- |
-| TC01 | Complete commented records and call/log contracts compile under strict optional/index settings; no framework in entities | Compiler, S01 |
-| TC02 | IDs in seeded SQL records, model, tuples, adapter mapping, Check and grant/delete examples match; A/B M1 remain distinct | Provider integration, S03–S04 |
-| TC03 | Base calls injected authorization capability once per invocation; only a complete provider allow calls handle; actor cannot be replaced by recipient/body; no recursive gate | Application/handler unit + E2E, S02/S05/S06 |
-| TC04 | All AC01/AC02 action/scope/window/self/onward decisions in FGA, group-mediated self checks, same-authority source binding and cleanup of expired/inactive sources. Nesting cases explicitly include unrelated allow, self deny, same-direction existing/independent-source allow, and inverse-cycle deny with OUTER/INNER orientation. | Input/adapter unit + actual FGA policy integration/E2E, S02–S04/S06 |
-| TC05 | Direct/group independent paths, independent same-looking sources, expiry/delegation/membership cases | Model/adapter integration + E2E, S03–S04/S06 |
-| TC06 | AC07 ordinary machine/location/order/event records match their FGA edges; exact grant survives and original location remains history | Real SQL/provider integration + E2E, S03–S04/S06 |
-| TC07 | Unavailable/malformed/slow/partial provider result refuses handle; errors are safe; one multi-tuple Write either applies or rejects, timeout remains unknown | Adapter/application integration, S02/S04/S06 |
-| TC08 | Reproduce the documented check/revoke/handle race and a partial business-edge update; report the limitation without claiming AC06 passed | Controlled concurrency/failure experiment, S06 |
-| TC09 | Structured logger receives correct actor/recipient/source/resource/scope/time/result fields without secrets; no log entry interpreted as authority/proof | Application/adapter unit, S02/S04 |
-| TC10 | Executable two-tenant baseline plus measured load; distinguish allow/deny/unknown and scoped limitations | E2E/load experiment, S06 |
-
-Use the modular common testing rules: co-located tests, typed `makeSut`, shared data factories, `describe(SUT)` → `describe(when...)` → `it(should...)`. Domain/application use interface doubles; database and OpenFGA integration/E2E use real disposable Testcontainers, production migrations and actual selector/provider adapters. Pure entities need compiler checks, not artificial runtime tests. No prior reference code or passing model test proves the real assembled flow.
-
-| Step | Scope and references | Review/evidence |
-| --- | --- | --- |
-| S00 | Minimal backend-local HTTP/database/logger/testcontainers support; project-setup/platform/shared/testing guides | Actual support implementation checks; no authentication/root infrastructure assignment |
-| S01 | Exact ordinary entity contracts, action/reference types and centralized fixtures; entity/shared guides | TC01; review each affected module contract |
-| S02 | Inherited base and trusted-fact/provider-call orchestration; operation input/business-data integrity only; application/domain/auth/testing guides | TC03/TC04/TC07/TC09 with stubs; no local policy comparison, graph engine or transaction callback |
-| S03 | Ordinary business-record repositories and controlled seeds; outbound/platform guides | Tenant-filtered record/foreign-key round trips, current/history fields and TC02/TC06 |
-| S04 | Generic `platform/openfga` SDK/config and semantic authorization outbound adapters/model; outbound/platform/auth guides and official references | Real model/conditional-management/tuple/Check/Write tests TC02/TC04–TC07/TC09; demonstrate FGA true/false variants and deactivation propagation; review provider boundary |
-| S05 | Thin handlers/response mapping, wire/routes and controlled fixture driver; inbound/wire/auth guides | Identity propagation, safe statuses and TC03; no public raw tuples or unrestricted logs |
-| S06 | Assembled baseline and measured limitations/load; testing/E2E guides adapted to authentication exclusion | TC08/TC10 and all covered acceptance scenarios; publish real gaps/results; do not start F02 |
-
-Each changed layer/module/support area retains Backend's review gate. Spec approval does not authorize all implementation stages. Use actual existing `npm run typecheck`, `build`, `test`, `test:integration`, `test:e2e`; empty-suite success is not verification. No app test was run for this documentation-only revision.
-
-For measured confidence, keep the epic's two tenants and vary 100/1,000/10,000 memberships/machines and 10/100/1,000 fixed groups, with independent alternate sources and hierarchy/group depths reported. Start with deterministic cases, then 10/50 concurrent subjects in separate read/report/change workloads for 60 seconds, plus interruption/delay. Record hardware/provider versions, completed rates, allow/deny/indeterminate counts, p50/p95/p99, incorrect results and source-write failures. These are proposed experiment inputs, not an SLA. Correctness claims cover only measured behavior; the explicitly unsupported atomic cutoff cannot be declared passed at any load.
-
-## Review history and next checkpoint
-
-| Revision | Planning evidence |
-| --- | --- |
-| 1, historical | Unapproved generation/snapshot proposal. Its entity compilation/link QA applied only to that revision, not this design. |
-| 2, historical | Unapproved gate/session/fence proposal. Its three entity blocks compiled in `/tmp/andromeda-f01-r2-review-v59_fvd9`; that evidence is superseded by changed contracts here. |
-| 3, historical | Unapproved commented-records/simple Check→handle proposal. Its 13 TypeScript contracts compiled in `/tmp/andromeda-f01-r3-review-al_c4ed8`; that QA applies only to those prior contracts. |
-| 4 | Dated 2026-10-28. Moved management action/scope/window/self/onward decisions to persisted FGA relations/conditions; added literal trusted-status/proposed-operation facts, bound-authority Write and explicit tenant deactivation. Rechecked primary documentation and adjacent provider references. Coordinator extracted 13 TypeScript contracts to `/tmp/andromeda-f01-r4-review-7u_yawnu` and compiled them using ES2024/ESNext/Bundler, strict, exactOptionalPropertyTypes, noUncheckedIndexedAccess, verbatimModuleSyntax, isolatedModules and the modules alias: exit 0. Nine JSON examples parse; all 16 local links resolve, fences balance, whitespace checks pass and AC01–AC08 are mapped. Model/context/tuple identity, authority binding and cycle-query orientation were reviewed conceptually. This is planning-only QA, not implementation/model/runtime/performance execution. Only the two architecture documents changed; no ADR or implementation. |
-
-The next checkpoint is explicit review of **revision 4**, including the source-alignment gaps for concurrent revocation and historical inspection. The source feature is not marked delivered, and its product text/status is unchanged. After explicit approval Architect records the ADR/handoff; no ADR or implementation exists now.
-
-## Official reference register
+### Official reference register
 
 Initial sources inspected on 2026-10-26; conditions, tuple Write and pinned SDK/server condition implementation rechecked on 2026-10-28. These are primary sources. Capabilities below are documented upstream facts; the integration above is Andromeda's proposed engineering inference.
 
