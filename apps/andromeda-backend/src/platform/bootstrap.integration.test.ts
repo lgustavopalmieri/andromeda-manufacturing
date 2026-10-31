@@ -8,14 +8,22 @@ import { setupPostgres } from "@shared/tests/testcontainers/setup-postgres";
 import type { PostgresTestSetupInterface } from "@shared/tests/testcontainers/setup-postgres";
 import { bootstrap } from "./bootstrap";
 import type { RunningServiceInterface } from "./bootstrap";
-import { closeDatabase, createDataSource, initializeDatabase } from "./database/postgres/data-source";
+import {
+  closeDatabase,
+  createDataSource,
+  initializeDatabase,
+} from "./database/postgres/data-source";
 import { migrateDatabase } from "./database/postgres/migrate";
 import { HttpServer } from "./http/server";
 
 class FailingBootstrapMigration1800000000000 implements MigrationInterface {
   async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query("CREATE TABLE bootstrap_rollback_probe (id integer)");
-    await queryRunner.query("SELECT * FROM deliberately_absent_bootstrap_table");
+    await queryRunner.query(
+      "CREATE TABLE bootstrap_rollback_probe (id integer)",
+    );
+    await queryRunner.query(
+      "SELECT * FROM deliberately_absent_bootstrap_table",
+    );
   }
   async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query("DROP TABLE bootstrap_rollback_probe");
@@ -42,7 +50,9 @@ const servers = new Set<HttpServer>();
 const makeSut = (options: MakeSutOptionsInterface = {}): MakeSutInterface => {
   const dataSource = createDataSource(postgres.connection);
   dataSource.setOptions({
-    migrations: options.failMigration ? [FailingBootstrapMigration1800000000000] : [],
+    migrations: options.failMigration
+      ? [FailingBootstrapMigration1800000000000]
+      : [],
   });
   const http = new HttpServer({
     host: "127.0.0.1",
@@ -52,15 +62,18 @@ const makeSut = (options: MakeSutOptionsInterface = {}): MakeSutInterface => {
   dataSources.add(dataSource);
   servers.add(http);
   return {
-    sut: () => bootstrap({
-      database: {
-        initialize: async () => { await initializeDatabase(dataSource); },
-        migrate: () => migrateDatabase(dataSource),
-        close: () => closeDatabase(dataSource),
-      },
-      http,
-      runMigrationsOnBoot: true,
-    }),
+    sut: () =>
+      bootstrap({
+        database: {
+          initialize: async () => {
+            await initializeDatabase(dataSource);
+          },
+          migrate: () => migrateDatabase(dataSource),
+          close: () => closeDatabase(dataSource),
+        },
+        http,
+        runMigrationsOnBoot: true,
+      }),
     dataSource,
     http,
   };
@@ -77,13 +90,19 @@ beforeAll(async () => {
 
 afterEach(async () => {
   await Promise.all([...servers].map((server) => server.stop()));
-  await Promise.all([...dataSources].map((dataSource) => closeDatabase(dataSource)));
+  await Promise.all(
+    [...dataSources].map((dataSource) => closeDatabase(dataSource)),
+  );
   servers.clear();
   dataSources.clear();
 });
 
 afterAll(async () => {
-  try { await inspector?.end(); } finally { await postgres?.teardown(); }
+  try {
+    await inspector?.end();
+  } finally {
+    await postgres?.teardown();
+  }
 });
 
 describe("bootstrap", () => {
@@ -93,9 +112,13 @@ describe("bootstrap", () => {
 
       const service = await sut();
       const health = await request(http.server).get("/health");
-      const migrations = await inspector.query("SELECT to_regclass('migrations') AS name");
+      const migrations = await inspector.query(
+        "SELECT to_regclass('migrations') AS name",
+      );
       await service.stop();
-      const sessions = await inspector.query("SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()");
+      const sessions = await inspector.query(
+        "SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()",
+      );
 
       expect(health.body).toEqual({
         error: false,
@@ -103,14 +126,18 @@ describe("bootstrap", () => {
           status: "ok",
         },
       });
-      expect(migrations.rows).toEqual([{
-        name: "migrations",
-      }]);
+      expect(migrations.rows).toEqual([
+        {
+          name: "migrations",
+        },
+      ]);
       expect(http.server.listening).toBe(false);
       expect(dataSource.isInitialized).toBe(false);
-      expect(sessions.rows).toEqual([{
-        count: 0,
-      }]);
+      expect(sessions.rows).toEqual([
+        {
+          count: 0,
+        },
+      ]);
     });
 
     it("should keep the database usable until an active HTTP request finishes", async () => {
@@ -118,10 +145,12 @@ describe("bootstrap", () => {
       const releaseRequest = Promise.withResolvers<void>();
       const router = express.Router();
       const { sut, dataSource, http } = makeSut({
-        routes: [{
-          prefix: "/",
-          router,
-        }],
+        routes: [
+          {
+            prefix: "/",
+            router,
+          },
+        ],
       });
       router.get("/slow", async (_req, res) => {
         requestStarted.resolve();
@@ -132,7 +161,9 @@ describe("bootstrap", () => {
         res.json(rows);
       });
       const service = await sut();
-      const responsePromise = request(http.server).get("/slow").then((response) => response);
+      const responsePromise = request(http.server)
+        .get("/slow")
+        .then((response) => response);
       await requestStarted.promise;
 
       const stopping = service.stop();
@@ -143,9 +174,11 @@ describe("bootstrap", () => {
 
       expect(databaseAvailableDuringDrain).toBe(true);
       expect(response.status).toBe(200);
-      expect(response.body).toEqual([{
-        value: 42,
-      }]);
+      expect(response.body).toEqual([
+        {
+          value: 42,
+        },
+      ]);
       expect(dataSource.isInitialized).toBe(false);
     });
   });
@@ -160,7 +193,9 @@ describe("bootstrap", () => {
       });
 
       const failure = await sut().catch((error: unknown) => error);
-      const sessions = await inspector.query("SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()");
+      const sessions = await inspector.query(
+        "SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()",
+      );
 
       expect(failure).toBeInstanceOf(Error);
       expect(failure).toMatchObject({
@@ -171,9 +206,11 @@ describe("bootstrap", () => {
       });
       expect(http.server.listening).toBe(false);
       expect(dataSource.isInitialized).toBe(false);
-      expect(sessions.rows).toEqual([{
-        count: 0,
-      }]);
+      expect(sessions.rows).toEqual([
+        {
+          count: 0,
+        },
+      ]);
       expect((await request(occupying.server).get("/health")).status).toBe(200);
     });
 
@@ -183,9 +220,15 @@ describe("bootstrap", () => {
       });
 
       const failure = await sut().catch((error: unknown) => error);
-      const probe = await inspector.query("SELECT to_regclass('bootstrap_rollback_probe') AS name");
-      const history = await inspector.query("SELECT count(*)::int AS count FROM migrations");
-      const sessions = await inspector.query("SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()");
+      const probe = await inspector.query(
+        "SELECT to_regclass('bootstrap_rollback_probe') AS name",
+      );
+      const history = await inspector.query(
+        "SELECT count(*)::int AS count FROM migrations",
+      );
+      const sessions = await inspector.query(
+        "SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()",
+      );
 
       expect(failure).toBeInstanceOf(Error);
       expect(failure).toMatchObject({
@@ -194,17 +237,23 @@ describe("bootstrap", () => {
           message: "Database migrations failed.",
         },
       });
-      expect(probe.rows).toEqual([{
-        name: null,
-      }]);
-      expect(history.rows).toEqual([{
-        count: 0,
-      }]);
+      expect(probe.rows).toEqual([
+        {
+          name: null,
+        },
+      ]);
+      expect(history.rows).toEqual([
+        {
+          count: 0,
+        },
+      ]);
       expect(http.server.listening).toBe(false);
       expect(dataSource.isInitialized).toBe(false);
-      expect(sessions.rows).toEqual([{
-        count: 0,
-      }]);
+      expect(sessions.rows).toEqual([
+        {
+          count: 0,
+        },
+      ]);
     });
   });
 });

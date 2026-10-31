@@ -53,6 +53,20 @@ This project uses [OpenAI Codex](https://openai.com/codex/) as an AI-assisted de
 tool, guided by repository-specific agents and skills for product, backend, and frontend
 work.
 
+Formatting uses the repository-pinned Prettier version and the shared
+[configuration](.prettierrc.json). VS Code uses the same local version when the
+recommended Prettier extension is installed; formatting runs on save.
+
+- `pnpm run lint`: check ESLint rules and Prettier formatting.
+- `pnpm run lint:fix`: apply ESLint fixes and Prettier formatting.
+- `pnpm run format`: apply only Prettier formatting.
+- `pnpm run format:check`: check only Prettier formatting.
+
+ESLint's formatting rules are disabled through `eslint-config-prettier` to avoid
+conflicting results. Formatting commands cover application files and root tooling
+configuration; generated artifacts, lockfiles, environment files and project
+documentation are excluded.
+
 ## Product documentation
 
 The detailed vision, capability map, and version scope are in [`product/00-andromeda-manufacturing-product-foundation`](product/00-andromeda-manufacturing-product-foundation/).

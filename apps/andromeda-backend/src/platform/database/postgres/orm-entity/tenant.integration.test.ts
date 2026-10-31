@@ -6,7 +6,11 @@ import type { TenantEntityInterface } from "modules/tenant/entity/tenant.entity"
 import { makeTenant } from "@shared/tests/factories/tenant/tenant.factory";
 import { setupPostgres } from "@shared/tests/testcontainers/setup-postgres";
 import type { PostgresTestSetupInterface } from "@shared/tests/testcontainers/setup-postgres";
-import { closeDatabase, createDataSource, initializeDatabase } from "../data-source";
+import {
+  closeDatabase,
+  createDataSource,
+  initializeDatabase,
+} from "../data-source";
 import { migrateDatabase } from "../migrate";
 import { TenantOrmEntity } from "./tenant";
 
@@ -23,7 +27,9 @@ let postgres: PostgresTestSetupInterface;
 let inspector: Client;
 const dataSources = new Set<DataSource>();
 
-const makeSut = async (options: MakeSutOptionsInterface = {}): Promise<MakeSutInterface> => {
+const makeSut = async (
+  options: MakeSutOptionsInterface = {},
+): Promise<MakeSutInterface> => {
   const database = `tenant_mapping_${dataSources.size}`;
   await inspector.query(`CREATE DATABASE "${database}"`);
   const dataSource = createDataSource({
@@ -49,14 +55,22 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-  await Promise.all([...dataSources].map((dataSource) => closeDatabase(dataSource)));
+  await Promise.all(
+    [...dataSources].map((dataSource) => closeDatabase(dataSource)),
+  );
 });
 
 afterAll(async () => {
   try {
-    await Promise.all([...dataSources].map((dataSource) => closeDatabase(dataSource)));
+    await Promise.all(
+      [...dataSources].map((dataSource) => closeDatabase(dataSource)),
+    );
   } finally {
-    try { await inspector?.end(); } finally { await postgres?.teardown(); }
+    try {
+      await inspector?.end();
+    } finally {
+      await postgres?.teardown();
+    }
   }
 });
 
@@ -69,7 +83,9 @@ describe("TenantOrmEntity", () => {
       const tenant = makeTenant();
 
       const failure = await sut.insert(tenant).catch((error: unknown) => error);
-      const relation = await dataSource.query("SELECT to_regclass('tenants') AS name");
+      const relation = await dataSource.query(
+        "SELECT to_regclass('tenants') AS name",
+      );
 
       expect(dataSource.hasMetadata(TenantOrmEntity)).toBe(true);
       expect(dataSource.options).toMatchObject({
@@ -84,9 +100,11 @@ describe("TenantOrmEntity", () => {
           code: "42P01",
         },
       });
-      expect(relation).toEqual([{
-        name: null,
-      }]);
+      expect(relation).toEqual([
+        {
+          name: null,
+        },
+      ]);
     });
 
     it("should round-trip every tenant field and preserve a string ID with leading zeroes", async () => {
@@ -100,7 +118,10 @@ describe("TenantOrmEntity", () => {
       const found = await sut.findOneByOrFail({
         id: tenant.id,
       });
-      const stored = await dataSource.query("SELECT id, code FROM tenants WHERE id = $1", [tenant.id]);
+      const stored = await dataSource.query(
+        "SELECT id, code FROM tenants WHERE id = $1",
+        [tenant.id],
+      );
 
       expect(found).toEqual(tenant);
       expect(typeof found.id).toBe("string");
@@ -112,7 +133,10 @@ describe("TenantOrmEntity", () => {
       const tenant = makeTenant({
         code: "OWNER",
       });
-      await dataSource.query("INSERT INTO tenants (id, code) VALUES ($1, $2)", [tenant.id, tenant.code]);
+      await dataSource.query("INSERT INTO tenants (id, code) VALUES ($1, $2)", [
+        tenant.id,
+        tenant.code,
+      ]);
 
       const found = await sut.findOneByOrFail({
         id: tenant.id,
@@ -130,16 +154,23 @@ describe("TenantOrmEntity", () => {
       });
       await sut.insert(tenant);
 
-      await sut.update({
-        id: tenant.id,
-      }, {
-        code: changed.code,
-      });
+      await sut.update(
+        {
+          id: tenant.id,
+        },
+        {
+          code: changed.code,
+        },
+      );
 
-      expect(await sut.findOneByOrFail({
-        id: tenant.id,
-      })).toEqual(changed);
-      expect(await dataSource.query("SELECT id, code FROM tenants")).toEqual([changed]);
+      expect(
+        await sut.findOneByOrFail({
+          id: tenant.id,
+        }),
+      ).toEqual(changed);
+      expect(await dataSource.query("SELECT id, code FROM tenants")).toEqual([
+        changed,
+      ]);
     });
 
     it("should keep tenants with the same display code distinct by stable ID", async () => {
@@ -154,21 +185,28 @@ describe("TenantOrmEntity", () => {
       });
 
       await sut.insert([first, second]);
-      await sut.update({
-        id: first.id,
-      }, {
-        code: "CHANGED",
-      });
+      await sut.update(
+        {
+          id: first.id,
+        },
+        {
+          code: "CHANGED",
+        },
+      );
 
-      expect(await sut.findOneByOrFail({
-        id: first.id,
-      })).toEqual({
+      expect(
+        await sut.findOneByOrFail({
+          id: first.id,
+        }),
+      ).toEqual({
         ...first,
         code: "CHANGED",
       });
-      expect(await sut.findOneByOrFail({
-        id: second.id,
-      })).toEqual(second);
+      expect(
+        await sut.findOneByOrFail({
+          id: second.id,
+        }),
+      ).toEqual(second);
     });
 
     it("should return absence for a missing ID even when that text matches a display code", async () => {
@@ -183,9 +221,11 @@ describe("TenantOrmEntity", () => {
       });
 
       expect(found).toBeNull();
-      expect(await sut.findOneByOrFail({
-        id: tenant.id,
-      })).toEqual(tenant);
+      expect(
+        await sut.findOneByOrFail({
+          id: tenant.id,
+        }),
+      ).toEqual(tenant);
     });
 
     it("should preserve persisted fields after the pool closes and reopens", async () => {
@@ -195,46 +235,60 @@ describe("TenantOrmEntity", () => {
       await closeDatabase(dataSource);
 
       await initializeDatabase(dataSource);
-      const found = await dataSource.getRepository(TenantOrmEntity).findOneByOrFail({
-        id: tenant.id,
-      });
+      const found = await dataSource
+        .getRepository(TenantOrmEntity)
+        .findOneByOrFail({
+          id: tenant.id,
+        });
 
       expect(found).toEqual(tenant);
     });
   });
 
   describe("when a mapped write violates the retained SQL contract", () => {
-    it.each(["id", "code"] as const)("should reject a missing required %s field", async (column) => {
-      const { sut } = await makeSut();
-      const tenant = makeTenant();
-      const partial = column === "id" ? {
-        code: tenant.code,
-      } : {
-        id: tenant.id,
-      };
+    it.each(["id", "code"] as const)(
+      "should reject a missing required %s field",
+      async (column) => {
+        const { sut } = await makeSut();
+        const tenant = makeTenant();
+        const partial =
+          column === "id"
+            ? {
+                code: tenant.code,
+              }
+            : {
+                id: tenant.id,
+              };
 
-      const failure = await sut.insert(partial).catch((error: unknown) => error);
+        const failure = await sut
+          .insert(partial)
+          .catch((error: unknown) => error);
 
-      expect(failure).toBeInstanceOf(QueryFailedError);
-      expect(failure).toMatchObject({
-        message: expect.stringContaining("violates not-null constraint"),
-        driverError: {
-          code: "23502",
-          table: "tenants",
-          column,
-        },
-      });
-      expect(await sut.count()).toBe(0);
-    });
+        expect(failure).toBeInstanceOf(QueryFailedError);
+        expect(failure).toMatchObject({
+          message: expect.stringContaining("violates not-null constraint"),
+          driverError: {
+            code: "23502",
+            table: "tenants",
+            column,
+          },
+        });
+        expect(await sut.count()).toBe(0);
+      },
+    );
 
     it("should reject a duplicate primary ID without replacing the existing tenant", async () => {
       const { sut } = await makeSut();
       const tenant = makeTenant();
       await sut.insert(tenant);
 
-      const failure = await sut.insert(makeTenant({
-        code: "OTHER",
-      })).catch((error: unknown) => error);
+      const failure = await sut
+        .insert(
+          makeTenant({
+            code: "OTHER",
+          }),
+        )
+        .catch((error: unknown) => error);
 
       expect(failure).toBeInstanceOf(QueryFailedError);
       expect(failure).toMatchObject({
@@ -244,9 +298,11 @@ describe("TenantOrmEntity", () => {
           constraint: "tenants_pkey",
         },
       });
-      expect(await sut.findOneByOrFail({
-        id: tenant.id,
-      })).toEqual(tenant);
+      expect(
+        await sut.findOneByOrFail({
+          id: tenant.id,
+        }),
+      ).toEqual(tenant);
       expect(await sut.count()).toBe(1);
     });
 
@@ -254,13 +310,17 @@ describe("TenantOrmEntity", () => {
       const { sut, dataSource } = await makeSut();
       const tenant = makeTenant();
 
-      const failure = await dataSource.transaction(async (manager) => {
-        const repository = manager.getRepository(TenantOrmEntity);
-        await repository.insert(tenant);
-        await repository.insert(makeTenant({
-          code: "DUPLICATE",
-        }));
-      }).catch((error: unknown) => error);
+      const failure = await dataSource
+        .transaction(async (manager) => {
+          const repository = manager.getRepository(TenantOrmEntity);
+          await repository.insert(tenant);
+          await repository.insert(
+            makeTenant({
+              code: "DUPLICATE",
+            }),
+          );
+        })
+        .catch((error: unknown) => error);
 
       expect(failure).toBeInstanceOf(QueryFailedError);
       expect(failure).toMatchObject({
@@ -272,9 +332,11 @@ describe("TenantOrmEntity", () => {
       });
       expect(await sut.count()).toBe(0);
       await sut.insert(tenant);
-      expect(await sut.findOneByOrFail({
-        id: tenant.id,
-      })).toEqual(tenant);
+      expect(
+        await sut.findOneByOrFail({
+          id: tenant.id,
+        }),
+      ).toEqual(tenant);
     });
   });
 });

@@ -1,5 +1,12 @@
 import { execFile } from "node:child_process";
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -9,7 +16,11 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 import { RepositoryError } from "@shared/errors/repository.error";
 import { setupPostgres } from "@shared/tests/testcontainers/setup-postgres";
 import type { PostgresTestSetupInterface } from "@shared/tests/testcontainers/setup-postgres";
-import { closeDatabase, createDataSource, initializeDatabase } from "./data-source";
+import {
+  closeDatabase,
+  createDataSource,
+  initializeDatabase,
+} from "./data-source";
 import { migrateDatabase } from "./migrate";
 import { readMigrationSql } from "./read-migration-sql";
 
@@ -32,7 +43,9 @@ interface MakeSutInterface {
 
 const resources = new Set<ResourcesInterface>();
 
-const makeSut = async (options: MakeSutOptionsInterface = {}): Promise<MakeSutInterface> => {
+const makeSut = async (
+  options: MakeSutOptionsInterface = {},
+): Promise<MakeSutInterface> => {
   const directory = await mkdtemp(join(tmpdir(), "andromeda-migration-test-"));
   const acquired: ResourcesInterface = {
     directory,
@@ -40,27 +53,46 @@ const makeSut = async (options: MakeSutOptionsInterface = {}): Promise<MakeSutIn
   resources.add(acquired);
   const postgres = await setupPostgres();
   acquired.postgres = postgres;
-  await writeFile(join(directory, "0001-first.up.sql"),
-    "CREATE TABLE migration_probe (id integer PRIMARY KEY); INSERT INTO migration_probe VALUES (1);");
-  await writeFile(join(directory, "0001-first.down.sql"), "DROP TABLE migration_probe;");
-  await writeFile(join(directory, "0002-second.up.sql"), options.secondSql ?? "INSERT INTO migration_probe VALUES (2);");
-  await writeFile(join(directory, "0002-second.down.sql"), "DELETE FROM migration_probe WHERE id = 2;");
+  await writeFile(
+    join(directory, "0001-first.up.sql"),
+    "CREATE TABLE migration_probe (id integer PRIMARY KEY); INSERT INTO migration_probe VALUES (1);",
+  );
+  await writeFile(
+    join(directory, "0001-first.down.sql"),
+    "DROP TABLE migration_probe;",
+  );
+  await writeFile(
+    join(directory, "0002-second.up.sql"),
+    options.secondSql ?? "INSERT INTO migration_probe VALUES (2);",
+  );
+  await writeFile(
+    join(directory, "0002-second.down.sql"),
+    "DELETE FROM migration_probe WHERE id = 2;",
+  );
   const migrationUrl = pathToFileURL(join(directory, "fixture.ts")).href;
 
   class FirstProbe1700000000001 {
     async up(queryRunner: QueryRunner): Promise<void> {
-      await queryRunner.query(readMigrationSql(migrationUrl, "0001-first.up.sql"));
+      await queryRunner.query(
+        readMigrationSql(migrationUrl, "0001-first.up.sql"),
+      );
     }
     async down(queryRunner: QueryRunner): Promise<void> {
-      await queryRunner.query(readMigrationSql(migrationUrl, "0001-first.down.sql"));
+      await queryRunner.query(
+        readMigrationSql(migrationUrl, "0001-first.down.sql"),
+      );
     }
   }
   class SecondProbe1700000000002 {
     async up(queryRunner: QueryRunner): Promise<void> {
-      await queryRunner.query(readMigrationSql(migrationUrl, "0002-second.up.sql"));
+      await queryRunner.query(
+        readMigrationSql(migrationUrl, "0002-second.up.sql"),
+      );
     }
     async down(queryRunner: QueryRunner): Promise<void> {
-      await queryRunner.query(readMigrationSql(migrationUrl, "0002-second.down.sql"));
+      await queryRunner.query(
+        readMigrationSql(migrationUrl, "0002-second.down.sql"),
+      );
     }
   }
 
@@ -78,20 +110,22 @@ const makeSut = async (options: MakeSutOptionsInterface = {}): Promise<MakeSutIn
 };
 
 afterAll(async () => {
-  await Promise.all([...resources].map(async ({ dataSource, postgres, directory }) => {
-    try {
-      if (dataSource) await closeDatabase(dataSource);
-    } finally {
+  await Promise.all(
+    [...resources].map(async ({ dataSource, postgres, directory }) => {
       try {
-        await postgres?.teardown();
+        if (dataSource) await closeDatabase(dataSource);
       } finally {
-        await rm(directory, {
-          recursive: true,
-          force: true,
-        });
+        try {
+          await postgres?.teardown();
+        } finally {
+          await rm(directory, {
+            recursive: true,
+            force: true,
+          });
+        }
       }
-    }
-  }));
+    }),
+  );
 });
 
 describe("migrateDatabase", () => {
@@ -102,17 +136,30 @@ describe("migrateDatabase", () => {
 
       const applied = await sut(dataSource);
 
-      expect(applied.map((migration) => migration.name)).toEqual(["FirstProbe1700000000001", "SecondProbe1700000000002"]);
+      expect(applied.map((migration) => migration.name)).toEqual([
+        "FirstProbe1700000000001",
+        "SecondProbe1700000000002",
+      ]);
       expect(dataSource.logger).toBe(originalLogger);
-      expect(await dataSource.query("SELECT id FROM migration_probe ORDER BY id")).toEqual([{
-        id: 1,
-      }, {
-        id: 2,
-      }]);
-      expect(await dataSource.query("SELECT name FROM migrations ORDER BY timestamp")).toEqual([
+      expect(
+        await dataSource.query("SELECT id FROM migration_probe ORDER BY id"),
+      ).toEqual([
+        {
+          id: 1,
+        },
+        {
+          id: 2,
+        },
+      ]);
+      expect(
+        await dataSource.query(
+          "SELECT name FROM migrations ORDER BY timestamp",
+        ),
+      ).toEqual([
         {
           name: "FirstProbe1700000000001",
-        }, {
+        },
+        {
           name: "SecondProbe1700000000002",
         },
       ]);
@@ -125,21 +172,33 @@ describe("migrateDatabase", () => {
       const applied = await sut(dataSource);
 
       expect(applied).toEqual([]);
-      expect(await dataSource.query("SELECT id FROM migration_probe ORDER BY id")).toEqual([{
-        id: 1,
-      }, {
-        id: 2,
-      }]);
-      expect(await dataSource.query("SELECT count(*)::integer AS count FROM migrations")).toEqual([{
-        count: 2,
-      }]);
+      expect(
+        await dataSource.query("SELECT id FROM migration_probe ORDER BY id"),
+      ).toEqual([
+        {
+          id: 1,
+        },
+        {
+          id: 2,
+        },
+      ]);
+      expect(
+        await dataSource.query(
+          "SELECT count(*)::integer AS count FROM migrations",
+        ),
+      ).toEqual([
+        {
+          count: 2,
+        },
+      ]);
     });
   });
 
   describe("when SQL execution fails within the migration transaction", () => {
     it("should roll back all pending changes and history, preserve the cause and allow a corrected retry", async () => {
       const { sut, dataSource, directory } = await makeSut({
-        secondSql: "INSERT INTO migration_probe VALUES (2); INSERT INTO nonexistent_probe VALUES (9);",
+        secondSql:
+          "INSERT INTO migration_probe VALUES (2); INSERT INTO nonexistent_probe VALUES (9);",
       });
       const originalLogger = dataSource.logger;
       const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -160,19 +219,41 @@ describe("migrateDatabase", () => {
         },
       });
       expect(JSON.stringify(failure)).toBe('{"name":"RepositoryError"}');
-      expect(await dataSource.query("SELECT to_regclass('public.migration_probe') AS relation")).toEqual([{
-        relation: null,
-      }]);
-      expect(await dataSource.query("SELECT count(*)::integer AS count FROM migrations")).toEqual([{
-        count: 0,
-      }]);
-      await writeFile(join(directory, "0002-second.up.sql"), "INSERT INTO migration_probe VALUES (2);");
-      expect((await sut(dataSource)).map((migration) => migration.name)).toEqual(["FirstProbe1700000000001", "SecondProbe1700000000002"]);
-      expect(await dataSource.query("SELECT id FROM migration_probe ORDER BY id")).toEqual([{
-        id: 1,
-      }, {
-        id: 2,
-      }]);
+      expect(
+        await dataSource.query(
+          "SELECT to_regclass('public.migration_probe') AS relation",
+        ),
+      ).toEqual([
+        {
+          relation: null,
+        },
+      ]);
+      expect(
+        await dataSource.query(
+          "SELECT count(*)::integer AS count FROM migrations",
+        ),
+      ).toEqual([
+        {
+          count: 0,
+        },
+      ]);
+      await writeFile(
+        join(directory, "0002-second.up.sql"),
+        "INSERT INTO migration_probe VALUES (2);",
+      );
+      expect(
+        (await sut(dataSource)).map((migration) => migration.name),
+      ).toEqual(["FirstProbe1700000000001", "SecondProbe1700000000002"]);
+      expect(
+        await dataSource.query("SELECT id FROM migration_probe ORDER BY id"),
+      ).toEqual([
+        {
+          id: 1,
+        },
+        {
+          id: 2,
+        },
+      ]);
     });
   });
 
@@ -191,9 +272,15 @@ describe("migrateDatabase", () => {
         },
       });
       expect(JSON.stringify(failure)).toBe('{"name":"RepositoryError"}');
-      expect(await dataSource.query("SELECT count(*)::integer AS count FROM migrations")).toEqual([{
-        count: 0,
-      }]);
+      expect(
+        await dataSource.query(
+          "SELECT count(*)::integer AS count FROM migrations",
+        ),
+      ).toEqual([
+        {
+          count: 0,
+        },
+      ]);
     });
   });
 
@@ -221,42 +308,70 @@ describe("migrateDatabase", () => {
       const { dataSource, directory } = await makeSut({
         initialize: false,
       });
-      const appDirectory = fileURLToPath(new URL("../../../../", import.meta.url));
+      const appDirectory = fileURLToPath(
+        new URL("../../../../", import.meta.url),
+      );
       const fixtureRoot = join(directory, "build-fixture");
-      const sourceDirectory = join(fixtureRoot, "src/platform/database/postgres/migrations");
+      const sourceDirectory = join(
+        fixtureRoot,
+        "src/platform/database/postgres/migrations",
+      );
       await mkdir(sourceDirectory, {
         recursive: true,
       });
       await writeFile(join(fixtureRoot, "package.json"), '{"type":"module"}');
-      await writeFile(join(fixtureRoot, "src/main.ts"),
-        'export { BuiltProbe1700000000003, migrateDatabase } from "./platform/database/postgres/migrations/0003-built";');
-      const readerPath = fileURLToPath(new URL("./read-migration-sql.ts", import.meta.url));
-      const runnerPath = fileURLToPath(new URL("./migrate.ts", import.meta.url));
-      await writeFile(join(sourceDirectory, "0003-built.ts"), `
+      await writeFile(
+        join(fixtureRoot, "src/main.ts"),
+        'export { BuiltProbe1700000000003, migrateDatabase } from "./platform/database/postgres/migrations/0003-built";',
+      );
+      const readerPath = fileURLToPath(
+        new URL("./read-migration-sql.ts", import.meta.url),
+      );
+      const runnerPath = fileURLToPath(
+        new URL("./migrate.ts", import.meta.url),
+      );
+      await writeFile(
+        join(sourceDirectory, "0003-built.ts"),
+        `
         import { readMigrationSql } from ${JSON.stringify(readerPath)};
         export { migrateDatabase } from ${JSON.stringify(runnerPath)};
         export class BuiltProbe1700000000003 {
           async up(queryRunner: { query(sql: string): Promise<unknown> }) { await queryRunner.query(readMigrationSql(import.meta.url, "0003-built.up.sql")); }
           async down(queryRunner: { query(sql: string): Promise<unknown> }) { await queryRunner.query(readMigrationSql(import.meta.url, "0003-built.down.sql")); }
         }
-      `);
-      const sql = "CREATE TABLE built_migration_probe (id integer PRIMARY KEY); INSERT INTO built_migration_probe VALUES (3);";
+      `,
+      );
+      const sql =
+        "CREATE TABLE built_migration_probe (id integer PRIMARY KEY); INSERT INTO built_migration_probe VALUES (3);";
       await writeFile(join(sourceDirectory, "0003-built.up.sql"), sql);
-      await writeFile(join(sourceDirectory, "0003-built.down.sql"), "DROP TABLE built_migration_probe;");
+      await writeFile(
+        join(sourceDirectory, "0003-built.down.sql"),
+        "DROP TABLE built_migration_probe;",
+      );
       const runBuild = promisify(execFile);
       const buildArguments = [
-        "--config", resolve(appDirectory, "tsup.config.ts"),
-        "--tsconfig", resolve(appDirectory, "tsconfig.json"),
+        "--config",
+        resolve(appDirectory, "tsup.config.ts"),
+        "--tsconfig",
+        resolve(appDirectory, "tsconfig.json"),
       ];
       const buildExecutable = resolve(appDirectory, "node_modules/.bin/tsup");
 
       await runBuild(buildExecutable, buildArguments, {
         cwd: fixtureRoot,
       });
-      const emittedWrapper = join(fixtureRoot, "dist/platform/database/postgres/migrations/0003-built.js");
+      const emittedWrapper = join(
+        fixtureRoot,
+        "dist/platform/database/postgres/migrations/0003-built.js",
+      );
       const emittedUpSql = join(dirname(emittedWrapper), "0003-built.up.sql");
       expect(await readFile(emittedUpSql, "utf8")).toBe(sql);
-      expect(await readFile(join(dirname(emittedWrapper), "0003-built.down.sql"), "utf8")).toBe("DROP TABLE built_migration_probe;");
+      expect(
+        await readFile(
+          join(dirname(emittedWrapper), "0003-built.down.sql"),
+          "utf8",
+        ),
+      ).toBe("DROP TABLE built_migration_probe;");
       const connectionFile = join(directory, "build-connection.json");
       await writeFile(connectionFile, JSON.stringify(dataSource.options));
       const executeArtifact = `
@@ -275,25 +390,41 @@ describe("migrateDatabase", () => {
         } finally { await dataSource.destroy(); }
       `;
       const mainExecution = await runBuild(process.execPath, [
-        "--input-type=module", "-e", executeArtifact, join(fixtureRoot, "dist/main.js"), connectionFile,
+        "--input-type=module",
+        "-e",
+        executeArtifact,
+        join(fixtureRoot, "dist/main.js"),
+        connectionFile,
       ]);
       expect(JSON.parse(mainExecution.stdout)).toEqual({
         applied: ["BuiltProbe1700000000003"],
-        rows: [{
-          id: 3,
-        }],
+        rows: [
+          {
+            id: 3,
+          },
+        ],
       });
       const standaloneExecution = await runBuild(process.execPath, [
-        "--input-type=module", "-e", executeArtifact, emittedWrapper, connectionFile, "undo",
+        "--input-type=module",
+        "-e",
+        executeArtifact,
+        emittedWrapper,
+        connectionFile,
+        "undo",
       ]);
       expect(JSON.parse(standaloneExecution.stdout)).toEqual({
         applied: ["BuiltProbe1700000000003"],
-        rows: [{
-          id: 3,
-        }],
+        rows: [
+          {
+            id: 3,
+          },
+        ],
       });
 
-      await writeFile(join(fixtureRoot, "src/main.ts"), "export const buildProbe = true;");
+      await writeFile(
+        join(fixtureRoot, "src/main.ts"),
+        "export const buildProbe = true;",
+      );
       await rm(join(sourceDirectory, "0003-built.up.sql"));
       await rm(join(sourceDirectory, "0003-built.down.sql"));
       await rm(join(sourceDirectory, "0003-built.ts"));
@@ -303,7 +434,9 @@ describe("migrateDatabase", () => {
       await expect(access(emittedUpSql)).rejects.toMatchObject({
         code: "ENOENT",
       });
-      await expect(access(join(dirname(emittedWrapper), "0003-built.down.sql"))).rejects.toMatchObject({
+      await expect(
+        access(join(dirname(emittedWrapper), "0003-built.down.sql")),
+      ).rejects.toMatchObject({
         code: "ENOENT",
       });
       await expect(access(emittedWrapper)).rejects.toMatchObject({

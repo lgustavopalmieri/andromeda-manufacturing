@@ -23,7 +23,9 @@ export const loadRuntimeConfig = (
   });
 
   if (!result.success) {
-    throw new RuntimeConfigurationError(result.error.issues.map((issue) => issue.path.join(".")));
+    throw new RuntimeConfigurationError(
+      result.error.issues.map((issue) => issue.path.join(".")),
+    );
   }
 
   return {

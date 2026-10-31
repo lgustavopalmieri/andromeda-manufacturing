@@ -1,4 +1,10 @@
-import type { DataSource, EntityManager, EntitySchema, FindOptionsWhere, ObjectLiteral } from "typeorm";
+import type {
+  DataSource,
+  EntityManager,
+  EntitySchema,
+  FindOptionsWhere,
+  ObjectLiteral,
+} from "typeorm";
 import { RepositoryError } from "@shared/errors/repository.error";
 import { ActorOrmEntity } from "platform/database/postgres/orm-entity/actor";
 import { LocationOrmEntity } from "platform/database/postgres/orm-entity/location";
@@ -24,9 +30,17 @@ const insertOrVerify = async <Entity extends ObjectLiteral>(
 ): Promise<void> => {
   const repository = manager.getRepository(schema);
   for (const record of records) {
-    await repository.createQueryBuilder().insert().values(record).orIgnore().execute();
+    await repository
+      .createQueryBuilder()
+      .insert()
+      .values(record)
+      .orIgnore()
+      .execute();
     const existing = await repository.findOneBy(identity(record));
-    if (!existing || Object.keys(record).some((key) => existing[key] !== record[key])) {
+    if (
+      !existing ||
+      Object.keys(record).some((key) => existing[key] !== record[key])
+    ) {
       throw new BusinessSeedConflictError();
     }
   }
@@ -37,24 +51,44 @@ export const seedBusiness = async (dataSource: DataSource): Promise<void> => {
   const locations = validateBusinessHierarchy(fixture);
   try {
     await dataSource.transaction(async (manager) => {
-      await insertOrVerify(manager, TenantOrmEntity, fixture.tenants, (record) => ({
-        id: record.id,
-      }));
-      await insertOrVerify(manager, ActorOrmEntity, fixture.actors, (record) => ({
-        id: record.id,
-      }));
-      await insertOrVerify(manager, TenantMembershipOrmEntity, fixture.memberships, (record) => ({
-        tenantId: record.tenantId,
-        actorId: record.actorId,
-      }));
+      await insertOrVerify(
+        manager,
+        TenantOrmEntity,
+        fixture.tenants,
+        (record) => ({
+          id: record.id,
+        }),
+      );
+      await insertOrVerify(
+        manager,
+        ActorOrmEntity,
+        fixture.actors,
+        (record) => ({
+          id: record.id,
+        }),
+      );
+      await insertOrVerify(
+        manager,
+        TenantMembershipOrmEntity,
+        fixture.memberships,
+        (record) => ({
+          tenantId: record.tenantId,
+          actorId: record.actorId,
+        }),
+      );
       await insertOrVerify(manager, LocationOrmEntity, locations, (record) => ({
         tenantId: record.tenantId,
         id: record.id,
       }));
-      await insertOrVerify(manager, MachineOrmEntity, fixture.machines, (record) => ({
-        tenantId: record.tenantId,
-        id: record.id,
-      }));
+      await insertOrVerify(
+        manager,
+        MachineOrmEntity,
+        fixture.machines,
+        (record) => ({
+          tenantId: record.tenantId,
+          id: record.id,
+        }),
+      );
     });
   } catch (error) {
     if (error instanceof BusinessSeedConflictError) throw error;

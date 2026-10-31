@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { RepositoryError, RepositoryUnavailableError } from "@shared/errors/repository.error";
+import {
+  RepositoryError,
+  RepositoryUnavailableError,
+} from "@shared/errors/repository.error";
 import { mapErrorToLogCategory } from "./observability-error-mapper";
 
 interface MakeSutInterface {
@@ -13,7 +16,10 @@ const makeSut = (): MakeSutInterface => ({
 describe("mapErrorToLogCategory", () => {
   describe("when mapping a layer-classified error", () => {
     it.each([
-      [new RepositoryUnavailableError("synthetic-storage-message"), "repository_unavailable"],
+      [
+        new RepositoryUnavailableError("synthetic-storage-message"),
+        "repository_unavailable",
+      ],
       [new RepositoryError("synthetic-repository-message"), "repository_error"],
       [new Error("synthetic-native-message"), "unexpected_error"],
       ["synthetic-thrown-secret", "unknown_error"],
@@ -32,9 +38,14 @@ describe("mapErrorToLogCategory", () => {
   describe("when a thrown object prevents prototype inspection", () => {
     it("should return the fixed unknown category without reading technical details", () => {
       const { sut } = makeSut();
-      const error = new Proxy({}, {
-        getPrototypeOf() { throw new Error("synthetic-prototype-secret"); },
-      });
+      const error = new Proxy(
+        {},
+        {
+          getPrototypeOf() {
+            throw new Error("synthetic-prototype-secret");
+          },
+        },
+      );
 
       const result = sut(error);
 

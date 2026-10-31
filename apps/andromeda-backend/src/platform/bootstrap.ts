@@ -19,7 +19,9 @@ export interface RunningServiceInterface {
   stop(): Promise<void>;
 }
 
-export const bootstrap = async (options: BootstrapOptionsInterface): Promise<RunningServiceInterface> => {
+export const bootstrap = async (
+  options: BootstrapOptionsInterface,
+): Promise<RunningServiceInterface> => {
   let databaseAcquired = true;
   let httpAcquired = false;
   let stopPromise: Promise<void> | undefined;
@@ -49,7 +51,8 @@ export const bootstrap = async (options: BootstrapOptionsInterface): Promise<Run
         failures.push(cleanupError);
       }
     }
-    if (failures.length > 1) throw new AggregateError(failures, "Service startup and cleanup failed.");
+    if (failures.length > 1)
+      throw new AggregateError(failures, "Service startup and cleanup failed.");
     throw new Error("Service startup failed.", {
       cause: error,
     });

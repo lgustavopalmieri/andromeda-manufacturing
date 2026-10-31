@@ -38,7 +38,10 @@ export const setupPostgres = async (
     try {
       await teardown();
     } catch (cleanupError) {
-      throw new AggregateError([error, cleanupError], "PostgreSQL test setup and cleanup failed.");
+      throw new AggregateError(
+        [error, cleanupError],
+        "PostgreSQL test setup and cleanup failed.",
+      );
     }
     throw error;
   }

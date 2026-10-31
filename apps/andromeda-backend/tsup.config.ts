@@ -3,14 +3,25 @@ import { copyFile, mkdir } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { defineConfig } from "tsup";
 
-const migrationsDirectory = resolve("src/platform/database/postgres/migrations");
-const migrationFiles = existsSync(migrationsDirectory) ? readdirSync(migrationsDirectory).sort() : [];
-const migrationEntries = Object.fromEntries(migrationFiles
-  .filter((filename) => filename.endsWith(".ts") && !filename.endsWith(".d.ts") && !filename.endsWith(".test.ts"))
-  .map((filename) => [
-    `platform/database/postgres/migrations/${basename(filename, ".ts")}`,
-    resolve(migrationsDirectory, filename),
-  ]));
+const migrationsDirectory = resolve(
+  "src/platform/database/postgres/migrations",
+);
+const migrationFiles = existsSync(migrationsDirectory)
+  ? readdirSync(migrationsDirectory).sort()
+  : [];
+const migrationEntries = Object.fromEntries(
+  migrationFiles
+    .filter(
+      (filename) =>
+        filename.endsWith(".ts") &&
+        !filename.endsWith(".d.ts") &&
+        !filename.endsWith(".test.ts"),
+    )
+    .map((filename) => [
+      `platform/database/postgres/migrations/${basename(filename, ".ts")}`,
+      resolve(migrationsDirectory, filename),
+    ]),
+);
 
 export default defineConfig({
   clean: true,
@@ -27,13 +38,23 @@ export default defineConfig({
     ".sql": "text",
   },
   onSuccess: async () => {
-    const sqlFiles = migrationFiles.filter((filename) => filename.endsWith(".sql"));
+    const sqlFiles = migrationFiles.filter((filename) =>
+      filename.endsWith(".sql"),
+    );
     if (sqlFiles.length === 0) return;
-    const outputDirectory = resolve("dist/platform/database/postgres/migrations");
+    const outputDirectory = resolve(
+      "dist/platform/database/postgres/migrations",
+    );
     await mkdir(outputDirectory, {
       recursive: true,
     });
-    await Promise.all(sqlFiles.map((filename) =>
-      copyFile(resolve(migrationsDirectory, filename), resolve(outputDirectory, filename))));
+    await Promise.all(
+      sqlFiles.map((filename) =>
+        copyFile(
+          resolve(migrationsDirectory, filename),
+          resolve(outputDirectory, filename),
+        ),
+      ),
+    );
   },
 });

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { makeFoundation } from "@shared/tests/factories/foundation";
 import type { BusinessFixtureInterface } from "./business-fixture";
-import { InvalidBusinessHierarchyError, validateBusinessHierarchy } from "./validate-business-hierarchy";
+import {
+  InvalidBusinessHierarchyError,
+  validateBusinessHierarchy,
+} from "./validate-business-hierarchy";
 
 interface MakeSutInterface {
   sut(): ReturnType<typeof validateBusinessHierarchy>;
@@ -25,8 +28,11 @@ describe("validateBusinessHierarchy", () => {
       expect(ordered).toHaveLength(6);
       for (const location of ordered) {
         if (location.parentLocationId !== null) {
-          expect(ordered.findIndex((parent) => parent.id === location.parentLocationId))
-            .toBeLessThan(ordered.indexOf(location));
+          expect(
+            ordered.findIndex(
+              (parent) => parent.id === location.parentLocationId,
+            ),
+          ).toBeLessThan(ordered.indexOf(location));
         }
       }
       expect(fixture.locations[0]?.id).toBe("l1b");
@@ -36,9 +42,19 @@ describe("validateBusinessHierarchy", () => {
       const { fixture, sut } = makeSut();
       fixture.actors[0]!.name = "CHANGED";
       expect(makeFoundation().actors[0]?.name).toBe("OPERATOR");
-      expect(fixture.actors.every((actor) => Object.hasOwn(actor, "ownerActorId"))).toBe(true);
-      expect(fixture.actors.filter((actor) => actor.kind === "human").every((actor) => actor.ownerActorId === null)).toBe(true);
-      expect(sut().filter((location) => location.kind === "plant").map((location) => location.parentLocationId)).toEqual([null, null]);
+      expect(
+        fixture.actors.every((actor) => Object.hasOwn(actor, "ownerActorId")),
+      ).toBe(true);
+      expect(
+        fixture.actors
+          .filter((actor) => actor.kind === "human")
+          .every((actor) => actor.ownerActorId === null),
+      ).toBe(true);
+      expect(
+        sut()
+          .filter((location) => location.kind === "plant")
+          .map((location) => location.parentLocationId),
+      ).toEqual([null, null]);
     });
   });
 
@@ -78,11 +94,14 @@ describe("validateBusinessHierarchy", () => {
   });
 
   describe("when a machine has no tenant-owned line", () => {
-    it.each(["missing", "l1b", "a1a", "p1a"])("should refuse location %s", (locationId) => {
-      const { fixture, sut } = makeSut();
-      fixture.machines[0]!.locationId = locationId;
-      expect(sut).toThrowError(InvalidBusinessHierarchyError);
-      expect(sut).toThrowError("Business fixture hierarchy is invalid.");
-    });
+    it.each(["missing", "l1b", "a1a", "p1a"])(
+      "should refuse location %s",
+      (locationId) => {
+        const { fixture, sut } = makeSut();
+        fixture.machines[0]!.locationId = locationId;
+        expect(sut).toThrowError(InvalidBusinessHierarchyError);
+        expect(sut).toThrowError("Business fixture hierarchy is invalid.");
+      },
+    );
   });
 });

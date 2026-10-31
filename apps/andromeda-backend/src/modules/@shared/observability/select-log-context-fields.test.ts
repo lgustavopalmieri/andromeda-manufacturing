@@ -28,19 +28,22 @@ describe("selectLogContextFields", () => {
       },
     );
 
-    it.each(["", "Bearer synthetic-token", "synthetic\nline", "synthetic\n", "x".repeat(257)])(
-      "should omit malformed or oversized metadata strings %j",
-      (value) => {
-        const { sut } = makeSut();
+    it.each([
+      "",
+      "Bearer synthetic-token",
+      "synthetic\nline",
+      "synthetic\n",
+      "x".repeat(257),
+    ])("should omit malformed or oversized metadata strings %j", (value) => {
+      const { sut } = makeSut();
 
-        const selected = sut({
-          actorId: value,
-        });
+      const selected = sut({
+        actorId: value,
+      });
 
-        expect(selected).toEqual({});
-        expect(JSON.stringify(selected)).not.toContain("synthetic");
-      },
-    );
+      expect(selected).toEqual({});
+      expect(JSON.stringify(selected)).not.toContain("synthetic");
+    });
 
     it("should preserve the maximum supported identifier length", () => {
       const { sut } = makeSut();
@@ -55,30 +58,37 @@ describe("selectLogContextFields", () => {
       });
     });
 
-    it.each([{
-      id: "m1a",
-    }, {
-      kind: "machine",
-    }, {
-      id: {},
-      kind: "machine",
-    }, null, []])(
-      "should omit an incomplete or malformed resource %j",
-      (resource) => {
-        const { sut } = makeSut();
-
-        const selected = sut({
-          resource,
-        });
-
-        expect(selected).toEqual({});
+    it.each([
+      {
+        id: "m1a",
       },
-    );
+      {
+        kind: "machine",
+      },
+      {
+        id: {},
+        kind: "machine",
+      },
+      null,
+      [],
+    ])("should omit an incomplete or malformed resource %j", (resource) => {
+      const { sut } = makeSut();
+
+      const selected = sut({
+        resource,
+      });
+
+      expect(selected).toEqual({});
+    });
 
     it("should avoid invoking getters or caller serialization hooks", () => {
       const { sut } = makeSut();
-      const getter = vi.fn(() => { throw new Error("synthetic-getter-secret"); });
-      const toJSON = vi.fn(() => { throw new Error("synthetic-json-secret"); });
+      const getter = vi.fn(() => {
+        throw new Error("synthetic-getter-secret");
+      });
+      const toJSON = vi.fn(() => {
+        throw new Error("synthetic-json-secret");
+      });
       const context = {
         tenantId: "ta",
         resource: {
@@ -139,11 +149,14 @@ describe("selectLogContextFields", () => {
 
     it("should ignore inherited metadata", () => {
       const { sut } = makeSut();
-      const context = Object.assign(Object.create({
-        actorId: "foreign-actor",
-      }), {
-        tenantId: "ta",
-      });
+      const context = Object.assign(
+        Object.create({
+          actorId: "foreign-actor",
+        }),
+        {
+          tenantId: "ta",
+        },
+      );
 
       const selected = sut(context);
 
@@ -162,9 +175,14 @@ describe("selectLogContextFields", () => {
 
     it("should safely discard context when property inspection throws", () => {
       const { sut } = makeSut();
-      const context = new Proxy({}, {
-        getOwnPropertyDescriptor() { throw new Error("synthetic-property-secret"); },
-      });
+      const context = new Proxy(
+        {},
+        {
+          getOwnPropertyDescriptor() {
+            throw new Error("synthetic-property-secret");
+          },
+        },
+      );
 
       const selected = sut(context);
 
@@ -172,5 +190,4 @@ describe("selectLogContextFields", () => {
       expect(JSON.stringify(selected)).not.toContain("synthetic-");
     });
   });
-
 });

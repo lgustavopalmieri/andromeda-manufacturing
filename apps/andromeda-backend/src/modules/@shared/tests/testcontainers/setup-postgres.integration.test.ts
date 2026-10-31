@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import {
+  PostgreSqlContainer,
+  StartedPostgreSqlContainer,
+} from "@testcontainers/postgresql";
 import { Client } from "pg";
 import { Wait } from "testcontainers";
 import { afterAll, describe, expect, it, vi } from "vitest";
@@ -18,7 +21,9 @@ interface MakeSutInterface {
 const setups = new Set<PostgresTestSetupInterface>();
 const clients = new Set<Client>();
 
-const makeSut = async (options: MakeSutOptionsInterface = {}): Promise<MakeSutInterface> => {
+const makeSut = async (
+  options: MakeSutOptionsInterface = {},
+): Promise<MakeSutInterface> => {
   const sut = await setupPostgres(options.container);
   setups.add(sut);
   const client = new Client({
@@ -62,8 +67,12 @@ describe("setupPostgres", () => {
     it("should expose usable connection settings for a ready database without application tables", async () => {
       const { sut, client } = await makeSut();
 
-      const result = await client.query("SELECT current_database() AS database, current_user AS username");
-      const tables = await client.query("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
+      const result = await client.query(
+        "SELECT current_database() AS database, current_user AS username",
+      );
+      const tables = await client.query(
+        "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
+      );
 
       expect(sut.connection).toEqual({
         host: sut.container.getHost(),
@@ -75,10 +84,12 @@ describe("setupPostgres", () => {
         logging: false,
       });
       expect(sut.connection.port).toBeGreaterThan(0);
-      expect(result.rows).toEqual([{
-        database: sut.connection.database,
-        username: sut.connection.username,
-      }]);
+      expect(result.rows).toEqual([
+        {
+          database: sut.connection.database,
+          username: sut.connection.username,
+        },
+      ]);
       expect(tables.rows).toEqual([]);
     });
 
@@ -91,36 +102,54 @@ describe("setupPostgres", () => {
         container,
       });
 
-      const result = await client.query("SELECT current_database() AS database, current_user AS username");
+      const result = await client.query(
+        "SELECT current_database() AS database, current_user AS username",
+      );
 
       expect(sut.connection).toMatchObject({
         database: "custom_database",
         username: "custom_user",
         password: "custom_test_password",
       });
-      expect(result.rows).toEqual([{
-        database: "custom_database",
-        username: "custom_user",
-      }]);
+      expect(result.rows).toEqual([
+        {
+          database: "custom_database",
+          username: "custom_user",
+        },
+      ]);
     });
 
     it("should isolate concurrently created instances even when their database names match", async () => {
       const [first, second] = await Promise.all([makeSut(), makeSut()]);
 
-      await first.client.query("CREATE TABLE disposable_marker (id integer PRIMARY KEY)");
+      await first.client.query(
+        "CREATE TABLE disposable_marker (id integer PRIMARY KEY)",
+      );
       await first.client.query("INSERT INTO disposable_marker VALUES (1)");
-      const firstResult = await first.client.query("SELECT id FROM disposable_marker");
-      const secondResult = await second.client.query("SELECT to_regclass('public.disposable_marker') AS relation");
+      const firstResult = await first.client.query(
+        "SELECT id FROM disposable_marker",
+      );
+      const secondResult = await second.client.query(
+        "SELECT to_regclass('public.disposable_marker') AS relation",
+      );
 
-      expect(first.sut.container.getId()).not.toBe(second.sut.container.getId());
-      expect(first.sut.connection.database).toBe(second.sut.connection.database);
+      expect(first.sut.container.getId()).not.toBe(
+        second.sut.container.getId(),
+      );
+      expect(first.sut.connection.database).toBe(
+        second.sut.connection.database,
+      );
       expect(first.sut.connection.port).not.toBe(second.sut.connection.port);
-      expect(firstResult.rows).toEqual([{
-        id: 1,
-      }]);
-      expect(secondResult.rows).toEqual([{
-        relation: null,
-      }]);
+      expect(firstResult.rows).toEqual([
+        {
+          id: 1,
+        },
+      ]);
+      expect(secondResult.rows).toEqual([
+        {
+          relation: null,
+        },
+      ]);
     });
   });
 
@@ -132,7 +161,9 @@ describe("setupPostgres", () => {
 
       await Promise.all([sut.teardown(), sut.teardown()]);
       await sut.teardown();
-      const failure = await sut.container.exec(["true"]).catch((error: unknown) => error);
+      const failure = await sut.container
+        .exec(["true"])
+        .catch((error: unknown) => error);
 
       expect(failure).toBeInstanceOf(Error);
       expect(failure).toMatchObject({
@@ -145,7 +176,9 @@ describe("setupPostgres", () => {
       await client.end();
       clients.delete(client);
       const cleanupError = new Error("synthetic-teardown-failure");
-      const stopSpy = vi.spyOn(sut.container, "stop").mockRejectedValueOnce(cleanupError);
+      const stopSpy = vi
+        .spyOn(sut.container, "stop")
+        .mockRejectedValueOnce(cleanupError);
 
       const failure = await sut.teardown().catch((error: unknown) => error);
       stopSpy.mockRestore();
@@ -164,7 +197,9 @@ describe("setupPostgres", () => {
       const name = `andromeda-postgres-failure-${randomUUID()}`;
       const container = new PostgreSqlContainer("postgres:16-alpine")
         .withName(name)
-        .withWaitStrategy(Wait.forLogMessage("synthetic-unreachable-readiness-marker"))
+        .withWaitStrategy(
+          Wait.forLogMessage("synthetic-unreachable-readiness-marker"),
+        )
         .withStartupTimeout(1_000);
 
       const failure = await makeSut({
@@ -173,15 +208,19 @@ describe("setupPostgres", () => {
 
       expect(failure).toBeInstanceOf(Error);
       expect(failure).toMatchObject({
-        message: expect.stringContaining("synthetic-unreachable-readiness-marker"),
+        message: expect.stringContaining(
+          "synthetic-unreachable-readiness-marker",
+        ),
       });
       const { sut, client } = await makeSut({
         container: new PostgreSqlContainer("postgres:16-alpine").withName(name),
       });
       expect(sut.container.getName()).toBe(`/${name}`);
-      expect((await client.query("SELECT 1 AS ready")).rows).toEqual([{
-        ready: 1,
-      }]);
+      expect((await client.query("SELECT 1 AS ready")).rows).toEqual([
+        {
+          ready: 1,
+        },
+      ]);
     });
   });
 
@@ -189,12 +228,17 @@ describe("setupPostgres", () => {
     it("should remove the acquired container and preserve the setup failure", async () => {
       const name = `andromeda-postgres-settings-${randomUUID()}`;
       const setupError = new Error("synthetic-settings-failure");
-      const hostSpy = vi.spyOn(StartedPostgreSqlContainer.prototype, "getHost")
-        .mockImplementationOnce(() => { throw setupError; });
+      const hostSpy = vi
+        .spyOn(StartedPostgreSqlContainer.prototype, "getHost")
+        .mockImplementationOnce(() => {
+          throw setupError;
+        });
       let failure: unknown;
       try {
         failure = await makeSut({
-          container: new PostgreSqlContainer("postgres:16-alpine").withName(name),
+          container: new PostgreSqlContainer("postgres:16-alpine").withName(
+            name,
+          ),
         }).catch((error: unknown) => error);
       } finally {
         hostSpy.mockRestore();
@@ -208,21 +252,25 @@ describe("setupPostgres", () => {
       const { client } = await makeSut({
         container: new PostgreSqlContainer("postgres:16-alpine").withName(name),
       });
-      expect((await client.query("SELECT 1 AS ready")).rows).toEqual([{
-        ready: 1,
-      }]);
+      expect((await client.query("SELECT 1 AS ready")).rows).toEqual([
+        {
+          ready: 1,
+        },
+      ]);
     });
 
     it("should report both failures if acquired-container cleanup also fails", async () => {
       const setupError = new Error("synthetic-settings-failure");
       const cleanupError = new Error("synthetic-cleanup-failure");
       let acquiredContainer: StartedPostgreSqlContainer | undefined;
-      const hostSpy = vi.spyOn(StartedPostgreSqlContainer.prototype, "getHost")
+      const hostSpy = vi
+        .spyOn(StartedPostgreSqlContainer.prototype, "getHost")
         .mockImplementationOnce(function (this: StartedPostgreSqlContainer) {
           acquiredContainer = this;
           throw setupError;
         });
-      const stopSpy = vi.spyOn(StartedPostgreSqlContainer.prototype, "stop")
+      const stopSpy = vi
+        .spyOn(StartedPostgreSqlContainer.prototype, "stop")
         .mockRejectedValueOnce(cleanupError);
       let failure: unknown;
       try {

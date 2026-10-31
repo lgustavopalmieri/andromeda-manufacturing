@@ -1,6 +1,8 @@
 import type { GracefulShutdownOptionsInterface } from "./interfaces";
 
-export const registerGracefulShutdown = (options: GracefulShutdownOptionsInterface): (() => void) => {
+export const registerGracefulShutdown = (
+  options: GracefulShutdownOptionsInterface,
+): (() => void) => {
   const signalSource = options.signalSource ?? process;
   let stopping = false;
 
@@ -11,7 +13,10 @@ export const registerGracefulShutdown = (options: GracefulShutdownOptionsInterfa
   const onSignal = (): void => {
     if (stopping) return;
     stopping = true;
-    void Promise.resolve().then(() => options.shutdown()).catch(options.onError).finally(removeSignalHandlers);
+    void Promise.resolve()
+      .then(() => options.shutdown())
+      .catch(options.onError)
+      .finally(removeSignalHandlers);
   };
   signalSource.on("SIGINT", onSignal);
   signalSource.on("SIGTERM", onSignal);

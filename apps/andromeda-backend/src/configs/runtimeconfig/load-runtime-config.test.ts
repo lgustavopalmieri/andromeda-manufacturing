@@ -83,8 +83,14 @@ describe("loadRuntimeConfig", () => {
       const { sut, environment } = makeSut({
         useProcessEnvironment: true,
       });
-      for (const [key, value] of Object.entries(environment)) vi.stubEnv(key, value);
-      for (const key of ["DATABASE_SSL", "DATABASE_LOGGING", "RUN_MIGRATIONS_ON_BOOT", "ENABLE_AUTHORIZATION_VALIDATION"]) {
+      for (const [key, value] of Object.entries(environment))
+        vi.stubEnv(key, value);
+      for (const key of [
+        "DATABASE_SSL",
+        "DATABASE_LOGGING",
+        "RUN_MIGRATIONS_ON_BOOT",
+        "ENABLE_AUTHORIZATION_VALIDATION",
+      ]) {
         vi.stubEnv(key, undefined);
       }
 
@@ -105,7 +111,10 @@ describe("loadRuntimeConfig", () => {
       });
 
       expect(Object.keys(sut())).toEqual([
-        "http", "database", "runMigrationsOnBoot", "enableAuthorizationValidation",
+        "http",
+        "database",
+        "runMigrationsOnBoot",
+        "enableAuthorizationValidation",
       ]);
     });
 
@@ -122,29 +131,32 @@ describe("loadRuntimeConfig", () => {
   });
 
   describe("when an explicit boolean setting is supplied", () => {
-    it.each(["true", "false"])("should parse the literal %s without truthiness coercion", (value) => {
-      const { sut } = makeSut({
-        environment: {
-          DATABASE_SSL: value,
-          DATABASE_LOGGING: value,
-          RUN_MIGRATIONS_ON_BOOT: value,
-          ENABLE_AUTHORIZATION_VALIDATION: value,
-        },
-      });
-      const expected = value === "true";
+    it.each(["true", "false"])(
+      "should parse the literal %s without truthiness coercion",
+      (value) => {
+        const { sut } = makeSut({
+          environment: {
+            DATABASE_SSL: value,
+            DATABASE_LOGGING: value,
+            RUN_MIGRATIONS_ON_BOOT: value,
+            ENABLE_AUTHORIZATION_VALIDATION: value,
+          },
+        });
+        const expected = value === "true";
 
-      expect(sut()).toMatchObject({
-        database: {
-          ssl: expected,
-          logging: expected,
-        },
-        runMigrationsOnBoot: expected,
-        enableAuthorizationValidation: expected,
-        http: {
-          host: "127.0.0.1",
-        },
-      });
-    });
+        expect(sut()).toMatchObject({
+          database: {
+            ssl: expected,
+            logging: expected,
+          },
+          runMigrationsOnBoot: expected,
+          enableAuthorizationValidation: expected,
+          http: {
+            host: "127.0.0.1",
+          },
+        });
+      },
+    );
   });
 
   describe("when a required setting is missing or blank", () => {
@@ -170,43 +182,57 @@ describe("loadRuntimeConfig", () => {
   });
 
   describe("when a port has an invalid value", () => {
-    it.each(["0", "65536", "-1", "1.5", "1e3", "0x10", "3000suffix", "NaN", "Infinity", " 3000 "])(
-      "should reject %s for both services",
-      (value) => {
-        const { sut } = makeSut({
-          environment: {
-            PORT: value,
-            DATABASE_PORT: value,
-          },
-        });
-
-        expect(sut).toThrow(RuntimeConfigurationError);
-        expect(sut).toThrow("Invalid runtime configuration: http.port, database.port.");
-      },
-    );
-  });
-
-  describe("when a boolean has an invalid value", () => {
-    it.each(["", "TRUE", "FALSE", "1", "0", "yes", "false "])("should reject the nonliteral %s", (value) => {
+    it.each([
+      "0",
+      "65536",
+      "-1",
+      "1.5",
+      "1e3",
+      "0x10",
+      "3000suffix",
+      "NaN",
+      "Infinity",
+      " 3000 ",
+    ])("should reject %s for both services", (value) => {
       const { sut } = makeSut({
         environment: {
-          DATABASE_SSL: value,
-          DATABASE_LOGGING: value,
-          RUN_MIGRATIONS_ON_BOOT: value,
-          ENABLE_AUTHORIZATION_VALIDATION: value,
+          PORT: value,
+          DATABASE_PORT: value,
         },
       });
 
       expect(sut).toThrow(RuntimeConfigurationError);
       expect(sut).toThrow(
-        "Invalid runtime configuration: database.ssl, database.logging, runMigrationsOnBoot, enableAuthorizationValidation.",
+        "Invalid runtime configuration: http.port, database.port.",
       );
     });
   });
 
+  describe("when a boolean has an invalid value", () => {
+    it.each(["", "TRUE", "FALSE", "1", "0", "yes", "false "])(
+      "should reject the nonliteral %s",
+      (value) => {
+        const { sut } = makeSut({
+          environment: {
+            DATABASE_SSL: value,
+            DATABASE_LOGGING: value,
+            RUN_MIGRATIONS_ON_BOOT: value,
+            ENABLE_AUTHORIZATION_VALIDATION: value,
+          },
+        });
+
+        expect(sut).toThrow(RuntimeConfigurationError);
+        expect(sut).toThrow(
+          "Invalid runtime configuration: database.ssl, database.logging, runMigrationsOnBoot, enableAuthorizationValidation.",
+        );
+      },
+    );
+  });
+
   describe("when configuration contains sensitive invalid values", () => {
     it("should report field names without retaining input values or validation causes", () => {
-      const secret = "postgres://fixture-user:synthetic-secret@localhost/database";
+      const secret =
+        "postgres://fixture-user:synthetic-secret@localhost/database";
       const { sut } = makeSut({
         environment: {
           PORT: secret,
@@ -219,7 +245,9 @@ describe("loadRuntimeConfig", () => {
         expect.fail("Expected configuration to be rejected");
       } catch (error) {
         expect(error).toBeInstanceOf(RuntimeConfigurationError);
-        expect((error as Error).message).toBe("Invalid runtime configuration: http.port, database.host.");
+        expect((error as Error).message).toBe(
+          "Invalid runtime configuration: http.port, database.host.",
+        );
         expect(String(error)).not.toContain(secret);
         expect(JSON.stringify(error)).not.toContain(secret);
         expect((error as Error).cause).toBeUndefined();

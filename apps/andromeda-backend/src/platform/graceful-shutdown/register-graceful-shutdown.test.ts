@@ -12,10 +12,17 @@ interface MakeSutInterface {
 
 const disposers = new Set<() => void>();
 
-const makeSut = (overrides: Partial<GracefulShutdownOptionsInterface> = {}): MakeSutInterface => {
+const makeSut = (
+  overrides: Partial<GracefulShutdownOptionsInterface> = {},
+): MakeSutInterface => {
   const signalSource = new EventEmitter();
-  const shutdown = overrides.shutdown ?? vi.fn<GracefulShutdownOptionsInterface["shutdown"]>().mockResolvedValue(undefined);
-  const onError = overrides.onError ?? vi.fn<GracefulShutdownOptionsInterface["onError"]>();
+  const shutdown =
+    overrides.shutdown ??
+    vi
+      .fn<GracefulShutdownOptionsInterface["shutdown"]>()
+      .mockResolvedValue(undefined);
+  const onError =
+    overrides.onError ?? vi.fn<GracefulShutdownOptionsInterface["onError"]>();
   const sut = registerGracefulShutdown({
     signalSource,
     shutdown,
@@ -82,18 +89,23 @@ describe("registerGracefulShutdown", () => {
   });
 
   describe("when a shutdown signal arrives", () => {
-    it.each(["SIGINT", "SIGTERM"] as const)("should invoke shutdown once and remove handlers after %s", async (signal) => {
-      const { signalSource, shutdown, onError } = makeSut();
-      const existing = vi.fn();
-      signalSource.on("SIGINT", existing);
+    it.each(["SIGINT", "SIGTERM"] as const)(
+      "should invoke shutdown once and remove handlers after %s",
+      async (signal) => {
+        const { signalSource, shutdown, onError } = makeSut();
+        const existing = vi.fn();
+        signalSource.on("SIGINT", existing);
 
-      signalSource.emit(signal);
-      await vi.waitFor(() => expect(signalSource.listeners("SIGINT")).toEqual([existing]));
+        signalSource.emit(signal);
+        await vi.waitFor(() =>
+          expect(signalSource.listeners("SIGINT")).toEqual([existing]),
+        );
 
-      expect(shutdown).toHaveBeenCalledExactlyOnceWith();
-      expect(onError).not.toHaveBeenCalled();
-      expect(signalSource.listenerCount("SIGTERM")).toBe(0);
-    });
+        expect(shutdown).toHaveBeenCalledExactlyOnceWith();
+        expect(onError).not.toHaveBeenCalled();
+        expect(signalSource.listenerCount("SIGTERM")).toBe(0);
+      },
+    );
 
     it("should absorb repeated signals while the injected callback waits for startup and shutdown", async () => {
       const startup = Promise.withResolvers<void>();
@@ -118,7 +130,9 @@ describe("registerGracefulShutdown", () => {
       signalSource.emit("SIGTERM");
       const listenersDuringDrain = signalSource.listenerCount("SIGINT");
       draining.resolve();
-      await vi.waitFor(() => expect(signalSource.listenerCount("SIGINT")).toBe(0));
+      await vi.waitFor(() =>
+        expect(signalSource.listenerCount("SIGINT")).toBe(0),
+      );
 
       expect(stoppedBeforeStartup).toBe(0);
       expect(listenersDuringStartup).toBe(1);
@@ -161,7 +175,9 @@ describe("registerGracefulShutdown", () => {
       signalSource.emit("SIGINT");
       await vi.waitFor(() => expect(shutdown).toHaveBeenCalledOnce());
       draining.reject(failure);
-      await vi.waitFor(() => expect(signalSource.listenerCount("SIGTERM")).toBe(0));
+      await vi.waitFor(() =>
+        expect(signalSource.listenerCount("SIGTERM")).toBe(0),
+      );
 
       expect(onError).toHaveBeenCalledExactlyOnceWith(failure);
       expect(failure).toBeInstanceOf(Error);
@@ -171,13 +187,17 @@ describe("registerGracefulShutdown", () => {
 
     it("should route a synchronous throw through the same error callback and cleanup", async () => {
       const failure = new Error("shutdown threw");
-      const shutdown = vi.fn(() => { throw failure; });
+      const shutdown = vi.fn(() => {
+        throw failure;
+      });
       const { signalSource, onError } = makeSut({
         shutdown,
       });
 
       signalSource.emit("SIGINT");
-      await vi.waitFor(() => expect(signalSource.listenerCount("SIGINT")).toBe(0));
+      await vi.waitFor(() =>
+        expect(signalSource.listenerCount("SIGINT")).toBe(0),
+      );
 
       expect(shutdown).toHaveBeenCalledOnce();
       expect(onError).toHaveBeenCalledExactlyOnceWith(failure);

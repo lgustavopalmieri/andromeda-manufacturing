@@ -1,6 +1,10 @@
 import { loadRuntimeConfig } from "configs/runtimeconfig/load-runtime-config";
 import { bootstrap } from "platform/bootstrap";
-import { closeDatabase, createDataSource, initializeDatabase } from "platform/database/postgres/data-source";
+import {
+  closeDatabase,
+  createDataSource,
+  initializeDatabase,
+} from "platform/database/postgres/data-source";
 import { migrateDatabase } from "platform/database/postgres/migrate";
 import { registerGracefulShutdown } from "platform/graceful-shutdown/register-graceful-shutdown";
 import { HttpServer } from "platform/http/server";
@@ -17,7 +21,9 @@ const main = async (): Promise<void> => {
   });
   const starting = bootstrap({
     database: {
-      initialize: async () => { await initializeDatabase(dataSource); },
+      initialize: async () => {
+        await initializeDatabase(dataSource);
+      },
       migrate: () => migrateDatabase(dataSource),
       close: () => closeDatabase(dataSource),
     },

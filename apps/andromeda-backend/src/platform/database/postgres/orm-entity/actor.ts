@@ -29,4 +29,3 @@ export const ActorOrmEntity = new EntitySchema<ActorEntityInterface>({
     },
   },
 });
-

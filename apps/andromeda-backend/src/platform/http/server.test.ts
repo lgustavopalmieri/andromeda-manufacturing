@@ -60,9 +60,11 @@ describe("HttpServer", () => {
 
     it("should mount each supplied router at its prefix and parse JSON bodies", async () => {
       const first = express.Router();
-      first.post("/echo", (req, res) => res.json({
-        received: req.body,
-      }));
+      first.post("/echo", (req, res) =>
+        res.json({
+          received: req.body,
+        }),
+      );
       const second = express.Router();
       second.get("/ping", (_req, res) => res.status(204).end());
       const { sut } = makeSut({
@@ -91,21 +93,29 @@ describe("HttpServer", () => {
         },
       });
       expect(secondResponse.status).toBe(204);
-      expect((await request(sut.server).post("/echo").send({
-        value: 42,
-      })).status).toBe(404);
+      expect(
+        (
+          await request(sut.server).post("/echo").send({
+            value: 42,
+          })
+        ).status,
+      ).toBe(404);
     });
 
     it("should keep health independent from an injected fallback router", async () => {
       const router = express.Router();
-      router.use((_req, res) => res.json({
-        privateData: "synthetic-business-data",
-      }));
+      router.use((_req, res) =>
+        res.json({
+          privateData: "synthetic-business-data",
+        }),
+      );
       const { sut } = makeSut({
-        routes: [{
-          prefix: "/",
-          router,
-        }],
+        routes: [
+          {
+            prefix: "/",
+            router,
+          },
+        ],
       });
 
       await sut.start();
@@ -124,7 +134,8 @@ describe("HttpServer", () => {
       const { sut } = makeSut();
 
       await sut.start();
-      const response = await request(sut.server).post("/api/v1/authorization/validate-good-report")
+      const response = await request(sut.server)
+        .post("/api/v1/authorization/validate-good-report")
         .send({
           machineId: "synthetic-machine",
         });
@@ -186,26 +197,35 @@ describe("HttpServer", () => {
     it("should finish an active request before close resolves", async () => {
       let finishResponse!: () => void;
       let notifyRequestStarted!: () => void;
-      const requestStarted = new Promise<void>((resolve) => { notifyRequestStarted = resolve; });
+      const requestStarted = new Promise<void>((resolve) => {
+        notifyRequestStarted = resolve;
+      });
       const router = express.Router();
       router.get("/slow", (_req, res) => {
-        finishResponse = () => res.json({
-          completed: true,
-        });
+        finishResponse = () =>
+          res.json({
+            completed: true,
+          });
         notifyRequestStarted();
       });
       const { sut } = makeSut({
-        routes: [{
-          prefix: "/",
-          router,
-        }],
+        routes: [
+          {
+            prefix: "/",
+            router,
+          },
+        ],
       });
       await sut.start();
-      const responsePromise = request(sut.server).get("/slow").then((response) => response);
+      const responsePromise = request(sut.server)
+        .get("/slow")
+        .then((response) => response);
       await requestStarted;
       let stopped = false;
 
-      const stopping = sut.stop().then(() => { stopped = true; });
+      const stopping = sut.stop().then(() => {
+        stopped = true;
+      });
       await new Promise<void>((resolve) => setImmediate(resolve));
       const stoppedBeforeResponse = stopped;
       finishResponse();
@@ -249,7 +269,9 @@ describe("HttpServer", () => {
         message: expect.stringContaining("EADDRINUSE"),
       });
       expect(sut.server.listening).toBe(false);
-      expect((await request(occupyingServer.server).get("/health")).status).toBe(200);
+      expect(
+        (await request(occupyingServer.server).get("/health")).status,
+      ).toBe(200);
       await occupyingServer.stop();
       await sut.start();
       expect(sut.server.address()).toEqual(address);

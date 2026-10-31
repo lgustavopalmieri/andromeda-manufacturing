@@ -46,66 +46,72 @@ describe("PinoObservability", () => {
       ["allowed", "policy_allow"],
       ["denied", "policy_deny"],
       ["indeterminate", "provider_unavailable"],
-    ])("should preserve approved %s metadata in real Pino JSON at info level", (result, reasonCategory) => {
-      const { sut, records } = makeSut();
-      const context = {
-        invocationId: "invocation-1",
-        actorId: "u-operator",
-        tenantId: "ta",
-        action: "quantities:good:report",
-        resource: {
-          kind: "machine",
-          id: "m1a",
-        },
-        result,
-        reasonCategory,
-        occurredAt: "2026-10-30T16:00:00.000Z",
-        policyVersion: "authorization-m0-v2",
-        scenarioVersion: "ep00-m0-v2",
-      };
+    ])(
+      "should preserve approved %s metadata in real Pino JSON at info level",
+      (result, reasonCategory) => {
+        const { sut, records } = makeSut();
+        const context = {
+          invocationId: "invocation-1",
+          actorId: "u-operator",
+          tenantId: "ta",
+          action: "quantities:good:report",
+          resource: {
+            kind: "machine",
+            id: "m1a",
+          },
+          result,
+          reasonCategory,
+          occurredAt: "2026-10-30T16:00:00.000Z",
+          policyVersion: "authorization-m0-v2",
+          scenarioVersion: "ep00-m0-v2",
+        };
 
-      sut.event("authorization.check", context);
+        sut.event("authorization.check", context);
 
-      expect(records).toHaveLength(1);
-      expect(records[0]).toEqual({
-        level: 30,
-        time: expect.any(String),
-        event: "authorization.check",
-        context,
-      });
-      expect(Number.isNaN(Date.parse(records[0]!.time))).toBe(false);
-    });
+        expect(records).toHaveLength(1);
+        expect(records[0]).toEqual({
+          level: 30,
+          time: expect.any(String),
+          event: "authorization.check",
+          context,
+        });
+        expect(Number.isNaN(Date.parse(records[0]!.time))).toBe(false);
+      },
+    );
 
-    it.each(["completed", "business_unavailable"])("should retain an allowed decision after correlated business outcome %s", (outcome) => {
-      const { sut, records } = makeSut();
+    it.each(["completed", "business_unavailable"])(
+      "should retain an allowed decision after correlated business outcome %s",
+      (outcome) => {
+        const { sut, records } = makeSut();
 
-      sut.event("authorization.check", {
-        invocationId: "invocation-2",
-        result: "allowed",
-        reasonCategory: "policy_allow",
-      });
-      sut.event("validation.completed", {
-        invocationId: "invocation-2",
-        outcome,
-      });
-
-      expect(records).toHaveLength(2);
-      expect(records[0]).toMatchObject({
-        event: "authorization.check",
-        context: {
+        sut.event("authorization.check", {
           invocationId: "invocation-2",
           result: "allowed",
           reasonCategory: "policy_allow",
-        },
-      });
-      expect(records[1]).toMatchObject({
-        event: "validation.completed",
-        context: {
+        });
+        sut.event("validation.completed", {
           invocationId: "invocation-2",
           outcome,
-        },
-      });
-    });
+        });
+
+        expect(records).toHaveLength(2);
+        expect(records[0]).toMatchObject({
+          event: "authorization.check",
+          context: {
+            invocationId: "invocation-2",
+            result: "allowed",
+            reasonCategory: "policy_allow",
+          },
+        });
+        expect(records[1]).toMatchObject({
+          event: "validation.completed",
+          context: {
+            invocationId: "invocation-2",
+            outcome,
+          },
+        });
+      },
+    );
 
     it("should record a named event without optional context", () => {
       const { sut, records } = makeSut();
@@ -152,7 +158,6 @@ describe("PinoObservability", () => {
       expect(chunks.join("")).not.toContain("synthetic-");
       expect(toJSON).not.toHaveBeenCalled();
     });
-
   });
 
   describe("when context contains unrelated or sensitive content", () => {
@@ -213,6 +218,5 @@ describe("PinoObservability", () => {
       });
       expect(Number.isNaN(Date.parse(records[0]!.time))).toBe(false);
     });
-
   });
 });

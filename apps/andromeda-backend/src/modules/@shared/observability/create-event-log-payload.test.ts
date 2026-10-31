@@ -11,7 +11,13 @@ const makeSut = (): MakeSutInterface => ({
 
 describe("createEventLogPayload", () => {
   describe("when an event label is invalid", () => {
-    it.each(["", "Bearer synthetic-token", "synthetic\nline", "synthetic\n", "x".repeat(129)])(
+    it.each([
+      "",
+      "Bearer synthetic-token",
+      "synthetic\nline",
+      "synthetic\n",
+      "x".repeat(129),
+    ])(
       "should use a fixed fallback without logging the invalid label %j",
       (name) => {
         const { sut } = makeSut();

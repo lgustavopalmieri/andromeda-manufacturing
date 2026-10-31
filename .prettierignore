@@ -1,0 +1,17 @@
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+**/.turbo/
+.git/
+.agents/
+.aws/
+.codex/
+.env
+.env.*
+**/.env
+**/.env.*
+pnpm-lock.yaml
+architecture/
+product/
+**/*.md

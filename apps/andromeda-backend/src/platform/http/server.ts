@@ -60,7 +60,9 @@ export class HttpServer {
       } catch (error) {
         onError(error);
       }
-    }).finally(() => { this.startPromise = undefined; });
+    }).finally(() => {
+      this.startPromise = undefined;
+    });
 
     await this.startPromise;
   }
@@ -77,8 +79,10 @@ export class HttpServer {
     if (!this.server.listening) return;
 
     this.stopPromise = new Promise<void>((resolve, reject) => {
-      this.server.close((error) => error ? reject(error) : resolve());
-    }).finally(() => { this.stopPromise = undefined; });
+      this.server.close((error) => (error ? reject(error) : resolve()));
+    }).finally(() => {
+      this.stopPromise = undefined;
+    });
 
     await this.stopPromise;
   }

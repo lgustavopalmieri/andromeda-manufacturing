@@ -8,10 +8,13 @@
     "dev": "turbo run dev --parallel",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint",
-    "lint:fix": "turbo run lint:fix"
+    "lint": "turbo run lint && prettier --check \"*.{json,yaml,yml}\" \".vscode/*.json\"",
+    "lint:fix": "turbo run lint:fix && prettier --write \"*.{json,yaml,yml}\" \".vscode/*.json\"",
+    "format": "turbo run format && prettier --write \"*.{json,yaml,yml}\" \".vscode/*.json\"",
+    "format:check": "turbo run format:check && prettier --check \"*.{json,yaml,yml}\" \".vscode/*.json\""
   },
   "devDependencies": {
+    "prettier": "3.7.4",
     "turbo": "^2.8.10"
   }
 }

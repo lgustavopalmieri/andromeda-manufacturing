@@ -23,33 +23,39 @@ export const createBusinessFixture = (): BusinessFixtureInterface => ({
       code: "B",
     },
   ],
-  actors: [...[
-    "operator",
-    "owner",
-    "none",
-    "disabled",
-    "dual",
-    "outsider",
-    "b-operator",
-  ].map((name): ActorEntityInterface => ({
-    id: `u-${name}`,
-    name: name.toUpperCase(),
-    kind: "human",
-    status: "active",
-    ownerActorId: null,
-  })), {
-    id: "u-service",
-    name: "SERVICE",
-    kind: "service",
-    status: "active",
-    ownerActorId: "u-owner",
-  }, {
-    id: "u-agent",
-    name: "AGENT",
-    kind: "agent",
-    status: "active",
-    ownerActorId: "u-owner",
-  }],
+  actors: [
+    ...[
+      "operator",
+      "owner",
+      "none",
+      "disabled",
+      "dual",
+      "outsider",
+      "b-operator",
+    ].map(
+      (name): ActorEntityInterface => ({
+        id: `u-${name}`,
+        name: name.toUpperCase(),
+        kind: "human",
+        status: "active",
+        ownerActorId: null,
+      }),
+    ),
+    {
+      id: "u-service",
+      name: "SERVICE",
+      kind: "service",
+      status: "active",
+      ownerActorId: "u-owner",
+    },
+    {
+      id: "u-agent",
+      name: "AGENT",
+      kind: "agent",
+      status: "active",
+      ownerActorId: "u-owner",
+    },
+  ],
   memberships: [
     {
       tenantId: "ta",
