@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { bootstrap } from "./bootstrap";
-import type { BootstrapOptionsInterface, ServiceDatabaseInterface, ServiceHttpInterface } from "./bootstrap";
+import type {
+  BootstrapOptionsInterface,
+  ServiceDatabaseInterface,
+  ServiceHttpInterface,
+} from "./bootstrap";
 
 class DatabaseStub implements ServiceDatabaseInterface {
   async initialize(): Promise<void> {}
@@ -19,16 +23,19 @@ interface MakeSutInterface {
   http: HttpStub;
 }
 
-const makeSut = (overrides: Partial<BootstrapOptionsInterface> = {}): MakeSutInterface => {
+const makeSut = (
+  overrides: Partial<BootstrapOptionsInterface> = {},
+): MakeSutInterface => {
   const database = new DatabaseStub();
   const http = new HttpStub();
   return {
-    sut: () => bootstrap({
-      database,
-      http,
-      runMigrationsOnBoot: true,
-      ...overrides,
-    }),
+    sut: () =>
+      bootstrap({
+        database,
+        http,
+        runMigrationsOnBoot: true,
+        ...overrides,
+      }),
     database,
     http,
   };
@@ -47,8 +54,12 @@ describe("bootstrap", () => {
       expect(initialize).toHaveBeenCalledExactlyOnceWith();
       expect(migrate).toHaveBeenCalledExactlyOnceWith();
       expect(start).toHaveBeenCalledExactlyOnceWith();
-      expect(initialize.mock.invocationCallOrder[0]).toBeLessThan(migrate.mock.invocationCallOrder[0]!);
-      expect(migrate.mock.invocationCallOrder[0]).toBeLessThan(start.mock.invocationCallOrder[0]!);
+      expect(initialize.mock.invocationCallOrder[0]).toBeLessThan(
+        migrate.mock.invocationCallOrder[0]!,
+      );
+      expect(migrate.mock.invocationCallOrder[0]).toBeLessThan(
+        start.mock.invocationCallOrder[0]!,
+      );
       await service.stop();
     });
 
@@ -143,7 +154,9 @@ describe("bootstrap", () => {
       });
       expect(stop).toHaveBeenCalledOnce();
       expect(close).toHaveBeenCalledOnce();
-      expect(stop.mock.invocationCallOrder[0]).toBeLessThan(close.mock.invocationCallOrder[0]!);
+      expect(stop.mock.invocationCallOrder[0]).toBeLessThan(
+        close.mock.invocationCallOrder[0]!,
+      );
     });
 
     it("should retain the startup error and both cleanup failures without skipping database cleanup", async () => {
@@ -153,7 +166,9 @@ describe("bootstrap", () => {
       const databaseError = new Error("database cleanup failure");
       vi.spyOn(http, "start").mockRejectedValue(startupError);
       vi.spyOn(http, "stop").mockRejectedValue(httpError);
-      const close = vi.spyOn(database, "close").mockRejectedValue(databaseError);
+      const close = vi
+        .spyOn(database, "close")
+        .mockRejectedValue(databaseError);
 
       const failure = await sut().catch((error: unknown) => error);
 
@@ -206,7 +221,10 @@ describe("bootstrap", () => {
     it("should preserve the database for active HTTP work when draining fails and allow cleanup retry", async () => {
       const { sut, database, http } = makeSut();
       const cause = new Error("drain failure");
-      const stop = vi.spyOn(http, "stop").mockRejectedValueOnce(cause).mockResolvedValue(undefined);
+      const stop = vi
+        .spyOn(http, "stop")
+        .mockRejectedValueOnce(cause)
+        .mockResolvedValue(undefined);
       const close = vi.spyOn(database, "close");
       const service = await sut();
 
@@ -228,7 +246,10 @@ describe("bootstrap", () => {
       const { sut, database, http } = makeSut();
       const cause = new Error("database close failure");
       const stop = vi.spyOn(http, "stop");
-      const close = vi.spyOn(database, "close").mockRejectedValueOnce(cause).mockResolvedValue(undefined);
+      const close = vi
+        .spyOn(database, "close")
+        .mockRejectedValueOnce(cause)
+        .mockResolvedValue(undefined);
       const service = await sut();
 
       const failure = await service.stop().catch((error: unknown) => error);
