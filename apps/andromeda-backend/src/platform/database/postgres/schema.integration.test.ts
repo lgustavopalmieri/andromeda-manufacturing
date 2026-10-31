@@ -34,6 +34,9 @@ const makeSut = async (options: MakeSutOptionsInterface = {}): Promise<MakeSutIn
     database,
   };
   const sut = createDataSource(connection);
+  sut.setOptions({
+    entities: [],
+  });
   dataSources.add(sut);
   await initializeDatabase(sut);
   if (options.migrate ?? true) {

@@ -2,6 +2,7 @@ import { DataSource } from "typeorm";
 import type { DatabaseConfigInterface } from "configs/database/interface";
 import { RepositoryError, RepositoryUnavailableError } from "@shared/errors/repository.error";
 import { Foundation1793318400000 } from "./migrations/0001-foundation";
+import { TenantOrmEntity } from "./orm-entity/tenant";
 
 const CONNECTION_UNAVAILABLE_CODES = new Set([
   "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH", "ENETUNREACH", "EPIPE", "EAI_AGAIN",
@@ -33,6 +34,7 @@ export const createDataSource = (connection: DatabaseConfigInterface): DataSourc
   dropSchema: false,
   migrationsRun: false,
   migrations: [Foundation1793318400000],
+  entities: [TenantOrmEntity],
 });
 
 export const initializeDatabase = async (dataSource: DataSource): Promise<DataSource> => {
