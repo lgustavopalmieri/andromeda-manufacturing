@@ -2,6 +2,10 @@ import { DataSource } from "typeorm";
 import type { DatabaseConfigInterface } from "configs/database/interface";
 import { RepositoryError, RepositoryUnavailableError } from "@shared/errors/repository.error";
 import { Foundation1793318400000 } from "./migrations/0001-foundation";
+import { ActorOrmEntity } from "./orm-entity/actor";
+import { TenantMembershipOrmEntity } from "./orm-entity/tenant-membership";
+import { LocationOrmEntity } from "./orm-entity/location";
+import { MachineOrmEntity } from "./orm-entity/machine";
 import { TenantOrmEntity } from "./orm-entity/tenant";
 
 const CONNECTION_UNAVAILABLE_CODES = new Set([
@@ -34,7 +38,7 @@ export const createDataSource = (connection: DatabaseConfigInterface): DataSourc
   dropSchema: false,
   migrationsRun: false,
   migrations: [Foundation1793318400000],
-  entities: [TenantOrmEntity],
+  entities: [TenantOrmEntity, ActorOrmEntity, TenantMembershipOrmEntity, LocationOrmEntity, MachineOrmEntity],
 });
 
 export const initializeDatabase = async (dataSource: DataSource): Promise<DataSource> => {

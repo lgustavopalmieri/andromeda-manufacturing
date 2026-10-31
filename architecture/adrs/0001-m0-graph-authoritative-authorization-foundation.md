@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | **Accepted** |
+| Status | **Superseded in part by [ADR-0002](0002-required-nullable-persisted-references.md)** — only nullable-reference representation; unchanged baseline decisions are carried forward. |
 | Decision date | 2026-10-30, America/Sao_Paulo |
 | Source feature | [EP-00-F01 — Govern scoped access](../../product/epics/00-authorization-first-validation/01-govern-scoped-access.md) |
 | Approved package | **SPEC-EP-00-F01 revision 6, M0 executable foundation only** |
@@ -10,6 +10,8 @@
 | Context | [Authorization platform context](../00-authorization-platform-context.md) |
 | Approval evidence | The user explicitly approved revision 6 in this conversation on 2026-10-30: “perfeito. spec aprovada”. No issue/approval URL was supplied. |
 | Implementation | **not started**; no implementation stage opened or currently authorized. Accepted is design approval, not implementation authorization or delivery evidence. |
+
+**2026-10-31 lifecycle note:** [ADR-0002](0002-required-nullable-persisted-references.md) supersedes the revision-6 optional/omission representation for actor owner and location parent fields. All unrelated graph/bootstrap/isolation decisions below remain historical accepted decisions and are carried forward by ADR-0002. Original approval, session authorization boundaries and implementation statements below are preserved as records of the 2026-10-30 decision, not current execution status.
 
 ## Context and drivers
 

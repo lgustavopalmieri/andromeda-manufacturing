@@ -10,16 +10,19 @@ export const ACTOR_STATUS = {
 } as const;
 export type ActorStatus = (typeof ACTOR_STATUS)[keyof typeof ACTOR_STATUS];
 
-/** Stable platform identity, persisted in actors; contains no login credentials or permissions. */
+/**
+ * Stable platform identity, persisted in actors; contains no login credentials or permissions.
+ *
+ * @property {string} id - Identifies the person/service/agent, such as "u-operator"; DUAL has one such ID.
+ * @property {string} name - Display/fixture name; does not grant a role, tenant membership or operation.
+ * @property {ActorKind} kind - Distinguishes a human from an accountable service/agent identity.
+ * @property {ActorStatus} status - Business-directory lifecycle projection; authorization uses the persisted FGA actor-enabled gate without reading this row.
+ * @property {string|null} ownerActorId - Non-null owner required by domain validation for service/agent identities; null when no owner is assigned.
+ */
 export interface ActorEntityInterface {
-  /** Identifies the person/service/agent, such as "u-operator"; DUAL has one such ID. */
   id: string;
-  /** Display/fixture name; does not grant a role, tenant membership or operation. */
   name: string;
-  /** Distinguishes a human from an accountable service/agent identity. */
   kind: ActorKind;
-  /** Business-directory lifecycle projection; authorization uses the persisted FGA actor-enabled gate without reading this row. */
   status: ActorStatus;
-  /** Required by domain validation for service/agent identities; absent for ordinary humans. */
-  ownerActorId?: string;
+  ownerActorId: string | null;
 }

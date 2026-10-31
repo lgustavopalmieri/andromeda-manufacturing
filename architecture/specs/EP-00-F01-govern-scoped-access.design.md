@@ -1,6 +1,6 @@
 # SPEC-EP-00-F01 — Design
 
-**Package revision 6 · 2026-10-30, America/Sao_Paulo · M0 Approved · implementation in progress: M0-01–16 technically validated and accepted; M0-17 technically validated, tenant persistence mapping review pending · F01 incomplete.**
+**Package revision 7 · 2026-10-31, America/Sao_Paulo · M0 baseline and nullable-reference correction Approved · M0-01–21 implemented, technically validated and accepted under revision 7; prior revision-6 acceptance retained · F01 incomplete.**
 
 [Requirements and state](EP-00-F01-govern-scoped-access.requirements.md) → Design (this document) → [Tasks](EP-00-F01-govern-scoped-access.tasks.md).
 
@@ -8,9 +8,9 @@
 
 The main path is simple: **trusted identity context → OpenFGA decision → protected business operation**. Read the flow, responsibility and failure sections first; complete contracts/model are reference material for implementation. Stop at the M0 reading boundary and continue to Tasks. The historical appendix preserves superseded proposals, not current implementation instructions.
 
-The user explicitly approved revision 6's M0 technical design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) records the accepted M0 decisions. The approval session did not authorize implementation. The user subsequently requested the first task's implementation in a new context on the same date. M0-01 configuration is implemented and reorganized at the user's request into separate database/runtime configuration folders and schema/error/interface/loader files, with a configuration-only `main.ts`. Its behavior is unchanged: 33 unit tests, strict typecheck, build and two built-entrypoint smoke scenarios passed; user review was accepted on 2026-10-30, America/Sao_Paulo. Future F01 milestones and G01–G04 require their own reviewed designs. The [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-6-m0) and [execution evidence](EP-00-F01-govern-scoped-access.tasks.md#execution-evidence) record the current stage and limits; approved design contracts remain unchanged.
+The user explicitly approved revision 6's M0 technical design on 2026-10-30, America/Sao_Paulo. [ADR-0001](../adrs/0001-m0-graph-authoritative-authorization-foundation.md) records the accepted M0 decisions. The approval session did not authorize implementation. The user subsequently requested the first task's implementation in a new context on the same date. M0-01 configuration is implemented and reorganized at the user's request into separate database/runtime configuration folders and schema/error/interface/loader files, with a configuration-only `main.ts`. Its behavior is unchanged: 33 unit tests, strict typecheck, build and two built-entrypoint smoke scenarios passed; user review was accepted on 2026-10-30, America/Sao_Paulo. Future F01 milestones and G01–G04 require their own reviewed designs. The [Backend handoff](EP-00-F01-govern-scoped-access.requirements.md#backend-handoff--approved-revision-7-m0) and [execution evidence](EP-00-F01-govern-scoped-access.tasks.md#execution-evidence) record the current stage and limits; unchanged baseline decisions remain in force; the approved revision-7 nullable-reference correction is specified below.
 
-**Current execution — 2026-10-30:** M0-01–16 are technically validated and accepted, including the M0-16 schema/index correction. The user authorized M0-17; `TenantOrmEntity` now maps the complete tenant contract to `tenants` and is registered in the datasource, retaining required text `id`/`code`, stable non-generated primary identity and disabled schema automation. Eleven real tenant mapping cases and 97 affected schema/connection/native-main regression cases passed; root lint, strict app typecheck and actual production builds/native artifacts passed. The schema suite explicitly uses no ORM metadata, preserving its independent SQL checks. Tenant persistence mapping review is pending. No approved design contract or migration changed; M0-18 onward has not started. M0/F01 remain in progress.
+**Current execution — 2026-10-31:** The user explicitly accepted the completed grouped M0-18–21 tasks on 2026-10-31, America/Sao_Paulo, including the revision-7 required-nullable actor/location correction, removal of both optional-field subscribers and the final entity-level multiline JSDoc correction. M0-01–21 are implemented, technically validated and accepted under the current revision-7 contracts; prior revision-6 acceptance and technical evidence remain historical facts. The 169 focused PostgreSQL/composition results, compiler probes, lint/typecheck and build/native artifact evidence remain recorded in Tasks. The latest comment-only correction changed only five module entity files, preserved non-comment TypeScript tokens and passed selected lint, strict typecheck and whitespace verification. This action updates acceptance status only; no runtime check was rerun. M0-22 is not started or authorized by this instruction; M0/F01 and aggregate epic delivery remain in progress, with business validation unchanged.
 
 ## One request, from identity to authorization to business data
 
@@ -162,11 +162,21 @@ TC-M0-03 retains its existing expectations. Shared unit checks verify payload pr
 
 Keep the five SQL contracts/mappings and same-tenant foreign keys from the previous proposal. `Machine.locationId` remains required; parent/location relationships and original machine identity are ordinary business data. Actor/membership directory status fields may be stored for business views, but the authorization adapter neither reads nor trusts them. Future lifecycle features must define any projection update/recovery explicitly; no automatic SQL/FGA synchronization is implied.
 
-Use string primary IDs, unique `(tenantId,actorId)` membership, unique `(tenantId,id)` resource keys and composite same-tenant location/machine foreign keys. Reused `(tenantId,code)` values stay distinct across A/B. Root location parent and optional actor owner map SQL null to omitted TypeScript fields. Fixed seed validation checks plant→area→line kinds/cycles. Migrations are versioned/transactional with `synchronize:false` and packaged SQL assets; no public hierarchy editor is delivered.
+Use string primary IDs, unique `(tenantId,actorId)` membership, unique `(tenantId,id)` resource keys and composite same-tenant location/machine foreign keys. Reused `(tenantId,code)` values stay distinct across A/B. Root location parent and nullable actor owner map SQL NULL directly to required TypeScript properties whose values are `string | null`. Fixed seed validation checks plant→area→line kinds/cycles. Migrations are versioned/transactional with `synchronize:false` and packaged SQL assets; no public hierarchy editor is delivered.
+
+### Revision 7 — nullable reference representation
+
+The user-requested correction is approved on 2026-10-31, America/Sao_Paulo, and recorded in [ADR-0002](../adrs/0002-required-nullable-persisted-references.md). The complete actor and location contracts below replace optional reference properties with required `string | null` properties. `null` means the persisted reference is absent; a string remains an ordinary foreign reference. A service/agent's future owner-validation rule still requires a non-null owner where applicable; this representation change implements no lifecycle/domain validation.
+
+`owner_actor_id` and `parent_location_id` remain nullable SQL columns with the existing foreign keys and indexes. `ActorOrmEntity` and `LocationOrmEntity` map them directly with `nullable:true`; do not delete null properties or transform null to undefined. Remove `ActorOptionalFieldsSubscriber` and `LocationOptionalFieldsSubscriber`, their helper shapes/imports/decorators and datasource registrations. Retain both mappings and all unrelated datasource behavior.
+
+Complete persisted entities expose `ownerActorId` / `parentLocationId` as own properties, including a null value after hydration, complete-entity save/insert/update and reconnect. A typed explicit null clears a nullable reference and round-trips as SQL NULL. TypeORM partial update inputs may omit a column to leave it unchanged; these partial inputs do not redefine the complete entity shape. Tests/factories must distinguish that omission from deliberately supplying null. Future seeds provide explicit null for no-owner/root-parent records.
+
+This changes the TypeScript representation consumed by existing factories/mappings, so strict compiler checks and real SQL mapping checks are required. It adds no column, migration, constraint, index, permission or hierarchy rule. Prior revision-6 acceptance/evidence remains valid for its historical scope; it is not evidence that this new representation has already been implemented.
 
 ### M0-16 constraint and index coverage
 
-The retained schema uses five primary keys, four tenant-scoped unique constraints, seven foreign keys, four catalog checks and required non-null fields. The location and machine foreign keys include the tenant; nullable owner/root-parent references retain their approved optionality. Indexes support these existing relationships without changing the records the schema accepts or adding hierarchy/lifecycle rules.
+The retained schema uses five primary keys, four tenant-scoped unique constraints, seven foreign keys, four catalog checks and required non-null fields. The location and machine foreign keys include the tenant; nullable owner/root-parent references retain their SQL nullability, represented by required nullable TypeScript properties in revision 7. Indexes support these existing relationships without changing the records the schema accepts or adding hierarchy/lifecycle rules.
 
 PostgreSQL creates unique B-tree indexes for primary keys and unique constraints. The foundation therefore already has nine indexes:
 
@@ -373,9 +383,16 @@ export interface TenantEntityInterface {
 Intended path: `modules/identity/entity/actor.entity.ts`.
 
 ```ts
-export const ACTOR_KIND = { HUMAN: "human", SERVICE: "service", AGENT: "agent" } as const;
+export const ACTOR_KIND = {
+  HUMAN: "human",
+  SERVICE: "service",
+  AGENT: "agent",
+} as const;
 export type ActorKind = (typeof ACTOR_KIND)[keyof typeof ACTOR_KIND];
-export const ACTOR_STATUS = { ACTIVE: "active", INACTIVE: "inactive" } as const;
+export const ACTOR_STATUS = {
+  ACTIVE: "active",
+  INACTIVE: "inactive",
+} as const;
 export type ActorStatus = (typeof ACTOR_STATUS)[keyof typeof ACTOR_STATUS];
 
 /** Stable platform identity, persisted in actors; contains no login credentials or permissions. */
@@ -388,8 +405,8 @@ export interface ActorEntityInterface {
   kind: ActorKind;
   /** Business-directory lifecycle projection; authorization uses the persisted FGA actor-enabled gate without reading this row. */
   status: ActorStatus;
-  /** Required by domain validation for service/agent identities; absent for ordinary humans. */
-  ownerActorId?: string;
+  /** Non-null owner required by domain validation for service/agent identities; null when no owner is assigned. */
+  ownerActorId: string | null;
 }
 ```
 
@@ -413,7 +430,12 @@ export interface TenantMembershipEntityInterface {
 Intended path: `modules/location/entity/location.entity.ts`.
 
 ```ts
-export const LOCATION_KIND = { PLANT: "plant", AREA: "area", LINE: "line", WAREHOUSE: "warehouse" } as const;
+export const LOCATION_KIND = {
+  PLANT: "plant",
+  AREA: "area",
+  LINE: "line",
+  WAREHOUSE: "warehouse",
+} as const;
 export type LocationKind = (typeof LOCATION_KIND)[keyof typeof LOCATION_KIND];
 
 /** Actual factory/logistics location, persisted in locations; application owns this hierarchy. */
@@ -426,8 +448,8 @@ export interface LocationEntityInterface {
   code: string;
   /** Determines valid parent kinds; warehouses cannot become line descendants. */
   kind: LocationKind;
-  /** Current parent location. Absent for a root plant; its FGA parent is the tenant root. */
-  parentLocationId?: string;
+  /** Current parent location. Null for a root plant; its FGA parent is the tenant root. */
+  parentLocationId: string | null;
 }
 ```
 
